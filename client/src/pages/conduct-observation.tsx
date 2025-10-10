@@ -11,6 +11,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import { Link } from "wouter";
 
@@ -167,6 +169,9 @@ const categories = [
 
 export default function ConductObservation() {
   const [teacher, setTeacher] = useState("");
+  const [lessonTopic, setLessonTopic] = useState("");
+  const [classGroup, setClassGroup] = useState("");
+  const [qualitativeFeedback, setQualitativeFeedback] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [checkedHabits, setCheckedHabits] = useState<string[]>([]);
 
@@ -199,6 +204,9 @@ export default function ConductObservation() {
   const handleSubmit = () => {
     console.log("Submit observation:", {
       teacher,
+      lessonTopic,
+      classGroup,
+      qualitativeFeedback,
       categories: selectedCategories,
       habits: checkedHabits,
       score: `${totalScore}/${totalMaxScore}`,
@@ -233,22 +241,55 @@ export default function ConductObservation() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Select Teacher</CardTitle>
+          <CardTitle>Observation Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-2">
-            <Label htmlFor="teacher">Teacher to observe</Label>
-            <Select value={teacher} onValueChange={setTeacher}>
-              <SelectTrigger id="teacher" data-testid="select-teacher">
-                <SelectValue placeholder="Select a teacher" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="sarah">Sarah Mitchell</SelectItem>
-                <SelectItem value="james">James Chen</SelectItem>
-                <SelectItem value="emily">Emily Rodriguez</SelectItem>
-                <SelectItem value="michael">Michael Thompson</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label htmlFor="teacher">Teacher to observe</Label>
+              <Select value={teacher} onValueChange={setTeacher}>
+                <SelectTrigger id="teacher" data-testid="select-teacher">
+                  <SelectValue placeholder="Select a teacher" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="sarah">Sarah Mitchell</SelectItem>
+                  <SelectItem value="james">James Chen</SelectItem>
+                  <SelectItem value="emily">Emily Rodriguez</SelectItem>
+                  <SelectItem value="michael">Michael Thompson</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="class">Class</Label>
+              <Input
+                id="class"
+                placeholder="e.g., Year 9 Mathematics"
+                value={classGroup}
+                onChange={(e) => setClassGroup(e.target.value)}
+                data-testid="input-class"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="lesson-topic">Lesson Topic</Label>
+              <Input
+                id="lesson-topic"
+                placeholder="e.g., Introduction to Quadratic Equations"
+                value={lessonTopic}
+                onChange={(e) => setLessonTopic(e.target.value)}
+                data-testid="input-lesson-topic"
+              />
+            </div>
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="qualitative-feedback">Qualitative Feedback</Label>
+              <Textarea
+                id="qualitative-feedback"
+                placeholder="Enter your overall observations and feedback about the lesson..."
+                value={qualitativeFeedback}
+                onChange={(e) => setQualitativeFeedback(e.target.value)}
+                rows={4}
+                data-testid="textarea-qualitative-feedback"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -1,10 +1,36 @@
 import { StatCard } from "@/components/stat-card";
 import { ObservationCard } from "@/components/observation-card";
+import { AnalyticsChart } from "@/components/analytics-chart";
+import { CategoryPerformance } from "@/components/category-performance";
 import { Eye, Users, ClipboardCheck, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Dashboard() {
+  const observationTrend = [
+    { label: "Mon", value: 3 },
+    { label: "Tue", value: 5 },
+    { label: "Wed", value: 4 },
+    { label: "Thu", value: 6 },
+    { label: "Fri", value: 4 },
+  ];
+
+  const topPerformers = [
+    { label: "Sarah Mitchell", value: 4.8, maxValue: 5 },
+    { label: "Emily Rodriguez", value: 4.6, maxValue: 5 },
+    { label: "James Chen", value: 4.3, maxValue: 5 },
+    { label: "Lisa Anderson", value: 4.2, maxValue: 5 },
+  ];
+
+  const categoryPerformance = [
+    { name: "Entrance and Do Now", avgScore: 5.2, maxScore: 7, trend: "up" as const, trendValue: 12 },
+    { name: "Direct Instruction", avgScore: 3.1, maxScore: 4, trend: "stable" as const, trendValue: 0 },
+    { name: "Checking for Understanding", avgScore: 2.8, maxScore: 4, trend: "down" as const, trendValue: 5 },
+    { name: "Application", avgScore: 3.5, maxScore: 4, trend: "up" as const, trendValue: 8 },
+    { name: "Exit Routine", avgScore: 4.1, maxScore: 5, trend: "up" as const, trendValue: 15 },
+  ];
+
   const recentObservations = [
     {
       teacherName: "Sarah Mitchell",
@@ -38,7 +64,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground mt-1">
-            Overview of observation activity
+            Overview of observation activity and insights
           </p>
         </div>
         <Link href="/observe">
@@ -76,25 +102,50 @@ export default function Dashboard() {
         />
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">Recent Observations</h2>
-          <Link href="/history">
-            <Button variant="ghost" size="sm" data-testid="button-view-all">
-              View All
-            </Button>
-          </Link>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {recentObservations.map((obs, idx) => (
-            <ObservationCard
-              key={idx}
-              {...obs}
-              onView={() => console.log("View observation")}
+      <Tabs defaultValue="overview" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="overview" data-testid="tab-overview">Overview</TabsTrigger>
+          <TabsTrigger value="analytics" data-testid="tab-analytics">Analytics</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview" className="space-y-6">
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Recent Observations</h2>
+              <Link href="/history">
+                <Button variant="ghost" size="sm" data-testid="button-view-all">
+                  View All
+                </Button>
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {recentObservations.map((obs, idx) => (
+                <ObservationCard
+                  key={idx}
+                  {...obs}
+                  onView={() => console.log("View observation")}
+                />
+              ))}
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <AnalyticsChart
+              title="Observation Activity"
+              data={observationTrend}
+              showFilter
             />
-          ))}
-        </div>
-      </div>
+            <AnalyticsChart
+              title="Top Performers"
+              data={topPerformers}
+              type="progress"
+            />
+          </div>
+          <CategoryPerformance categories={categoryPerformance} />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
