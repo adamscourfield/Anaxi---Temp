@@ -41,10 +41,10 @@ export function ObservationCard({
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex items-baseline gap-2">
+          <span className="text-sm text-muted-foreground">Score:</span>
           <span className="text-2xl font-semibold" data-testid="text-observation-score">
             {score}/{maxScore}
           </span>
-          <span className="text-sm text-muted-foreground">habits observed</span>
         </div>
         <div className="flex flex-wrap gap-2">
           {categories.slice(0, 2).map((category) => (

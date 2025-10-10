@@ -4,7 +4,6 @@ import {
   ClipboardList,
   Eye,
   History,
-  Building2,
 } from "lucide-react";
 import {
   Sidebar,
@@ -20,6 +19,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import anaxiLogo from "@assets/7_1760131494886.png";
 
 const menuItems = [
   {
@@ -56,11 +56,9 @@ export function AppSidebar() {
     <Sidebar>
       <SidebarHeader className="p-4">
         <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-md bg-primary flex items-center justify-center">
-            <Building2 className="h-6 w-6 text-primary-foreground" />
-          </div>
+          <img src={anaxiLogo} alt="Anaxi Logo" className="h-10 w-10" />
           <div>
-            <h2 className="font-semibold text-base">TeacherObs</h2>
+            <h2 className="font-semibold text-base">Anaxi</h2>
             <p className="text-xs text-muted-foreground">Springdale Academy</p>
           </div>
         </div>
