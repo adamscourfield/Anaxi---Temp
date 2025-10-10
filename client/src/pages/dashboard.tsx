@@ -1,0 +1,100 @@
+import { StatCard } from "@/components/stat-card";
+import { ObservationCard } from "@/components/observation-card";
+import { Eye, Users, ClipboardCheck, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
+
+export default function Dashboard() {
+  const recentObservations = [
+    {
+      teacherName: "Sarah Mitchell",
+      teacherInitials: "SM",
+      date: new Date(2025, 9, 8),
+      categories: ["Entrance and Do Now", "Direct Instruction", "Pace and Presence"],
+      score: 18,
+      maxScore: 20,
+    },
+    {
+      teacherName: "James Chen",
+      teacherInitials: "JC",
+      date: new Date(2025, 9, 5),
+      categories: ["Behaviour Routines", "Academic Talk"],
+      score: 12,
+      maxScore: 15,
+    },
+    {
+      teacherName: "Emily Rodriguez",
+      teacherInitials: "ER",
+      date: new Date(2025, 9, 3),
+      categories: ["Application", "Exit Routine"],
+      score: 9,
+      maxScore: 10,
+    },
+  ];
+
+  return (
+    <div className="p-6 space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1">
+            Overview of observation activity
+          </p>
+        </div>
+        <Link href="/observe">
+          <Button data-testid="button-new-observation">
+            <Eye className="h-4 w-4 mr-2" />
+            New Observation
+          </Button>
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatCard
+          title="Total Observations"
+          value="24"
+          icon={Eye}
+          description="This month"
+        />
+        <StatCard
+          title="Active Teachers"
+          value="18"
+          icon={Users}
+          description="In your school"
+        />
+        <StatCard
+          title="Avg. Score"
+          value="4.2"
+          icon={ClipboardCheck}
+          description="Out of 5"
+        />
+        <StatCard
+          title="Improvement"
+          value="+12%"
+          icon={TrendingUp}
+          description="vs. last month"
+        />
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-semibold">Recent Observations</h2>
+          <Link href="/history">
+            <Button variant="ghost" size="sm" data-testid="button-view-all">
+              View All
+            </Button>
+          </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {recentObservations.map((obs, idx) => (
+            <ObservationCard
+              key={idx}
+              {...obs}
+              onView={() => console.log("View observation")}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
