@@ -16,21 +16,21 @@
   --elevate-1: rgba(0,0,0, .02);
   --elevate-2: rgba(0,0,0, .06);
 
-  --background: 20 40% 98%;
+  --background: 0 0% 100%;
 
-  --foreground: 0 0% 15%;
+  --foreground: 225 15% 25%;
 
-  --border: 0 0% 88%;
+  --border: 0 0% 92%;
 
   --card: 0 0% 100%;
 
-  --card-foreground: 0 0% 15%;
+  --card-foreground: 225 15% 25%;
 
-  --card-border: 0 0% 92%;
+  --card-border: 0 0% 94%;
 
-  --sidebar: 0 0% 98%;
+  --sidebar: 0 0% 99%;
 
-  --sidebar-foreground: 0 0% 45%;
+  --sidebar-foreground: 225 10% 55%;
 
   --sidebar-border: 0 0% 92%;
 
@@ -50,21 +50,21 @@
 
   --popover-border: 0 0% 93%;
 
-  --primary: 15 85% 65%;
+  --primary: 15 80% 72%;
 
-  --primary-foreground: 0 0% 100%;
+  --primary-foreground: 225 15% 25%;
 
-  --secondary: 0 0% 96%;
+  --secondary: 0 0% 97%;
 
-  --secondary-foreground: 0 0% 15%;
+  --secondary-foreground: 225 15% 25%;
 
-  --muted: 0 0% 96%;
+  --muted: 0 0% 97%;
 
-  --muted-foreground: 0 0% 50%;
+  --muted-foreground: 225 10% 55%;
 
-  --accent: 15 90% 95%;
+  --accent: 15 85% 96%;
 
-  --accent-foreground: 15 85% 55%;
+  --accent-foreground: 15 80% 65%;
 
   --destructive: 0 72% 51%;
 
@@ -85,7 +85,7 @@
   --amber: 45 93% 47%;
   --amber-foreground: 0 0% 100%;
 
-  --pink: 330 75% 58%;
+  --pink: 330 75% 35%;
   --pink-foreground: 0 0% 100%;
 
   --input: 0 0% 88%;
@@ -100,14 +100,14 @@
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
   --radius: 0.5rem; /* 8px */
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.04);
-  --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.06);
-  --shadow-sm: 0px 2px 6px 0px hsl(0 0% 0% / 0.08), 0px 1px 2px -1px hsl(0 0% 0% / 0.04);
-  --shadow: 0px 4px 10px 0px hsl(0 0% 0% / 0.10), 0px 2px 4px -1px hsl(0 0% 0% / 0.06);
-  --shadow-md: 0px 6px 16px 0px hsl(0 0% 0% / 0.12), 0px 3px 6px -2px hsl(0 0% 0% / 0.08);
-  --shadow-lg: 0px 10px 24px 0px hsl(0 0% 0% / 0.14), 0px 5px 10px -3px hsl(0 0% 0% / 0.10);
-  --shadow-xl: 0px 20px 36px 0px hsl(0 0% 0% / 0.16), 0px 10px 15px -5px hsl(0 0% 0% / 0.12);
-  --shadow-2xl: 0px 30px 60px 0px hsl(0 0% 0% / 0.20);
+  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.02);
+  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.03);
+  --shadow-sm: 0px 2px 4px 0px hsl(0 0% 0% / 0.04);
+  --shadow: 0px 4px 8px 0px hsl(0 0% 0% / 0.05);
+  --shadow-md: 0px 6px 12px 0px hsl(0 0% 0% / 0.06);
+  --shadow-lg: 0px 8px 16px 0px hsl(0 0% 0% / 0.08);
+  --shadow-xl: 0px 12px 24px 0px hsl(0 0% 0% / 0.10);
+  --shadow-2xl: 0px 16px 32px 0px hsl(0 0% 0% / 0.12);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 
@@ -221,7 +221,7 @@
   --amber: 45 93% 52%;
   --amber-foreground: 0 0% 100%;
 
-  --pink: 330 75% 63%;
+  --pink: 330 75% 40%;
   --pink-foreground: 0 0% 100%;
 
   --input: 240 10% 30%;
@@ -276,13 +276,8 @@
   }
 
   body {
-    @apply font-sans antialiased text-foreground;
-    background: radial-gradient(ellipse at top, hsl(20 60% 95%), hsl(20 40% 98%) 50%, hsl(0 0% 100%) 100%);
+    @apply font-sans antialiased text-foreground bg-background;
     min-height: 100vh;
-  }
-
-  .dark body {
-    background: radial-gradient(ellipse at top, hsl(240 20% 12%), hsl(240 15% 10%) 50%, hsl(240 10% 8%) 100%);
   }
 }
 

@@ -12,11 +12,11 @@ interface StatCardProps {
 const colorClasses = {
   primary: "bg-primary/10 text-primary",
   success: "bg-[hsl(var(--success)_/_0.1)] text-[hsl(var(--success))]",
-  info: "bg-[hsl(var(--info)_/_0.1)] text-[hsl(var(--info))]",
+  info: "bg-[hsl(225_15%_25%_/_0.08)] text-[hsl(225_15%_25%)]",
   warning: "bg-[hsl(var(--warning)_/_0.1)] text-[hsl(var(--warning))]",
   teal: "bg-[hsl(var(--teal)_/_0.1)] text-[hsl(var(--teal))]",
   amber: "bg-[hsl(var(--amber)_/_0.1)] text-[hsl(var(--amber))]",
-  pink: "bg-[hsl(var(--pink)_/_0.1)] text-[hsl(var(--pink))]",
+  pink: "bg-primary/10 text-primary",
 };
 
 export function StatCard({ title, value, icon: Icon, description, color = "primary" }: StatCardProps) {
