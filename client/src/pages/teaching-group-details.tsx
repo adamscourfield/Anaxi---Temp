@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Users } from "lucide-react";
-import { useState } from "react";
+import { useEffect } from "react";
 
 interface Teacher {
   id: string;
@@ -245,9 +245,7 @@ export default function TeachingGroupDetails() {
     },
   ];
 
-  const [selectedGroupId, setSelectedGroupId] = useState(id || "1");
-
-  const currentGroup = teachingGroups.find((g) => g.id === selectedGroupId);
+  const currentGroup = teachingGroups.find((g) => g.id === id);
 
   if (!currentGroup) {
     return (
@@ -297,8 +295,8 @@ export default function TeachingGroupDetails() {
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground">Switch Group:</span>
           <Select
-            value={selectedGroupId}
-            onValueChange={setSelectedGroupId}
+            value={id}
+            onValueChange={(newId) => setLocation(`/teaching-groups/${newId}`)}
           >
             <SelectTrigger className="w-[200px]" data-testid="select-group">
               <SelectValue />
