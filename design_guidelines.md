@@ -30,11 +30,12 @@
   - Sidebar background: `0 0% 98%` (very light grey)
   
 - **Accent Colors** (for functional elements only):
-  - **Primary**: 239 84% 67% - Primary actions, key CTAs
+  - **Primary (Peachy/Salmon)**: 15 85% 65% - Primary actions, key CTAs, active states
   - **Success (Green)**: 142 76% 45% - Achievements, completed observations, high scores
   - **Warning (Orange)**: 25 95% 53% - Alerts, missing habits, attention needed
   - **Info (Blue)**: 210 85% 58% - Informational elements, analytics, insights  
   - **Danger (Red)**: 0 72% 51% - Errors, critical actions, deletions
+  - **Dark Navy**: 220 25% 25% - Chart contrast, dark accents
 
 ### Functional Colors
 - **Category Colors**: Each observation category gets a distinct color for easy recognition
