@@ -70,6 +70,8 @@ export default function Dashboard() {
       memberCount: 5,
       avgScore: 4.5,
       maxScore: 5,
+      totalObservations: 23,
+      weeklyObservations: 5,
     },
     {
       id: "2",
@@ -81,6 +83,8 @@ export default function Dashboard() {
       memberCount: 4,
       avgScore: 4.1,
       maxScore: 5,
+      totalObservations: 18,
+      weeklyObservations: 3,
     },
     {
       id: "3",
@@ -92,6 +96,8 @@ export default function Dashboard() {
       memberCount: 6,
       avgScore: 4.3,
       maxScore: 5,
+      totalObservations: 31,
+      weeklyObservations: 7,
     },
   ];
 

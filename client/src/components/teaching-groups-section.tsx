@@ -13,6 +13,8 @@ interface TeachingGroup {
   memberCount: number;
   avgScore: number;
   maxScore: number;
+  totalObservations: number;
+  weeklyObservations: number;
 }
 
 interface TeachingGroupsSectionProps {
@@ -54,6 +56,18 @@ export function TeachingGroupsSection({ groups }: TeachingGroupsSectionProps) {
                       <AvatarFallback className="text-xs">{group.groupLead.initials}</AvatarFallback>
                     </Avatar>
                     <span className="text-sm font-medium">{group.groupLead.name}</span>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between pt-2 border-t">
+                  <span className="text-sm text-muted-foreground">Observations by Lead</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium" data-testid={`text-total-observations-${group.id}`}>
+                      {group.totalObservations} total
+                    </span>
+                    <span className="text-xs text-muted-foreground">•</span>
+                    <span className="text-sm font-medium" data-testid={`text-weekly-observations-${group.id}`}>
+                      {group.weeklyObservations} this week
+                    </span>
                   </div>
                 </div>
                 <div className="flex items-center justify-between pt-2 border-t">
