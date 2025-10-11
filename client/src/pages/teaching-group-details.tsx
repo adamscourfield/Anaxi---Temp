@@ -21,6 +21,7 @@ import {
 import { ArrowLeft, Users } from "lucide-react";
 import { useState } from "react";
 import { TeacherObservationsPanel } from "@/components/teacher-observations-panel";
+import { ObservationDetailsPanel } from "@/components/observation-details-panel";
 
 interface Teacher {
   id: string;
@@ -254,6 +255,7 @@ export default function TeachingGroupDetails() {
       teacherId: "t1",
       teacherName: "Sarah Mitchell",
       teacherInitials: "SM",
+      observerName: "John Smith",
       date: new Date("2024-03-15"),
       lessonTopic: "Shakespeare's Macbeth",
       classInfo: "Year 10 English",
@@ -298,6 +300,7 @@ export default function TeachingGroupDetails() {
       teacherId: "t1",
       teacherName: "Sarah Mitchell",
       teacherInitials: "SM",
+      observerName: "Emily Brown",
       date: new Date("2024-03-10"),
       lessonTopic: "Creative Writing",
       classInfo: "Year 9 English",
@@ -333,6 +336,7 @@ export default function TeachingGroupDetails() {
       teacherId: "t2",
       teacherName: "David Brown",
       teacherInitials: "DB",
+      observerName: "Sarah Mitchell",
       date: new Date("2024-03-14"),
       lessonTopic: "Poetry Analysis",
       classInfo: "Year 11 English",
@@ -372,6 +376,9 @@ export default function TeachingGroupDetails() {
   const teacherObservations = selectedTeacherId
     ? allObservations.filter(obs => obs.teacherId === selectedTeacherId)
     : [];
+  const selectedObservation = selectedObservationId
+    ? allObservations.find(obs => obs.id === selectedObservationId)
+    : null;
 
   if (!currentGroup) {
     return (
@@ -540,6 +547,12 @@ export default function TeachingGroupDetails() {
           setSelectedTeacherId(null);
           setSelectedObservationId(obsId);
         }}
+      />
+
+      <ObservationDetailsPanel
+        isOpen={selectedObservationId !== null}
+        onClose={() => setSelectedObservationId(null)}
+        observation={selectedObservation}
       />
     </div>
   );

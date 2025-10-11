@@ -55,11 +55,11 @@ const menuItems = [
 ];
 
 const iconColorClasses: Record<string, string> = {
-  primary: "text-primary",
-  info: "text-[hsl(var(--info))]",
-  teal: "text-[hsl(var(--teal))]",
-  amber: "text-[hsl(var(--amber))]",
-  pink: "text-[hsl(var(--pink))]",
+  primary: "text-sidebar-foreground",
+  info: "text-sidebar-foreground",
+  teal: "text-sidebar-foreground",
+  amber: "text-sidebar-foreground",
+  pink: "text-sidebar-foreground",
 };
 
 export function AppSidebar() {
