@@ -3,7 +3,6 @@ import { ObservationCard } from "@/components/observation-card";
 import { AnalyticsChart } from "@/components/analytics-chart";
 import { CategoryPerformance } from "@/components/category-performance";
 import { TeachingGroupsSection } from "@/components/teaching-groups-section";
-import { TeacherObservationsPanel } from "@/components/teacher-observations-panel";
 import { ObservationDetailsPanel } from "@/components/observation-details-panel";
 import { Eye, Users, ClipboardCheck, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 
 export default function Dashboard() {
-  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
   const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
   const observationTrend = [
     { label: "Mon", value: 3 },
@@ -72,53 +70,11 @@ export default function Dashboard() {
         name: "Sarah Mitchell",
         initials: "SM",
       },
-      teachers: [
-        {
-          id: "t1",
-          name: "Sarah Mitchell",
-          initials: "SM",
-          totalObservations: 12,
-          avgScore: 4.5,
-          maxScore: 5,
-          weeklyObservations: 3,
-        },
-        {
-          id: "t2",
-          name: "David Brown",
-          initials: "DB",
-          totalObservations: 8,
-          avgScore: 4.2,
-          maxScore: 5,
-          weeklyObservations: 2,
-        },
-        {
-          id: "t3",
-          name: "Jennifer Lee",
-          initials: "JL",
-          totalObservations: 10,
-          avgScore: 4.7,
-          maxScore: 5,
-          weeklyObservations: 2,
-        },
-        {
-          id: "t4",
-          name: "Michael Taylor",
-          initials: "MT",
-          totalObservations: 6,
-          avgScore: 3.8,
-          maxScore: 5,
-          weeklyObservations: 1,
-        },
-        {
-          id: "t5",
-          name: "Amy Wilson",
-          initials: "AW",
-          totalObservations: 9,
-          avgScore: 4.4,
-          maxScore: 5,
-          weeklyObservations: 2,
-        },
-      ],
+      memberCount: 5,
+      avgScore: 4.5,
+      maxScore: 5,
+      totalObservations: 45,
+      weeklyObservations: 10,
     },
     {
       id: "2",
@@ -127,44 +83,11 @@ export default function Dashboard() {
         name: "James Chen",
         initials: "JC",
       },
-      teachers: [
-        {
-          id: "t6",
-          name: "James Chen",
-          initials: "JC",
-          totalObservations: 10,
-          avgScore: 4.3,
-          maxScore: 5,
-          weeklyObservations: 2,
-        },
-        {
-          id: "t7",
-          name: "Rachel Green",
-          initials: "RG",
-          totalObservations: 7,
-          avgScore: 4.0,
-          maxScore: 5,
-          weeklyObservations: 1,
-        },
-        {
-          id: "t8",
-          name: "Tom Harris",
-          initials: "TH",
-          totalObservations: 9,
-          avgScore: 4.1,
-          maxScore: 5,
-          weeklyObservations: 2,
-        },
-        {
-          id: "t9",
-          name: "Lisa Martinez",
-          initials: "LM",
-          totalObservations: 5,
-          avgScore: 3.9,
-          maxScore: 5,
-          weeklyObservations: 1,
-        },
-      ],
+      memberCount: 4,
+      avgScore: 4.1,
+      maxScore: 5,
+      totalObservations: 31,
+      weeklyObservations: 6,
     },
     {
       id: "3",
@@ -173,62 +96,11 @@ export default function Dashboard() {
         name: "Emily Rodriguez",
         initials: "ER",
       },
-      teachers: [
-        {
-          id: "t10",
-          name: "Emily Rodriguez",
-          initials: "ER",
-          totalObservations: 11,
-          avgScore: 4.6,
-          maxScore: 5,
-          weeklyObservations: 3,
-        },
-        {
-          id: "t11",
-          name: "Brian Johnson",
-          initials: "BJ",
-          totalObservations: 8,
-          avgScore: 4.2,
-          maxScore: 5,
-          weeklyObservations: 2,
-        },
-        {
-          id: "t12",
-          name: "Nina Patel",
-          initials: "NP",
-          totalObservations: 10,
-          avgScore: 4.5,
-          maxScore: 5,
-          weeklyObservations: 2,
-        },
-        {
-          id: "t13",
-          name: "Chris Anderson",
-          initials: "CA",
-          totalObservations: 7,
-          avgScore: 4.0,
-          maxScore: 5,
-          weeklyObservations: 1,
-        },
-        {
-          id: "t14",
-          name: "Sophie Clark",
-          initials: "SC",
-          totalObservations: 9,
-          avgScore: 4.3,
-          maxScore: 5,
-          weeklyObservations: 2,
-        },
-        {
-          id: "t15",
-          name: "Mark Thompson",
-          initials: "MT",
-          totalObservations: 6,
-          avgScore: 3.8,
-          maxScore: 5,
-          weeklyObservations: 1,
-        },
-      ],
+      memberCount: 6,
+      avgScore: 4.3,
+      maxScore: 5,
+      totalObservations: 51,
+      weeklyObservations: 11,
     },
   ];
 
@@ -361,14 +233,6 @@ export default function Dashboard() {
     },
   ];
 
-  const selectedTeacher = selectedTeacherId
-    ? teachingGroups.flatMap(g => g.teachers).find(t => t.id === selectedTeacherId)
-    : null;
-
-  const teacherObservations = selectedTeacherId
-    ? allObservations.filter(obs => obs.teacherId === selectedTeacherId)
-    : [];
-
   const selectedObservation = selectedObservationId
     ? allObservations.find(obs => obs.id === selectedObservationId) || null
     : null;
@@ -458,10 +322,7 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
-          <TeachingGroupsSection 
-            groups={teachingGroups}
-            onTeacherClick={(teacherId) => setSelectedTeacherId(teacherId)}
-          />
+          <TeachingGroupsSection groups={teachingGroups} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <AnalyticsChart
               title="Observation Activity"
@@ -477,17 +338,6 @@ export default function Dashboard() {
           <CategoryPerformance categories={categoryPerformance} />
         </TabsContent>
       </Tabs>
-
-      <TeacherObservationsPanel
-        isOpen={selectedTeacherId !== null}
-        onClose={() => setSelectedTeacherId(null)}
-        teacherName={selectedTeacher?.name || ""}
-        observations={teacherObservations}
-        onObservationClick={(obsId) => {
-          setSelectedTeacherId(null);
-          setSelectedObservationId(obsId);
-        }}
-      />
 
       <ObservationDetailsPanel
         isOpen={selectedObservationId !== null}
