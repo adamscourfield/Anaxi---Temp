@@ -22,11 +22,19 @@
 - **Card Elevation**: Cards use shadow-md (0px 6px 16px) for prominent elevation effect
 
 ### Core Colors (Light & Dark Mode)
-- **Primary (Warm Accent)**: Hue 20° - Main brand color, warm peachy tones
-- **Success (Green)**: 142 76% 45% - Achievements, completed observations, high scores
-- **Warning (Orange)**: 25 95% 53% - Alerts, missing habits, attention needed
-- **Info (Blue)**: 210 85% 58% - Informational elements, analytics, insights  
-- **Danger (Red)**: 0 72% 51% - Errors, critical actions, deletions
+- **Greyscale System**:
+  - Main text: `0 0% 15%` (dark grey)
+  - Secondary text: `0 0% 50%` (medium grey)
+  - Sidebar icons: `0 0% 45%` (greyscale, not colored)
+  - Borders: `0 0% 88%` (light grey)
+  - Sidebar background: `0 0% 98%` (very light grey)
+  
+- **Accent Colors** (for functional elements only):
+  - **Primary**: 239 84% 67% - Primary actions, key CTAs
+  - **Success (Green)**: 142 76% 45% - Achievements, completed observations, high scores
+  - **Warning (Orange)**: 25 95% 53% - Alerts, missing habits, attention needed
+  - **Info (Blue)**: 210 85% 58% - Informational elements, analytics, insights  
+  - **Danger (Red)**: 0 72% 51% - Errors, critical actions, deletions
 
 ### Functional Colors
 - **Category Colors**: Each observation category gets a distinct color for easy recognition
