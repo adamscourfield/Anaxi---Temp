@@ -3,12 +3,17 @@ import { ObservationCard } from "@/components/observation-card";
 import { AnalyticsChart } from "@/components/analytics-chart";
 import { CategoryPerformance } from "@/components/category-performance";
 import { TeachingGroupsSection } from "@/components/teaching-groups-section";
+import { TeacherObservationsPanel } from "@/components/teacher-observations-panel";
+import { ObservationDetailsPanel } from "@/components/observation-details-panel";
 import { Eye, Users, ClipboardCheck, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState } from "react";
 
 export default function Dashboard() {
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
+  const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
   const observationTrend = [
     { label: "Mon", value: 3 },
     { label: "Tue", value: 5 },
@@ -227,6 +232,147 @@ export default function Dashboard() {
     },
   ];
 
+  const allObservations = [
+    {
+      id: "obs1",
+      teacherId: "t1",
+      teacherName: "Sarah Mitchell",
+      teacherInitials: "SM",
+      observerName: "John Smith",
+      date: new Date(2025, 9, 8),
+      lessonTopic: "Advanced Grammar: Subjunctive Mood",
+      classInfo: "Year 11 English",
+      categories: [
+        {
+          name: "Entrance and Do Now",
+          score: 6,
+          maxScore: 7,
+          habits: [
+            { text: "Students enter quietly", observed: true },
+            { text: "Do Now is visible on board", observed: true },
+            { text: "Students begin work within 2 minutes", observed: true },
+            { text: "Teacher circulates during Do Now", observed: false },
+          ],
+        },
+        {
+          name: "Direct Instruction",
+          score: 3,
+          maxScore: 4,
+          habits: [
+            { text: "Clear learning objectives stated", observed: true },
+            { text: "Content is chunked appropriately", observed: true },
+            { text: "Examples and non-examples provided", observed: true },
+            { text: "Visual aids support instruction", observed: false },
+          ],
+        },
+      ],
+      qualitativeFeedback: "Excellent lesson with strong student engagement. Consider adding more visual supports for visual learners.",
+      totalScore: 18,
+      totalMaxScore: 20,
+    },
+    {
+      id: "obs2",
+      teacherId: "t1",
+      teacherName: "Sarah Mitchell",
+      teacherInitials: "SM",
+      observerName: "Jane Doe",
+      date: new Date(2025, 9, 3),
+      lessonTopic: "Poetry Analysis: Metaphor and Simile",
+      classInfo: "Year 10 English",
+      categories: [
+        {
+          name: "Application",
+          score: 4,
+          maxScore: 4,
+          habits: [
+            { text: "Students practice independently", observed: true },
+            { text: "Application tasks match learning objectives", observed: true },
+            { text: "Differentiation is evident", observed: true },
+            { text: "Students receive timely feedback", observed: true },
+          ],
+        },
+      ],
+      qualitativeFeedback: "Great application of concepts through creative tasks.",
+      totalScore: 15,
+      totalMaxScore: 17,
+    },
+    {
+      id: "obs3",
+      teacherId: "t6",
+      teacherName: "James Chen",
+      teacherInitials: "JC",
+      observerName: "Mary Johnson",
+      date: new Date(2025, 9, 5),
+      lessonTopic: "Quadratic Equations",
+      classInfo: "Year 9 Math",
+      categories: [
+        {
+          name: "Behaviour Routines",
+          score: 3,
+          maxScore: 4,
+          habits: [
+            { text: "Clear expectations set", observed: true },
+            { text: "Consistent consequences applied", observed: true },
+            { text: "Positive reinforcement used", observed: true },
+            { text: "Redirections are brief and respectful", observed: false },
+          ],
+        },
+      ],
+      qualitativeFeedback: "Solid classroom management with room for more positive reinforcement.",
+      totalScore: 12,
+      totalMaxScore: 15,
+    },
+    {
+      id: "obs4",
+      teacherId: "t10",
+      teacherName: "Emily Rodriguez",
+      teacherInitials: "ER",
+      observerName: "David Lee",
+      date: new Date(2025, 9, 3),
+      lessonTopic: "Chemical Reactions Lab",
+      classInfo: "Year 10 Science",
+      categories: [
+        {
+          name: "Application",
+          score: 4,
+          maxScore: 4,
+          habits: [
+            { text: "Lab safety procedures followed", observed: true },
+            { text: "Students engage with materials", observed: true },
+            { text: "Scientific method applied", observed: true },
+            { text: "Data collection is accurate", observed: true },
+          ],
+        },
+        {
+          name: "Exit Routine",
+          score: 5,
+          maxScore: 6,
+          habits: [
+            { text: "Summary of learning completed", observed: true },
+            { text: "Exit ticket administered", observed: true },
+            { text: "Homework clearly explained", observed: true },
+            { text: "Dismissal is organized", observed: false },
+          ],
+        },
+      ],
+      qualitativeFeedback: "Excellent hands-on learning experience with strong student engagement.",
+      totalScore: 9,
+      totalMaxScore: 10,
+    },
+  ];
+
+  const selectedTeacher = selectedTeacherId
+    ? teachingGroups.flatMap(g => g.teachers).find(t => t.id === selectedTeacherId)
+    : null;
+
+  const teacherObservations = selectedTeacherId
+    ? allObservations.filter(obs => obs.teacherId === selectedTeacherId)
+    : [];
+
+  const selectedObservation = selectedObservationId
+    ? allObservations.find(obs => obs.id === selectedObservationId) || null
+    : null;
+
   return (
     <div className="p-6 space-y-8">
       <div className="flex items-center justify-between">
@@ -296,7 +442,15 @@ export default function Dashboard() {
                 <ObservationCard
                   key={idx}
                   {...obs}
-                  onView={() => console.log("View observation")}
+                  onView={() => {
+                    const fullObs = allObservations.find(o => 
+                      o.teacherName === obs.teacherName && 
+                      o.date.getTime() === obs.date.getTime()
+                    );
+                    if (fullObs) {
+                      setSelectedObservationId(fullObs.id);
+                    }
+                  }}
                 />
               ))}
             </div>
@@ -304,7 +458,10 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
-          <TeachingGroupsSection groups={teachingGroups} />
+          <TeachingGroupsSection 
+            groups={teachingGroups}
+            onTeacherClick={(teacherId) => setSelectedTeacherId(teacherId)}
+          />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <AnalyticsChart
               title="Observation Activity"
@@ -320,6 +477,23 @@ export default function Dashboard() {
           <CategoryPerformance categories={categoryPerformance} />
         </TabsContent>
       </Tabs>
+
+      <TeacherObservationsPanel
+        isOpen={selectedTeacherId !== null}
+        onClose={() => setSelectedTeacherId(null)}
+        teacherName={selectedTeacher?.name || ""}
+        observations={teacherObservations}
+        onObservationClick={(obsId) => {
+          setSelectedTeacherId(null);
+          setSelectedObservationId(obsId);
+        }}
+      />
+
+      <ObservationDetailsPanel
+        isOpen={selectedObservationId !== null}
+        onClose={() => setSelectedObservationId(null)}
+        observation={selectedObservation}
+      />
     </div>
   );
 }
