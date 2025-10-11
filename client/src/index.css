@@ -70,6 +70,24 @@
 
   --destructive-foreground: 0 0% 100%;
 
+  --success: 142 76% 45%;
+  --success-foreground: 0 0% 100%;
+
+  --warning: 25 95% 53%;
+  --warning-foreground: 0 0% 100%;
+
+  --info: 210 85% 58%;
+  --info-foreground: 0 0% 100%;
+
+  --teal: 180 75% 45%;
+  --teal-foreground: 0 0% 100%;
+
+  --amber: 45 93% 47%;
+  --amber-foreground: 0 0% 100%;
+
+  --pink: 330 75% 58%;
+  --pink-foreground: 0 0% 100%;
+
   --input: 240 10% 88%;
   --ring: 239 84% 67%;
   --chart-1: 142 76% 45%;
@@ -187,6 +205,24 @@
   --destructive: 0 72% 51%;
 
   --destructive-foreground: 0 0% 100%;
+
+  --success: 142 76% 50%;
+  --success-foreground: 0 0% 100%;
+
+  --warning: 25 95% 58%;
+  --warning-foreground: 0 0% 100%;
+
+  --info: 210 85% 63%;
+  --info-foreground: 0 0% 100%;
+
+  --teal: 180 75% 50%;
+  --teal-foreground: 0 0% 100%;
+
+  --amber: 45 93% 52%;
+  --amber-foreground: 0 0% 100%;
+
+  --pink: 330 75% 63%;
+  --pink-foreground: 0 0% 100%;
 
   --input: 240 10% 30%;
   --ring: 239 84% 67%;
