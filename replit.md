@@ -16,7 +16,7 @@ Preferred communication style: Simple, everyday language.
 
 **UI Framework**: Built on shadcn/ui component library with Radix UI primitives, providing accessible, customizable components following the "new-york" style variant.
 
-**Styling Approach**: Tailwind CSS with a custom design system based on Fluent Design principles. The application uses CSS variables for theming, supporting both light and dark modes. Custom color palette emphasizes professional clarity with neutral tones (charcoal, warm grays) and purposeful accent colors for status indicators (green for observed habits, orange for unobserved).
+**Styling Approach**: Tailwind CSS with a warm gradient design system. The application uses CSS variables for theming, supporting both light and dark modes. Features a radial gradient background (peachy/salmon at top fading to white) with enhanced card shadows (shadow-md) for elevated appearance. Color palette emphasizes warmth and approachability with hue 20° base tones and purposeful accent colors for status indicators.
 
 **Typography**: Custom font implementation using Lufga from CDN, with defined hierarchy for page titles, section headers, card titles, body text, and labels.
 
@@ -65,12 +65,21 @@ Preferred communication style: Simple, everyday language.
 ### Design System
 
 **Core Principles**:
-1. System-based design with Fluent Design influence
-2. Professional clarity over decoration
-3. Clear data hierarchy and visual distinction
-4. Institutional trust through stable, sophisticated design
+1. Warm gradient foundation with peachy/salmon tones for welcoming atmosphere
+2. Elevated card design with enhanced shadows for visual depth
+3. Professional warmth maintaining credibility while feeling approachable
+4. Clear data hierarchy through color and elevation
 
-**Elevation System**: CSS-based hover and active states using custom `--elevate-1` and `--elevate-2` variables for subtle background overlays, creating depth without heavy shadows.
+**Background System**: 
+- Radial gradient background from peachy (hue 20°) at top to white at bottom
+- Enhanced shadow system with shadow-md (0px 6px 16px) for card elevation
+- Dark mode uses darker blue gradients for consistency
+
+**Elevation System**: 
+- CSS-based hover and active states using custom `--elevate-1` and `--elevate-2` variables
+- Shadow-sm for minor elevation (0px 2px 6px)
+- Shadow-md for card elevation (0px 6px 16px)
+- Creates depth through layered shadows and subtle overlays
 
 **Component Variants**: Comprehensive button and badge variants (default, destructive, outline, secondary, ghost) with consistent border and shadow treatments.
 

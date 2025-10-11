@@ -1,43 +1,43 @@
 # Anaxi - Teacher Observation Platform - Design Guidelines
 
-## Design Approach: Vibrant Professional
+## Design Approach: Warm & Elevated
 
-**Rationale**: This is a professional educational tool that should feel engaging, modern, and encouraging. We use color purposefully to create visual interest, guide attention, and make the experience more enjoyable for educators while maintaining clarity and usability.
+**Rationale**: This is a professional educational tool that should feel warm, welcoming, and encouraging. We use a soft peachy gradient background with elevated card shadows to create depth and visual interest while maintaining clarity and usability.
 
 ## Core Design Principles
 
-1. **Colorful Clarity**: Use vibrant colors to enhance comprehension and create visual hierarchy
-2. **Purposeful Vibrancy**: Every color serves a functional and emotional purpose
-3. **Educational Energy**: The design should feel alive, encouraging, and supportive
-4. **Professional Playfulness**: Sophisticated use of color that maintains credibility
+1. **Warm Gradient Foundation**: Radial gradient from peachy/salmon tones to white creates a soft, inviting atmosphere
+2. **Elevated Cards**: Enhanced shadows (shadow-md) make cards appear to float above the background
+3. **Professional Warmth**: Sophisticated color palette that maintains credibility while feeling approachable
+4. **Purposeful Hierarchy**: Visual depth through shadows and subtle color transitions
 
 ---
 
-## Color Palette - Vibrant & Purposeful
+## Color Palette - Warm & Professional
+
+### Background System
+- **Body Background**: Radial gradient from peachy (hue 20°) at top to white at bottom
+  - Light mode: `radial-gradient(circle at top, hsl(20 90% 90%), hsl(20 30% 98%) 50%, white 100%)`
+  - Dark mode: Radial gradient from darker blues for consistency
+- **Card Elevation**: Cards use shadow-md (0px 6px 16px) for prominent elevation effect
 
 ### Core Colors (Light & Dark Mode)
-- **Primary (Purple)**: 239 84% 67% - Main brand color, primary actions, key CTAs
+- **Primary (Warm Accent)**: Hue 20° - Main brand color, warm peachy tones
 - **Success (Green)**: 142 76% 45% - Achievements, completed observations, high scores
 - **Warning (Orange)**: 25 95% 53% - Alerts, missing habits, attention needed
 - **Info (Blue)**: 210 85% 58% - Informational elements, analytics, insights  
 - **Danger (Red)**: 0 72% 51% - Errors, critical actions, deletions
-- **Teal**: 180 75% 45% - Teaching groups, collaboration features
-- **Amber**: 45 93% 47% - Pending items, scheduled observations
-- **Pink**: 330 75% 58% - User profiles, personal features
 
 ### Functional Colors
 - **Category Colors**: Each observation category gets a distinct color for easy recognition
-  - Entrance & Do Now: Purple (239 84% 67%)
-  - Direct Instruction: Blue (210 85% 58%)
-  - Checking Understanding: Teal (180 75% 45%)
-  - Application: Green (142 76% 45%)
-  - Behaviour Routines: Orange (25 95% 53%)
-  - Exit Routine: Pink (330 75% 58%)
+  - Categories maintain their distinct colors for data visualization
+  - Applied with subtle backgrounds and clear borders
 
 ### Implementation Strategy
-- Use color backgrounds at 10-15% opacity for cards and sections
-- Full saturation colors for icons, badges, and CTAs
-- Color-coded visual cues throughout (progress bars, status indicators, category tags)
+- Gradient background provides warmth without overwhelming content
+- Cards appear elevated with shadow-md for visual hierarchy
+- Subtle color accents for functional elements (badges, status indicators)
+- Consistent shadow system: shadow-sm for minor elevation, shadow-md for cards
 
 ---
 
