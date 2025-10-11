@@ -1,40 +1,43 @@
-# Teacher Observation Platform - Design Guidelines
+# Anaxi - Teacher Observation Platform - Design Guidelines
 
-## Design Approach: System-Based (Fluent Design Influence)
+## Design Approach: Vibrant Professional
 
-**Rationale**: This is a utility-focused, information-dense professional tool where efficiency, data clarity, and consistency are paramount. The design prioritizes usability for educators conducting observations, managing rubrics, and analyzing performance data.
+**Rationale**: This is a professional educational tool that should feel engaging, modern, and encouraging. We use color purposefully to create visual interest, guide attention, and make the experience more enjoyable for educators while maintaining clarity and usability.
 
 ## Core Design Principles
 
-1. **Professional Clarity**: Clean, uncluttered interfaces that support focused work
-2. **Data Hierarchy**: Clear visual distinction between primary actions, data displays, and navigation
-3. **Purposeful Restraint**: Minimal decoration; every element serves a functional purpose
-4. **Institutional Trust**: Sophisticated, stable design that conveys reliability
+1. **Colorful Clarity**: Use vibrant colors to enhance comprehension and create visual hierarchy
+2. **Purposeful Vibrancy**: Every color serves a functional and emotional purpose
+3. **Educational Energy**: The design should feel alive, encouraging, and supportive
+4. **Professional Playfulness**: Sophisticated use of color that maintains credibility
 
 ---
 
-## Color Palette
+## Color Palette - Vibrant & Purposeful
 
-### Light Mode
-- **Primary Brand**: 24 5% 15% (Deep charcoal - headers, primary buttons)
-- **Secondary**: 28 8% 35% (Warm gray - secondary elements)
-- **Background**: 0 0% 98% (Off-white)
-- **Surface**: 0 0% 100% (Pure white - cards, panels)
-- **Border**: 0 0% 88% (Light gray)
-- **Text Primary**: 24 5% 15%
-- **Text Secondary**: 28 8% 45%
-- **Accent (Success/Observed)**: 142 65% 42% (Muted green for habit observations)
-- **Warning (Missing)**: 15 75% 55% (Earth orange for unobserved habits)
+### Core Colors (Light & Dark Mode)
+- **Primary (Purple)**: 239 84% 67% - Main brand color, primary actions, key CTAs
+- **Success (Green)**: 142 76% 45% - Achievements, completed observations, high scores
+- **Warning (Orange)**: 25 95% 53% - Alerts, missing habits, attention needed
+- **Info (Blue)**: 210 85% 58% - Informational elements, analytics, insights  
+- **Danger (Red)**: 0 72% 51% - Errors, critical actions, deletions
+- **Teal**: 180 75% 45% - Teaching groups, collaboration features
+- **Amber**: 45 93% 47% - Pending items, scheduled observations
+- **Pink**: 330 75% 58% - User profiles, personal features
 
-### Dark Mode
-- **Primary Brand**: 0 0% 95% (Light text on dark)
-- **Secondary**: 28 8% 75%
-- **Background**: 24 5% 8% (Deep charcoal background)
-- **Surface**: 24 5% 12% (Elevated surfaces)
-- **Border**: 0 0% 22%
-- **Text Primary**: 0 0% 95%
-- **Text Secondary**: 28 8% 65%
-- **Accent**: Same hues, adjusted lightness for dark backgrounds
+### Functional Colors
+- **Category Colors**: Each observation category gets a distinct color for easy recognition
+  - Entrance & Do Now: Purple (239 84% 67%)
+  - Direct Instruction: Blue (210 85% 58%)
+  - Checking Understanding: Teal (180 75% 45%)
+  - Application: Green (142 76% 45%)
+  - Behaviour Routines: Orange (25 95% 53%)
+  - Exit Routine: Pink (330 75% 58%)
+
+### Implementation Strategy
+- Use color backgrounds at 10-15% opacity for cards and sections
+- Full saturation colors for icons, badges, and CTAs
+- Color-coded visual cues throughout (progress bars, status indicators, category tags)
 
 ---
 
@@ -71,10 +74,10 @@
 
 ## Component Library
 
-### Navigation
-- **Top Navigation Bar**: Fixed, h-16, with school selector dropdown, user profile, notifications
-- **Sidebar Navigation** (Admin): w-64, collapsible on mobile, category-grouped menu items
-- **Breadcrumbs**: Small text with chevron separators for deep navigation
+### Navigation  
+- **Sidebar Navigation**: Colorful icons with subtle background tints matching their function
+- **Active States**: Bold color backgrounds for selected menu items
+- **Icons**: Use colored icons (not just monochrome) with matching background pills
 
 ### Data Display
 - **Tables**: Striped rows, hover states, sortable headers with icons, sticky header on scroll
