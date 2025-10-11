@@ -14,6 +14,7 @@ import ConductObservation from "@/pages/conduct-observation";
 import ObservationHistory from "@/pages/observation-history";
 import ManageRubrics from "@/pages/manage-rubrics";
 import ManageTeachers from "@/pages/manage-teachers";
+import TeachingGroupDetails from "@/pages/teaching-group-details";
 
 function Router() {
   return (
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/history" component={ObservationHistory} />
       <Route path="/rubrics" component={ManageRubrics} />
       <Route path="/teachers" component={ManageTeachers} />
+      <Route path="/teaching-groups/:id" component={TeachingGroupDetails} />
     </Switch>
   );
 }
