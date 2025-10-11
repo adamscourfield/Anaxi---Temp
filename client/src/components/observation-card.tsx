@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardFooter } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { CircularProgress } from "./circular-progress";
 import { Eye } from "lucide-react";
 import { format } from "date-fns";
 
@@ -24,27 +25,32 @@ export function ObservationCard({
   maxScore,
   onView,
 }: ObservationCardProps) {
+  const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+  
   return (
     <Card className="hover-elevate" data-testid={`card-observation-${teacherName.toLowerCase().replace(/\s+/g, '-')}`}>
-      <CardHeader className="space-y-0 pb-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-10 w-10">
-            <AvatarFallback>{teacherInitials}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold truncate">{teacherName}</h3>
-            <p className="text-xs text-muted-foreground">
-              {format(date, "MMM d, yyyy")}
-            </p>
+      <CardHeader className="space-y-0 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Avatar className="h-10 w-10">
+              <AvatarFallback>{teacherInitials}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold truncate">{teacherName}</h3>
+              <p className="text-xs text-muted-foreground">
+                {format(date, "MMM d, yyyy")}
+              </p>
+            </div>
           </div>
+          <CircularProgress percentage={percentage} size={50} strokeWidth={5} />
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        <div className="flex items-baseline gap-2">
-          <span className="text-sm text-muted-foreground">Score:</span>
-          <span className="text-2xl font-semibold" data-testid="text-observation-score">
-            {score}/{maxScore}
-          </span>
+        <div>
+          <div className="text-3xl font-bold" data-testid="text-observation-score">
+            {percentage}%
+          </div>
+          <p className="text-xs text-muted-foreground mt-1">Performance Score</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {categories.slice(0, 2).map((category) => (
