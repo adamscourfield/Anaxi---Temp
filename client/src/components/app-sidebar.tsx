@@ -26,28 +26,41 @@ const menuItems = [
     title: "Dashboard",
     url: "/",
     icon: LayoutDashboard,
+    color: "primary",
   },
   {
     title: "Conduct Observation",
     url: "/observe",
     icon: Eye,
+    color: "info",
   },
   {
     title: "Observation History",
     url: "/history",
     icon: History,
+    color: "teal",
   },
   {
     title: "Manage Rubrics",
     url: "/rubrics",
     icon: ClipboardList,
+    color: "amber",
   },
   {
     title: "Manage Teachers",
     url: "/teachers",
     icon: Users,
+    color: "pink",
   },
 ];
+
+const iconColorClasses: Record<string, string> = {
+  primary: "text-primary",
+  info: "text-[hsl(var(--info))]",
+  teal: "text-[hsl(var(--teal))]",
+  amber: "text-[hsl(var(--amber))]",
+  pink: "text-[hsl(var(--pink))]",
+};
 
 export function AppSidebar() {
   const [location] = useLocation();
@@ -71,7 +84,7 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                      <item.icon />
+                      <item.icon className={iconColorClasses[item.color]} />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>

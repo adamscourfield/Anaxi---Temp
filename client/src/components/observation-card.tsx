@@ -16,6 +16,17 @@ interface ObservationCardProps {
   onView?: () => void;
 }
 
+const categoryColors: Record<string, string> = {
+  "Entrance and Do Now": "bg-primary/10 text-primary border-primary/20",
+  "Direct Instruction": "bg-[hsl(var(--info)_/_0.1)] text-[hsl(var(--info))] border-[hsl(var(--info)_/_0.2)]",
+  "Checking for Understanding": "bg-[hsl(var(--teal)_/_0.1)] text-[hsl(var(--teal))] border-[hsl(var(--teal)_/_0.2)]",
+  "Application": "bg-[hsl(var(--success)_/_0.1)] text-[hsl(var(--success))] border-[hsl(var(--success)_/_0.2)]",
+  "Behaviour Routines": "bg-[hsl(var(--warning)_/_0.1)] text-[hsl(var(--warning))] border-[hsl(var(--warning)_/_0.2)]",
+  "Exit Routine": "bg-[hsl(var(--pink)_/_0.1)] text-[hsl(var(--pink))] border-[hsl(var(--pink)_/_0.2)]",
+  "Pace and Presence": "bg-[hsl(var(--amber)_/_0.1)] text-[hsl(var(--amber))] border-[hsl(var(--amber)_/_0.2)]",
+  "Academic Talk": "bg-primary/10 text-primary border-primary/20",
+};
+
 export function ObservationCard({
   teacherName,
   teacherInitials,
@@ -54,7 +65,11 @@ export function ObservationCard({
         </div>
         <div className="flex flex-wrap gap-2 items-start">
           {categories.slice(0, 2).map((category) => (
-            <Badge key={category} variant="secondary" className="text-xs">
+            <Badge 
+              key={category} 
+              variant="outline" 
+              className={`text-xs ${categoryColors[category] || 'bg-secondary/50 text-secondary-foreground'}`}
+            >
               {category}
             </Badge>
           ))}

@@ -36,8 +36,8 @@ export function TeachingGroupsSection({ groups }: TeachingGroupsSectionProps) {
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-md bg-primary/10 flex items-center justify-center">
-                      <Users className="h-5 w-5 text-primary" />
+                    <div className="h-10 w-10 rounded-md bg-[hsl(var(--teal)_/_0.1)] flex items-center justify-center">
+                      <Users className="h-5 w-5 text-[hsl(var(--teal))]" />
                     </div>
                     <div>
                       <h3 className="font-semibold">{group.name}</h3>
