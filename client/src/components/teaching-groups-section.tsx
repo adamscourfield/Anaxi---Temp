@@ -42,18 +42,11 @@ export function TeachingGroupsSection({ groups }: TeachingGroupsSectionProps) {
               onClick={() => setLocation(`/teaching-groups/${group.id}`)}
             >
               <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 rounded-md bg-[hsl(var(--teal)_/_0.1)] flex items-center justify-center">
-                      <Users className="h-5 w-5 text-[hsl(var(--teal))]" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold">{group.name}</h3>
-                      <p className="text-xs text-muted-foreground">
-                        {group.memberCount} {group.memberCount === 1 ? 'teacher' : 'teachers'}
-                      </p>
-                    </div>
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-md bg-[hsl(var(--teal)_/_0.1)] flex items-center justify-center">
+                    <Users className="h-5 w-5 text-[hsl(var(--teal))]" />
                   </div>
+                  <h3 className="font-semibold">{group.name}</h3>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
@@ -67,18 +60,6 @@ export function TeachingGroupsSection({ groups }: TeachingGroupsSectionProps) {
                   </div>
                 </div>
                 <div className="flex items-center justify-between gap-2 pt-2 border-t">
-                  <span className="text-sm text-muted-foreground">Observations</span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium" data-testid={`text-total-observations-${group.id}`}>
-                      {group.totalObservations} total
-                    </span>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <span className="text-sm font-medium" data-testid={`text-weekly-observations-${group.id}`}>
-                      {group.weeklyObservations} this week
-                    </span>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between gap-2 pt-2 border-t">
                   <span className="text-sm text-muted-foreground">Avg. Performance</span>
                   <Badge 
                     variant="secondary"
@@ -86,6 +67,12 @@ export function TeachingGroupsSection({ groups }: TeachingGroupsSectionProps) {
                   >
                     {percentage}%
                   </Badge>
+                </div>
+                <div className="flex items-center justify-between gap-2 pt-2 border-t">
+                  <span className="text-sm text-muted-foreground">Total Observations</span>
+                  <span className="text-sm font-medium" data-testid={`text-total-observations-${group.id}`}>
+                    {group.totalObservations}
+                  </span>
                 </div>
               </CardContent>
             </Card>
