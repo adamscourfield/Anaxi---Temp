@@ -52,7 +52,7 @@ export function ObservationCard({
           </div>
           <p className="text-xs text-muted-foreground mt-1">Performance Score</p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 items-start">
           {categories.slice(0, 2).map((category) => (
             <Badge key={category} variant="secondary" className="text-xs">
               {category}
