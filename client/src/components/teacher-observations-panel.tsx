@@ -1,14 +1,21 @@
 import { SidePanel } from "./side-panel";
 import { ObservationCard } from "./observation-card";
 
+interface Category {
+  name: string;
+  score: number;
+  maxScore: number;
+  habits: Array<{ text: string; observed: boolean }>;
+}
+
 interface TeacherObservation {
   id: string;
   teacherName: string;
   teacherInitials: string;
   date: Date;
-  categories: string[];
-  score: number;
-  maxScore: number;
+  categories: Category[];
+  totalScore: number;
+  totalMaxScore: number;
 }
 
 interface TeacherObservationsPanelProps {
@@ -44,9 +51,9 @@ export function TeacherObservationsPanel({
               teacherName={obs.teacherName}
               teacherInitials={obs.teacherInitials}
               date={obs.date}
-              categories={obs.categories}
-              score={obs.score}
-              maxScore={obs.maxScore}
+              categories={obs.categories.map(c => c.name)}
+              score={obs.totalScore}
+              maxScore={obs.totalMaxScore}
               onView={() => onObservationClick?.(obs.id)}
             />
           ))}
