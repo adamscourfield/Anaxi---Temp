@@ -65,7 +65,6 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="px-2">
         <SidebarGroup>
-          <SidebarGroupLabel className="px-2 py-4 text-xs">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu className="gap-2">
               {menuItems.map((item) => (
