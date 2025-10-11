@@ -38,7 +38,7 @@
   - **Amber**: 45 93% 47% - Supporting accent
 
 ### Functional Colors
-- **Category Colors**: Each observation category uses a subtle tinted background (8-10% opacity) with matching colored text
+- **Category Colors**: Each observation category uses a very subtle tinted background (6% opacity) with matching colored text
 - **Applied with transparency for a softer, more modern look**
 
 ### Shadow System (Very Subtle)
@@ -90,9 +90,9 @@
 
 ### Data Display
 - **Cards**: Rounded-lg, shadow (subtle), p-6, clean divisions
-- **Stat Cards**: Large number display, small label, subtle colored icon background (8-10% opacity)
+- **Stat Cards**: Large number display, small label, very subtle colored icon background (6% opacity)
 - **Progress Indicators**: Clean circular progress rings
-- **Badge System**: Subtle tinted backgrounds (8-10% opacity) with matching text color
+- **Badge System**: Very subtle tinted backgrounds (6% opacity) with matching text color
 
 ### Forms & Inputs
 - **Text Inputs**: h-11, rounded-md, border with subtle focus ring

@@ -35,14 +35,14 @@ interface ObservationDetailsPanelProps {
 }
 
 const categoryColors: Record<string, string> = {
-  "Entrance and Do Now": "bg-primary/10 text-primary border-primary/20",
-  "Direct Instruction": "bg-[hsl(225_15%_25%_/_0.08)] text-[hsl(225_15%_25%)] border-[hsl(225_15%_25%_/_0.15)]",
-  "Checking for Understanding": "bg-[hsl(var(--teal)_/_0.1)] text-[hsl(var(--teal))] border-[hsl(var(--teal)_/_0.2)]",
-  "Application": "bg-[hsl(var(--success)_/_0.1)] text-[hsl(var(--success))] border-[hsl(var(--success)_/_0.2)]",
-  "Behaviour Routines": "bg-[hsl(var(--warning)_/_0.1)] text-[hsl(var(--warning))] border-[hsl(var(--warning)_/_0.2)]",
-  "Exit Routine": "bg-[hsl(var(--pink)_/_0.1)] text-[hsl(var(--pink))] border-[hsl(var(--pink)_/_0.2)]",
-  "Pace and Presence": "bg-[hsl(var(--amber)_/_0.1)] text-[hsl(var(--amber))] border-[hsl(var(--amber)_/_0.2)]",
-  "Academic Talk": "bg-[hsl(225_15%_25%_/_0.08)] text-[hsl(225_15%_25%)] border-[hsl(225_15%_25%_/_0.15)]",
+  "Entrance and Do Now": "bg-primary/[0.06] text-primary border-primary/[0.12]",
+  "Direct Instruction": "bg-[hsl(225_15%_25%_/_0.06)] text-[hsl(225_15%_25%)] border-[hsl(225_15%_25%_/_0.12)]",
+  "Checking for Understanding": "bg-[hsl(var(--teal)_/_0.06)] text-[hsl(var(--teal))] border-[hsl(var(--teal)_/_0.12)]",
+  "Application": "bg-[hsl(var(--success)_/_0.06)] text-[hsl(var(--success))] border-[hsl(var(--success)_/_0.12)]",
+  "Behaviour Routines": "bg-[hsl(var(--warning)_/_0.06)] text-[hsl(var(--warning))] border-[hsl(var(--warning)_/_0.12)]",
+  "Exit Routine": "bg-[hsl(var(--pink)_/_0.06)] text-[hsl(var(--pink))] border-[hsl(var(--pink)_/_0.12)]",
+  "Pace and Presence": "bg-[hsl(var(--amber)_/_0.06)] text-[hsl(var(--amber))] border-[hsl(var(--amber)_/_0.12)]",
+  "Academic Talk": "bg-[hsl(225_15%_25%_/_0.06)] text-[hsl(225_15%_25%)] border-[hsl(225_15%_25%_/_0.12)]",
 };
 
 export function ObservationDetailsPanel({

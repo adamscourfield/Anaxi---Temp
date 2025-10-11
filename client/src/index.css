@@ -105,9 +105,9 @@
   --shadow-sm: 0px 2px 4px 0px hsl(0 0% 0% / 0.04);
   --shadow: 0px 4px 8px 0px hsl(0 0% 0% / 0.05);
   --shadow-md: 0px 6px 12px 0px hsl(0 0% 0% / 0.06);
-  --shadow-lg: 0px 8px 16px 0px hsl(0 0% 0% / 0.08);
-  --shadow-xl: 0px 12px 24px 0px hsl(0 0% 0% / 0.10);
-  --shadow-2xl: 0px 16px 32px 0px hsl(0 0% 0% / 0.12);
+  --shadow-lg: 0px 8px 16px 0px hsl(0 0% 0% / 0.06);
+  --shadow-xl: 0px 12px 24px 0px hsl(0 0% 0% / 0.06);
+  --shadow-2xl: 0px 16px 32px 0px hsl(0 0% 0% / 0.06);
   --tracking-normal: 0em;
   --spacing: 0.25rem;
 
@@ -232,14 +232,14 @@
   --chart-4: 220 20% 35%;
   --chart-5: 15 80% 70%;
 
-  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.20);
-  --shadow-xs: 0px 1px 3px 0px hsl(0 0% 0% / 0.30);
-  --shadow-sm: 0px 2px 4px 0px hsl(0 0% 0% / 0.25), 0px 1px 2px -1px hsl(0 0% 0% / 0.20);
-  --shadow: 0px 4px 6px 0px hsl(0 0% 0% / 0.30), 0px 2px 4px -1px hsl(0 0% 0% / 0.25);
-  --shadow-md: 0px 6px 12px 0px hsl(0 0% 0% / 0.35), 0px 3px 6px -2px hsl(0 0% 0% / 0.30);
-  --shadow-lg: 0px 10px 20px 0px hsl(0 0% 0% / 0.40), 0px 5px 10px -3px hsl(0 0% 0% / 0.35);
-  --shadow-xl: 0px 20px 30px 0px hsl(0 0% 0% / 0.45), 0px 10px 15px -5px hsl(0 0% 0% / 0.40);
-  --shadow-2xl: 0px 30px 50px 0px hsl(0 0% 0% / 0.50);
+  --shadow-2xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.03);
+  --shadow-xs: 0px 1px 2px 0px hsl(0 0% 0% / 0.04);
+  --shadow-sm: 0px 2px 4px 0px hsl(0 0% 0% / 0.05);
+  --shadow: 0px 4px 8px 0px hsl(0 0% 0% / 0.06);
+  --shadow-md: 0px 6px 12px 0px hsl(0 0% 0% / 0.06);
+  --shadow-lg: 0px 8px 16px 0px hsl(0 0% 0% / 0.06);
+  --shadow-xl: 0px 12px 24px 0px hsl(0 0% 0% / 0.06);
+  --shadow-2xl: 0px 16px 32px 0px hsl(0 0% 0% / 0.06);
 
   /* Fallback for older browsers */
   --sidebar-primary-border: hsl(from hsl(var(--sidebar-primary)) h s calc(l + var(--opaque-button-border-intensity)) / alpha);
