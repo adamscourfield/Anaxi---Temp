@@ -19,7 +19,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, Users } from "lucide-react";
-import { useEffect } from "react";
+import { useState } from "react";
+import { TeacherObservationsPanel } from "@/components/teacher-observations-panel";
 
 interface Teacher {
   id: string;
@@ -46,6 +47,8 @@ interface TeachingGroup {
 export default function TeachingGroupDetails() {
   const { id } = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
+  const [selectedTeacherId, setSelectedTeacherId] = useState<string | null>(null);
+  const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
 
   const teachingGroups: TeachingGroup[] = [
     {
@@ -245,7 +248,130 @@ export default function TeachingGroupDetails() {
     },
   ];
 
+  const allObservations = [
+    {
+      id: "obs1",
+      teacherId: "t1",
+      teacherName: "Sarah Mitchell",
+      teacherInitials: "SM",
+      date: new Date("2024-03-15"),
+      lessonTopic: "Shakespeare's Macbeth",
+      classInfo: "Year 10 English",
+      categories: [
+        {
+          name: "Entrance & Do Now",
+          score: 3,
+          maxScore: 4,
+          habits: [
+            { text: "Clear learning objectives displayed", observed: true },
+            { text: "Starter activity engages students", observed: true },
+            { text: "Register taken efficiently", observed: true },
+            { text: "Resources ready", observed: false },
+          ],
+        },
+        {
+          name: "Direct Instruction",
+          score: 3,
+          maxScore: 3,
+          habits: [
+            { text: "Clear explanations", observed: true },
+            { text: "Good use of examples", observed: true },
+            { text: "Checks for understanding", observed: true },
+          ],
+        },
+        {
+          name: "Application",
+          score: 2,
+          maxScore: 3,
+          habits: [
+            { text: "Independent practice", observed: true },
+            { text: "Differentiated tasks", observed: false },
+            { text: "Time for consolidation", observed: true },
+          ],
+        },
+      ],
+      totalScore: 8,
+      totalMaxScore: 10,
+    },
+    {
+      id: "obs2",
+      teacherId: "t1",
+      teacherName: "Sarah Mitchell",
+      teacherInitials: "SM",
+      date: new Date("2024-03-10"),
+      lessonTopic: "Creative Writing",
+      classInfo: "Year 9 English",
+      categories: [
+        {
+          name: "Entrance & Do Now",
+          score: 3,
+          maxScore: 4,
+          habits: [
+            { text: "Clear learning objectives displayed", observed: true },
+            { text: "Starter activity engages students", observed: true },
+            { text: "Register taken efficiently", observed: true },
+            { text: "Resources ready", observed: false },
+          ],
+        },
+        {
+          name: "Checking Understanding",
+          score: 4,
+          maxScore: 4,
+          habits: [
+            { text: "Questions varied", observed: true },
+            { text: "Wait time appropriate", observed: true },
+            { text: "Probing questions used", observed: true },
+            { text: "All students engaged", observed: true },
+          ],
+        },
+      ],
+      totalScore: 7,
+      totalMaxScore: 8,
+    },
+    {
+      id: "obs3",
+      teacherId: "t2",
+      teacherName: "David Brown",
+      teacherInitials: "DB",
+      date: new Date("2024-03-14"),
+      lessonTopic: "Poetry Analysis",
+      classInfo: "Year 11 English",
+      categories: [
+        {
+          name: "Direct Instruction",
+          score: 2,
+          maxScore: 3,
+          habits: [
+            { text: "Clear explanations", observed: true },
+            { text: "Good use of examples", observed: true },
+            { text: "Checks for understanding", observed: false },
+          ],
+        },
+        {
+          name: "Application",
+          score: 4,
+          maxScore: 5,
+          habits: [
+            { text: "Independent practice", observed: true },
+            { text: "Differentiated tasks", observed: true },
+            { text: "Time for consolidation", observed: true },
+            { text: "Peer assessment", observed: true },
+            { text: "Extension tasks available", observed: false },
+          ],
+        },
+      ],
+      totalScore: 6,
+      totalMaxScore: 8,
+    },
+  ];
+
   const currentGroup = teachingGroups.find((g) => g.id === id);
+  const selectedTeacher = selectedTeacherId
+    ? currentGroup?.teachers.find(t => t.id === selectedTeacherId)
+    : null;
+  const teacherObservations = selectedTeacherId
+    ? allObservations.filter(obs => obs.teacherId === selectedTeacherId)
+    : [];
 
   if (!currentGroup) {
     return (
@@ -346,7 +472,12 @@ export default function TeachingGroupDetails() {
                   : 0;
 
                 return (
-                  <TableRow key={teacher.id} data-testid={`row-teacher-${teacher.id}`}>
+                  <TableRow 
+                    key={teacher.id} 
+                    data-testid={`row-teacher-${teacher.id}`}
+                    className="cursor-pointer hover-elevate"
+                    onClick={() => setSelectedTeacherId(teacher.id)}
+                  >
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <Avatar className="h-8 w-8">
@@ -399,6 +530,17 @@ export default function TeachingGroupDetails() {
           </Table>
         </CardContent>
       </Card>
+
+      <TeacherObservationsPanel
+        isOpen={selectedTeacherId !== null}
+        onClose={() => setSelectedTeacherId(null)}
+        teacherName={selectedTeacher?.name || ""}
+        observations={teacherObservations}
+        onObservationClick={(obsId) => {
+          setSelectedTeacherId(null);
+          setSelectedObservationId(obsId);
+        }}
+      />
     </div>
   );
 }
