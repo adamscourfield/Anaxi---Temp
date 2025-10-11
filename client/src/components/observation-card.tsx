@@ -39,7 +39,7 @@ export function ObservationCard({
   const percentage = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
   
   return (
-    <Card className="hover-elevate" data-testid={`card-observation-${teacherName.toLowerCase().replace(/\s+/g, '-')}`}>
+    <Card className="hover-elevate flex flex-col" data-testid={`card-observation-${teacherName.toLowerCase().replace(/\s+/g, '-')}`}>
       <CardHeader className="space-y-0 pb-3">
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -80,7 +80,7 @@ export function ObservationCard({
           )}
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="mt-auto pt-4">
         <Button
           variant="ghost"
           size="sm"
