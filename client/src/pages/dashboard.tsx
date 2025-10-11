@@ -2,6 +2,7 @@ import { StatCard } from "@/components/stat-card";
 import { ObservationCard } from "@/components/observation-card";
 import { AnalyticsChart } from "@/components/analytics-chart";
 import { CategoryPerformance } from "@/components/category-performance";
+import { TeachingGroupsSection } from "@/components/teaching-groups-section";
 import { Eye, Users, ClipboardCheck, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
@@ -55,6 +56,42 @@ export default function Dashboard() {
       categories: ["Application", "Exit Routine"],
       score: 9,
       maxScore: 10,
+    },
+  ];
+
+  const teachingGroups = [
+    {
+      id: "1",
+      name: "English Department",
+      groupLead: {
+        name: "Sarah Mitchell",
+        initials: "SM",
+      },
+      memberCount: 5,
+      avgScore: 4.5,
+      maxScore: 5,
+    },
+    {
+      id: "2",
+      name: "Mathematics",
+      groupLead: {
+        name: "James Chen",
+        initials: "JC",
+      },
+      memberCount: 4,
+      avgScore: 4.1,
+      maxScore: 5,
+    },
+    {
+      id: "3",
+      name: "Science Team",
+      groupLead: {
+        name: "Emily Rodriguez",
+        initials: "ER",
+      },
+      memberCount: 6,
+      avgScore: 4.3,
+      maxScore: 5,
     },
   ];
 
@@ -131,6 +168,7 @@ export default function Dashboard() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
+          <TeachingGroupsSection groups={teachingGroups} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <AnalyticsChart
               title="Observation Activity"
