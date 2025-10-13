@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Teacher, type InsertTeacher, type TeachingGroup, type InsertTeachingGroup } from "@shared/schema";
+import { type User, type InsertUser, type Teacher, type InsertTeacher, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -20,17 +20,22 @@ export interface IStorage {
   createTeachingGroup(group: InsertTeachingGroup): Promise<TeachingGroup>;
   updateTeachingGroup(id: string, updates: Partial<TeachingGroup>): Promise<TeachingGroup | undefined>;
   deleteTeachingGroup(id: string): Promise<boolean>;
+  
+  getConversationsBySchool(schoolId: string): Promise<Conversation[]>;
+  createConversation(conversation: InsertConversation): Promise<Conversation>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private teachers: Map<string, Teacher>;
   private teachingGroups: Map<string, TeachingGroup>;
+  private conversations: Map<string, Conversation>;
 
   constructor() {
     this.users = new Map();
     this.teachers = new Map();
     this.teachingGroups = new Map();
+    this.conversations = new Map();
     
     this.seedData();
   }
@@ -188,6 +193,23 @@ export class MemStorage implements IStorage {
 
   async deleteTeachingGroup(id: string): Promise<boolean> {
     return this.teachingGroups.delete(id);
+  }
+
+  async getConversationsBySchool(schoolId: string): Promise<Conversation[]> {
+    return Array.from(this.conversations.values())
+      .filter((conversation) => conversation.schoolId === schoolId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async createConversation(insertConversation: InsertConversation): Promise<Conversation> {
+    const id = randomUUID();
+    const conversation: Conversation = {
+      ...insertConversation,
+      id,
+      createdAt: new Date(),
+    };
+    this.conversations.set(id, conversation);
+    return conversation;
   }
 }
 

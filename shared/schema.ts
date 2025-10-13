@@ -111,3 +111,17 @@ export const observationHabits = pgTable("observation_habits", {
 export const insertObservationHabitSchema = createInsertSchema(observationHabits).omit({ id: true });
 export type InsertObservationHabit = z.infer<typeof insertObservationHabitSchema>;
 export type ObservationHabit = typeof observationHabits.$inferSelect;
+
+export const conversations = pgTable("conversations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  schoolId: varchar("school_id").notNull().references(() => schools.id),
+  teacherId: varchar("teacher_id").notNull().references(() => teachers.id),
+  subject: text("subject").notNull(),
+  details: text("details").notNull(),
+  rating: text("rating").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true });
+export type InsertConversation = z.infer<typeof insertConversationSchema>;
+export type Conversation = typeof conversations.$inferSelect;
