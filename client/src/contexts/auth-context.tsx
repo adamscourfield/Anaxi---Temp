@@ -6,6 +6,7 @@ interface AuthContextType {
   currentUser: Teacher | null;
   isLoading: boolean;
   setCurrentUserId: (userId: string | null) => void;
+  setCurrentUser: (user: Teacher) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +29,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const currentUser = currentUserId ? teachers.find(t => t.id === currentUserId) || null : null;
 
+  const setCurrentUser = (updatedUser: Teacher) => {
+    // Update localStorage with the full user object for immediate UI updates
+    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+    // This will trigger a re-render with the updated user data
+    setCurrentUserId(updatedUser.id);
+  };
+
   useEffect(() => {
     if (currentUserId) {
       localStorage.setItem("currentUserId", currentUserId);
@@ -35,6 +43,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("currentUserId");
     }
   }, [currentUserId]);
+
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem("currentUser", JSON.stringify(currentUser));
+    }
+  }, [currentUser]);
 
   useEffect(() => {
     if (!currentUserId && teachers.length > 0) {
@@ -46,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [teachers, currentUserId]);
 
   return (
-    <AuthContext.Provider value={{ currentUser, isLoading: teachersLoading, setCurrentUserId }}>
+    <AuthContext.Provider value={{ currentUser, isLoading: teachersLoading, setCurrentUserId, setCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

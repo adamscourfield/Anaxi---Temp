@@ -19,7 +19,8 @@ import {
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Link, useLocation } from "wouter";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useAuth } from "@/contexts/auth-context";
 import anaxiLogo from "@assets/7_1760131494886.png";
 
 const menuItems = [
@@ -71,6 +72,16 @@ const iconColorClasses: Record<string, string> = {
 
 export function AppSidebar() {
   const [location] = useLocation();
+  const { currentUser } = useAuth();
+
+  const userInitials = currentUser
+    ? currentUser.name
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "??";
 
   return (
     <Sidebar>
@@ -102,15 +113,24 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter className="p-4">
-        <div className="flex items-center gap-3">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback>RJ</AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium truncate">Rachel Johnson</p>
-            <p className="text-xs text-muted-foreground truncate">Admin</p>
+        <Link href="/profile" data-testid="link-profile">
+          <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer">
+            <Avatar className="h-8 w-8">
+              {currentUser?.profilePicture && (
+                <AvatarImage src={currentUser.profilePicture} />
+              )}
+              <AvatarFallback>{userInitials}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate" data-testid="text-current-user-name">
+                {currentUser?.name || "Loading..."}
+              </p>
+              <p className="text-xs text-muted-foreground truncate" data-testid="text-current-user-role">
+                {currentUser?.role || "Teacher"}
+              </p>
+            </div>
           </div>
-        </div>
+        </Link>
       </SidebarFooter>
     </Sidebar>
   );
