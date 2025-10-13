@@ -31,6 +31,77 @@ export class MemStorage implements IStorage {
     this.users = new Map();
     this.teachers = new Map();
     this.teachingGroups = new Map();
+    
+    this.seedData();
+  }
+
+  private seedData() {
+    const schoolId = "default-school";
+    
+    const englishGroup: TeachingGroup = {
+      id: "group-1",
+      schoolId,
+      name: "English Department",
+      groupLeadId: "teacher-1",
+    };
+    const mathGroup: TeachingGroup = {
+      id: "group-2",
+      schoolId,
+      name: "Mathematics",
+      groupLeadId: "teacher-2",
+    };
+    const scienceGroup: TeachingGroup = {
+      id: "group-3",
+      schoolId,
+      name: "Science Team",
+      groupLeadId: "teacher-3",
+    };
+    
+    this.teachingGroups.set(englishGroup.id, englishGroup);
+    this.teachingGroups.set(mathGroup.id, mathGroup);
+    this.teachingGroups.set(scienceGroup.id, scienceGroup);
+    
+    const teachers: Teacher[] = [
+      {
+        id: "teacher-1",
+        schoolId,
+        name: "Sarah Mitchell",
+        email: "s.mitchell@school.edu",
+        groupId: "group-1",
+      },
+      {
+        id: "teacher-2",
+        schoolId,
+        name: "James Chen",
+        email: "j.chen@school.edu",
+        groupId: "group-2",
+      },
+      {
+        id: "teacher-3",
+        schoolId,
+        name: "Emily Rodriguez",
+        email: "e.rodriguez@school.edu",
+        groupId: "group-3",
+      },
+      {
+        id: "teacher-4",
+        schoolId,
+        name: "Michael Thompson",
+        email: "m.thompson@school.edu",
+        groupId: "group-1",
+      },
+      {
+        id: "teacher-5",
+        schoolId,
+        name: "Lisa Anderson",
+        email: "l.anderson@school.edu",
+        groupId: null,
+      },
+    ];
+    
+    teachers.forEach(teacher => {
+      this.teachers.set(teacher.id, teacher);
+    });
   }
 
   async getUser(id: string): Promise<User | undefined> {

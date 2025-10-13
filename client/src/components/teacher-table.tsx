@@ -9,30 +9,47 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Teacher {
   id: string;
   name: string;
   initials: string;
-  email: string;
-  department: string;
+  email: string | null;
+  groupId?: string | null;
+  groupName?: string;
   observationCount: number;
+}
+
+interface TeachingGroup {
+  id: string;
+  name: string;
 }
 
 interface TeacherTableProps {
   teachers: Teacher[];
+  teachingGroups: TeachingGroup[];
   onEdit?: (teacher: Teacher) => void;
   onDelete?: (teacher: Teacher) => void;
+  onAssignGroup?: (teacherId: string, groupId: string | null) => void;
 }
 
-export function TeacherTable({ teachers, onEdit, onDelete }: TeacherTableProps) {
+export function TeacherTable({ teachers, teachingGroups, onEdit, onDelete, onAssignGroup }: TeacherTableProps) {
   return (
     <div className="border rounded-lg">
       <Table>
@@ -40,7 +57,7 @@ export function TeacherTable({ teachers, onEdit, onDelete }: TeacherTableProps) 
           <TableRow>
             <TableHead>Teacher</TableHead>
             <TableHead>Email</TableHead>
-            <TableHead>Department</TableHead>
+            <TableHead>Teaching Group</TableHead>
             <TableHead>Observations</TableHead>
             <TableHead className="w-[50px]"></TableHead>
           </TableRow>
@@ -56,9 +73,30 @@ export function TeacherTable({ teachers, onEdit, onDelete }: TeacherTableProps) 
                   <span className="font-medium">{teacher.name}</span>
                 </div>
               </TableCell>
-              <TableCell className="text-muted-foreground">{teacher.email}</TableCell>
+              <TableCell className="text-muted-foreground">{teacher.email || "—"}</TableCell>
               <TableCell>
-                <Badge variant="secondary">{teacher.department}</Badge>
+                <Select
+                  value={teacher.groupId || "none"}
+                  onValueChange={(value) => {
+                    const groupId = value === "none" ? null : value;
+                    onAssignGroup?.(teacher.id, groupId);
+                  }}
+                >
+                  <SelectTrigger 
+                    className="w-[200px]" 
+                    data-testid={`select-group-${teacher.id}`}
+                  >
+                    <SelectValue placeholder="No group" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">No group</SelectItem>
+                    {teachingGroups.map((group) => (
+                      <SelectItem key={group.id} value={group.id}>
+                        {group.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </TableCell>
               <TableCell data-testid={`text-observation-count-${teacher.id}`}>
                 {teacher.observationCount}

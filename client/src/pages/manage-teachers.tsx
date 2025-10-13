@@ -3,51 +3,73 @@ import { AddTeacherDialog } from "@/components/add-teacher-dialog";
 import { ImportTeachersDialog } from "@/components/import-teachers-dialog";
 import { TeachingGroupsManagement } from "@/components/teaching-groups-management";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import type { Teacher, TeachingGroup } from "@shared/schema";
 
-const teachers = [
-  {
-    id: "1",
-    name: "Sarah Mitchell",
-    initials: "SM",
-    email: "s.mitchell@school.edu",
-    department: "Mathematics",
-    observationCount: 12,
-  },
-  {
-    id: "2",
-    name: "James Chen",
-    initials: "JC",
-    email: "j.chen@school.edu",
-    department: "Science",
-    observationCount: 8,
-  },
-  {
-    id: "3",
-    name: "Emily Rodriguez",
-    initials: "ER",
-    email: "e.rodriguez@school.edu",
-    department: "English",
-    observationCount: 15,
-  },
-  {
-    id: "4",
-    name: "Michael Thompson",
-    initials: "MT",
-    email: "m.thompson@school.edu",
-    department: "History",
-    observationCount: 6,
-  },
-  {
-    id: "5",
-    name: "Lisa Anderson",
-    initials: "LA",
-    email: "l.anderson@school.edu",
-    department: "Arts",
-    observationCount: 10,
-  },
-];
+const SCHOOL_ID = "default-school";
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 export default function ManageTeachers() {
+  const { toast } = useToast();
+
+  const { data: teachers = [], isLoading: teachersLoading } = useQuery<Teacher[]>({
+    queryKey: ["/api/teachers", SCHOOL_ID],
+    queryFn: async () => {
+      const response = await fetch(`/api/teachers?schoolId=${SCHOOL_ID}`);
+      if (!response.ok) throw new Error("Failed to fetch teachers");
+      return response.json();
+    },
+  });
+
+  const { data: teachingGroups = [], isLoading: groupsLoading } = useQuery<TeachingGroup[]>({
+    queryKey: ["/api/teaching-groups", SCHOOL_ID],
+    queryFn: async () => {
+      const response = await fetch(`/api/teaching-groups?schoolId=${SCHOOL_ID}`);
+      if (!response.ok) throw new Error("Failed to fetch teaching groups");
+      return response.json();
+    },
+  });
+
+  const assignGroupMutation = useMutation({
+    mutationFn: async ({ teacherId, groupId }: { teacherId: string; groupId: string | null }) => {
+      return apiRequest("PATCH", `/api/teachers/${teacherId}`, { groupId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teachers", SCHOOL_ID] });
+      toast({
+        title: "Success",
+        description: "Teacher group assignment updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update teacher group assignment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const teachersWithMeta = teachers.map((teacher) => {
+    const group = teachingGroups.find((g) => g.id === teacher.groupId);
+    return {
+      ...teacher,
+      initials: getInitials(teacher.name),
+      groupName: group?.name,
+      observationCount: 0,
+    };
+  });
+
   return (
     <div className="p-6 space-y-8">
       <div className="flex items-center justify-between">
@@ -70,11 +92,19 @@ export default function ManageTeachers() {
             <ImportTeachersDialog />
             <AddTeacherDialog />
           </div>
-          <TeacherTable
-            teachers={teachers}
-            onEdit={(teacher) => console.log("Edit teacher:", teacher)}
-            onDelete={(teacher) => console.log("Delete teacher:", teacher)}
-          />
+          {teachersLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading teachers...</div>
+          ) : (
+            <TeacherTable
+              teachers={teachersWithMeta}
+              teachingGroups={teachingGroups}
+              onEdit={(teacher) => console.log("Edit teacher:", teacher)}
+              onDelete={(teacher) => console.log("Delete teacher:", teacher)}
+              onAssignGroup={(teacherId, groupId) => {
+                assignGroupMutation.mutate({ teacherId, groupId });
+              }}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="groups" className="space-y-6">
