@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { TeacherTable } from "@/components/teacher-table";
 import { AddTeacherDialog } from "@/components/add-teacher-dialog";
+import { EditTeacherDialog } from "@/components/edit-teacher-dialog";
 import { ImportTeachersDialog } from "@/components/import-teachers-dialog";
 import { TeachingGroupsManagement } from "@/components/teaching-groups-management";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +23,8 @@ function getInitials(name: string): string {
 
 export default function ManageTeachers() {
   const { toast } = useToast();
+  const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const { data: teachers = [], isLoading: teachersLoading } = useQuery<Teacher[]>({
     queryKey: ["/api/teachers", SCHOOL_ID],
@@ -95,15 +99,28 @@ export default function ManageTeachers() {
           {teachersLoading ? (
             <div className="text-center py-8 text-muted-foreground">Loading teachers...</div>
           ) : (
-            <TeacherTable
-              teachers={teachersWithMeta}
-              teachingGroups={teachingGroups}
-              onEdit={(teacher) => console.log("Edit teacher:", teacher)}
-              onDelete={(teacher) => console.log("Delete teacher:", teacher)}
-              onAssignGroup={(teacherId, groupId) => {
-                assignGroupMutation.mutate({ teacherId, groupId });
-              }}
-            />
+            <>
+              <TeacherTable
+                teachers={teachersWithMeta}
+                teachingGroups={teachingGroups}
+                onEdit={(teacher) => {
+                  setEditingTeacher(teacher);
+                  setEditDialogOpen(true);
+                }}
+                onDelete={(teacher) => console.log("Delete teacher:", teacher)}
+                onAssignGroup={(teacherId, groupId) => {
+                  assignGroupMutation.mutate({ teacherId, groupId });
+                }}
+              />
+              {editingTeacher && (
+                <EditTeacherDialog
+                  teacher={editingTeacher}
+                  schoolId={SCHOOL_ID}
+                  open={editDialogOpen}
+                  onOpenChange={setEditDialogOpen}
+                />
+              )}
+            </>
           )}
         </TabsContent>
 
