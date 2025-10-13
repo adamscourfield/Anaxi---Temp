@@ -21,6 +21,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Teacher, TeachingGroup } from "@shared/schema";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import { Upload } from "lucide-react";
+import type { UploadResult } from "@uppy/core";
 
 interface EditTeacherDialogProps {
   teacher: Teacher;
@@ -57,6 +60,61 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
       return response.json();
     },
   });
+
+  // Mutation for getting upload URL
+  const getUploadUrlMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/objects/upload");
+      return response.json();
+    },
+  });
+
+  // Mutation for setting profile picture after upload
+  const setProfilePictureMutation = useMutation({
+    mutationFn: async (profilePictureURL: string) => {
+      const response = await apiRequest("PUT", "/api/profile-pictures", {
+        profilePictureURL,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teachers", schoolId] });
+      setFormData({
+        ...formData,
+        profilePicture: data.objectPath,
+      });
+      toast({
+        title: "Success",
+        description: "Profile picture uploaded successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to upload profile picture",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handler for getting upload parameters
+  const handleGetUploadParameters = async () => {
+    const data = await getUploadUrlMutation.mutateAsync();
+    return {
+      method: "PUT" as const,
+      url: data.uploadURL,
+    };
+  };
+
+  // Handler for upload complete
+  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (result.successful && result.successful.length > 0) {
+      const uploadedFile = result.successful[0];
+      if (uploadedFile.uploadURL) {
+        setProfilePictureMutation.mutate(uploadedFile.uploadURL);
+      }
+    }
+  };
 
   const updateMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -139,16 +197,32 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-profile-picture">Profile Picture URL</Label>
-              <Input
-                id="edit-profile-picture"
-                placeholder="https://example.com/photo.jpg"
-                value={formData.profilePicture}
-                onChange={(e) =>
-                  setFormData({ ...formData, profilePicture: e.target.value })
-                }
-                data-testid="input-edit-profile-picture"
-              />
+              <Label htmlFor="edit-profile-picture">Profile Picture</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="edit-profile-picture"
+                  placeholder="https://example.com/photo.jpg or upload image"
+                  value={formData.profilePicture}
+                  onChange={(e) =>
+                    setFormData({ ...formData, profilePicture: e.target.value })
+                  }
+                  data-testid="input-edit-profile-picture"
+                  className="flex-1"
+                />
+                <ObjectUploader
+                  maxNumberOfFiles={1}
+                  maxFileSize={5242880}
+                  onGetUploadParameters={handleGetUploadParameters}
+                  onComplete={handleUploadComplete}
+                  buttonVariant="outline"
+                >
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload
+                </ObjectUploader>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Upload an image or enter a URL
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-department">Department</Label>
