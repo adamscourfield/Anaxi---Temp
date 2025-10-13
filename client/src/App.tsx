@@ -7,6 +7,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SchoolSelector } from "@/components/school-selector";
+import { UserSwitcher } from "@/components/user-switcher";
+import { AuthProvider } from "@/contexts/auth-context";
 import { useState } from "react";
 
 import Dashboard from "@/pages/dashboard";
@@ -46,30 +48,35 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <SidebarProvider style={style as React.CSSProperties}>
-          <div className="flex h-screen w-full">
-            <AppSidebar />
-            <div className="flex flex-col flex-1">
-              <header className="flex items-center justify-between gap-4 p-4 border-b">
-                <div className="flex items-center gap-4">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <SchoolSelector
-                    schools={schools}
-                    selectedSchool={selectedSchool}
-                    onSelectSchool={setSelectedSchool}
-                  />
-                </div>
-                <ThemeToggle />
-              </header>
-              <main className="flex-1 overflow-auto">
-                <Router />
-              </main>
+      <AuthProvider>
+        <TooltipProvider>
+          <SidebarProvider style={style as React.CSSProperties}>
+            <div className="flex h-screen w-full">
+              <AppSidebar />
+              <div className="flex flex-col flex-1">
+                <header className="flex items-center justify-between gap-4 p-4 border-b">
+                  <div className="flex items-center gap-4">
+                    <SidebarTrigger data-testid="button-sidebar-toggle" />
+                    <SchoolSelector
+                      schools={schools}
+                      selectedSchool={selectedSchool}
+                      onSelectSchool={setSelectedSchool}
+                    />
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <UserSwitcher />
+                    <ThemeToggle />
+                  </div>
+                </header>
+                <main className="flex-1 overflow-auto">
+                  <Router />
+                </main>
+              </div>
             </div>
-          </div>
-        </SidebarProvider>
-        <Toaster />
-      </TooltipProvider>
+          </SidebarProvider>
+          <Toaster />
+        </TooltipProvider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
