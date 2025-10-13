@@ -62,6 +62,45 @@ Preferred communication style: Simple, everyday language.
 - Type inference from database schema using Drizzle's type utilities
 - Validation schemas generated from database models using drizzle-zod
 
+### Object Storage Architecture
+
+**Integration**: Replit Object Storage (Google Cloud Storage via sidecar endpoint at http://127.0.0.1:1106).
+
+**Components**:
+- **ObjectStorageService** (`server/objectStorage.ts`): Core service for upload/download operations with presigned URL support
+- **ACL Framework** (`server/objectAcl.ts`): Access control layer with owner-based permissions and visibility policies (public/private)
+- **ObjectUploader** (`client/src/components/ObjectUploader.tsx`): Uppy-based modal component for file uploads (5MB max, single file)
+
+**Upload Flows**:
+
+*Profile Page Flow* (User updating own profile picture):
+1. User clicks upload button → ObjectUploader modal opens
+2. Frontend requests presigned URL from `POST /api/objects/upload`
+3. User selects image → direct upload to object storage via presigned URL
+4. Frontend calls `PUT /api/profile-pictures` with upload URL
+5. Backend sets ACL to public visibility and updates current user's `profilePicture` field in database
+6. Returns object path for immediate display
+
+*Edit Teacher Dialog Flow* (Admin updating another teacher's profile):
+1. Admin clicks upload button → ObjectUploader modal opens
+2. Frontend requests presigned URL from `POST /api/objects/upload`
+3. Admin selects image → direct upload to object storage via presigned URL
+4. Frontend calls `POST /api/objects/set-acl` with upload URL
+5. Backend sets ACL to public visibility (does NOT update database)
+6. Form data updated with object path
+7. Admin clicks "Save Changes" → `PATCH /api/teachers/:id` updates teacher's `profilePicture` field
+8. Teacher record updated with new profile picture
+
+**Security**:
+- All uploads require authentication (X-User-Id header)
+- Profile pictures use public visibility ACL policy (accessible by all authenticated users)
+- Downloads enforce ACL checks via `GET /objects/:objectPath` endpoint
+- Owner-based access control prevents unauthorized modifications
+
+**Environment Variables**:
+- `PRIVATE_OBJECT_DIR`: Directory for private objects (e.g., ".private")
+- `PUBLIC_OBJECT_SEARCH_PATHS`: Search paths for public assets (e.g., "public")
+
 ### Design System
 
 **Core Principles**:
