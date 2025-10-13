@@ -7,14 +7,36 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+function getCurrentUserId(): string | null {
+  const userJson = localStorage.getItem('currentUser');
+  if (!userJson) return null;
+  try {
+    const user = JSON.parse(userJson);
+    return user.id || null;
+  } catch {
+    return null;
+  }
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  const userId = getCurrentUserId();
+  const headers: Record<string, string> = {};
+  
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  if (userId) {
+    headers["X-User-Id"] = userId;
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -29,7 +51,15 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    const userId = getCurrentUserId();
+    const headers: Record<string, string> = {};
+    
+    if (userId) {
+      headers["X-User-Id"] = userId;
+    }
+    
     const res = await fetch(queryKey.join("/") as string, {
+      headers,
       credentials: "include",
     });
 
