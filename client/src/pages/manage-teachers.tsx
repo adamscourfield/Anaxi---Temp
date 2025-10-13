@@ -110,7 +110,17 @@ export default function ManageTeachers() {
                 teachers={teachersWithMeta}
                 teachingGroups={teachingGroups}
                 onEdit={isAdmin ? (teacher) => {
-                  setEditingTeacher(teacher);
+                  // Extract base Teacher properties (remove meta fields)
+                  const baseTeacher: Teacher = {
+                    id: teacher.id,
+                    name: teacher.name,
+                    schoolId: teacher.schoolId,
+                    email: teacher.email,
+                    role: teacher.role,
+                    profilePicture: teacher.profilePicture,
+                    groupId: teacher.groupId,
+                  };
+                  setEditingTeacher(baseTeacher);
                   setEditDialogOpen(true);
                 } : undefined}
                 onDelete={isAdmin ? (teacher) => console.log("Delete teacher:", teacher) : undefined}

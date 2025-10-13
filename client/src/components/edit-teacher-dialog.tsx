@@ -69,23 +69,24 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
     },
   });
 
-  // Mutation for setting profile picture after upload
-  const setProfilePictureMutation = useMutation({
-    mutationFn: async (profilePictureURL: string) => {
-      const response = await apiRequest("PUT", "/api/profile-pictures", {
-        profilePictureURL,
+  // Mutation for setting ACL on uploaded profile picture (doesn't update database)
+  const setProfilePictureAclMutation = useMutation({
+    mutationFn: async (objectURL: string) => {
+      const response = await apiRequest("POST", "/api/objects/set-acl", {
+        objectURL,
       });
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/teachers", schoolId] });
+      // Just update form data with the uploaded path
+      // The teacher update will happen when form is submitted via PATCH /api/teachers/:id
       setFormData({
         ...formData,
         profilePicture: data.objectPath,
       });
       toast({
         title: "Success",
-        description: "Profile picture uploaded successfully",
+        description: "Profile picture uploaded successfully. Click 'Save Changes' to update.",
       });
     },
     onError: () => {
@@ -111,7 +112,8 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
     if (result.successful && result.successful.length > 0) {
       const uploadedFile = result.successful[0];
       if (uploadedFile.uploadURL) {
-        setProfilePictureMutation.mutate(uploadedFile.uploadURL);
+        // Set ACL to public and get the object path
+        setProfilePictureAclMutation.mutate(uploadedFile.uploadURL);
       }
     }
   };

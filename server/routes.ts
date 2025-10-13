@@ -261,7 +261,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ uploadURL });
   });
 
-  // Endpoint for updating profile picture after upload (sets ACL policy)
+  // Endpoint for setting ACL on uploaded object (doesn't update database)
+  app.post("/api/objects/set-acl", async (req, res) => {
+    const userId = req.headers['x-user-id'] as string;
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized: No user ID provided" });
+    }
+    
+    if (!req.body.objectURL) {
+      return res.status(400).json({ error: "objectURL is required" });
+    }
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.objectURL,
+        {
+          owner: userId,
+          // Profile pictures are public so they can be viewed by other users
+          visibility: "public",
+        },
+      );
+
+      res.status(200).json({
+        objectPath: objectPath,
+      });
+    } catch (error) {
+      console.error("Error setting object ACL:", error);
+      res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
+  // Endpoint for updating current user's profile picture (sets ACL + updates database)
   app.put("/api/profile-pictures", async (req, res) => {
     const userId = req.headers['x-user-id'] as string;
     
@@ -284,7 +316,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       );
 
-      // Update the teacher's profile picture in the database
+      // Update the current user's profile picture in the database
       const updatedTeacher = await storage.updateTeacher(userId, {
         profilePicture: objectPath,
       });
