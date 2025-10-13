@@ -7,8 +7,8 @@ import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SchoolSelector } from "@/components/school-selector";
-import { UserSwitcher } from "@/components/user-switcher";
-import { AuthProvider } from "@/contexts/auth-context";
+import { UserMenu } from "@/components/user-menu";
+import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { useState } from "react";
 
 import Dashboard from "@/pages/dashboard";
@@ -19,6 +19,7 @@ import ManageTeachers from "@/pages/manage-teachers";
 import TeachingGroupDetails from "@/pages/teaching-group-details";
 import Conversations from "@/pages/conversations";
 import Profile from "@/pages/profile";
+import Landing from "@/pages/landing";
 
 function Router() {
   return (
@@ -35,7 +36,8 @@ function Router() {
   );
 }
 
-export default function App() {
+function AppContent() {
+  const { user, isLoading } = useAuth();
   const [selectedSchool, setSelectedSchool] = useState("1");
 
   const schools = [
@@ -48,36 +50,54 @@ export default function App() {
     "--sidebar-width": "16rem",
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Landing />;
+  }
+
+  return (
+    <TooltipProvider>
+      <SidebarProvider style={style as React.CSSProperties}>
+        <div className="flex h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-col flex-1">
+            <header className="flex items-center justify-between gap-4 p-4 border-b">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger data-testid="button-sidebar-toggle" />
+                <SchoolSelector
+                  schools={schools}
+                  selectedSchool={selectedSchool}
+                  onSelectSchool={setSelectedSchool}
+                />
+              </div>
+              <div className="flex items-center gap-4">
+                <UserMenu />
+                <ThemeToggle />
+              </div>
+            </header>
+            <main className="flex-1 overflow-auto">
+              <Router />
+            </main>
+          </div>
+        </div>
+      </SidebarProvider>
+      <Toaster />
+    </TooltipProvider>
+  );
+}
+
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <TooltipProvider>
-          <SidebarProvider style={style as React.CSSProperties}>
-            <div className="flex h-screen w-full">
-              <AppSidebar />
-              <div className="flex flex-col flex-1">
-                <header className="flex items-center justify-between gap-4 p-4 border-b">
-                  <div className="flex items-center gap-4">
-                    <SidebarTrigger data-testid="button-sidebar-toggle" />
-                    <SchoolSelector
-                      schools={schools}
-                      selectedSchool={selectedSchool}
-                      onSelectSchool={setSelectedSchool}
-                    />
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <UserSwitcher />
-                    <ThemeToggle />
-                  </div>
-                </header>
-                <main className="flex-1 overflow-auto">
-                  <Router />
-                </main>
-              </div>
-            </div>
-          </SidebarProvider>
-          <Toaster />
-        </TooltipProvider>
+        <AppContent />
       </AuthProvider>
     </QueryClientProvider>
   );

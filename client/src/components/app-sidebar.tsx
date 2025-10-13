@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 import anaxiLogo from "@assets/7_1760131494886.png";
 
 const menuItems = [
@@ -72,16 +72,15 @@ const iconColorClasses: Record<string, string> = {
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { currentUser } = useAuth();
+  const { user } = useAuth();
 
-  const userInitials = currentUser
-    ? currentUser.name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2)
-    : "??";
+  const userName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user?.email || "User";
+
+  const userInitials = user?.firstName && user?.lastName
+    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+    : user?.email?.[0]?.toUpperCase() || "?";
 
   return (
     <Sidebar>
@@ -116,17 +115,17 @@ export function AppSidebar() {
         <Link href="/profile" data-testid="link-profile">
           <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer">
             <Avatar className="h-8 w-8">
-              {currentUser?.profilePicture && (
-                <AvatarImage src={currentUser.profilePicture} />
+              {user?.profileImageUrl && (
+                <AvatarImage src={user.profileImageUrl} />
               )}
               <AvatarFallback>{userInitials}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate" data-testid="text-current-user-name">
-                {currentUser?.name || "Loading..."}
+                {userName}
               </p>
-              <p className="text-xs text-muted-foreground truncate" data-testid="text-current-user-role">
-                {currentUser?.role || "Teacher"}
+              <p className="text-xs text-muted-foreground truncate" data-testid="text-current-user-email">
+                {user?.email || ""}
               </p>
             </div>
           </div>
