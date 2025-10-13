@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { MessageSquare, Plus } from "lucide-react";
+import { MessageSquare, Plus, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ConversationDetailsPanel } from "@/components/conversation-details-panel";
 
@@ -109,6 +109,37 @@ export default function Conversations() {
     return teacher?.name || "Unknown Teacher";
   };
 
+  const exportToCSV = () => {
+    const headers = ["Date", "Teacher", "Subject", "Details", "Rating"];
+    const rows = filteredConversations.map((conv) => [
+      format(new Date(conv.createdAt), "yyyy-MM-dd HH:mm:ss"),
+      getTeacherName(conv.teacherId),
+      conv.subject,
+      conv.details.replace(/"/g, '""'), // Escape quotes in CSV
+      conv.rating,
+    ]);
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `conversations_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Success",
+      description: `Exported ${filteredConversations.length} conversations to CSV`,
+    });
+  };
+
   return (
     <div className="p-6 space-y-8">
       <div className="flex items-center justify-between">
@@ -118,13 +149,24 @@ export default function Conversations() {
             Record and track teacher-to-teacher conversations
           </p>
         </div>
-        <Button
-          onClick={() => setIsFormVisible(!isFormVisible)}
-          data-testid="button-add-conversation"
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          {isFormVisible ? "Cancel" : "Add Conversation"}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={exportToCSV}
+            disabled={filteredConversations.length === 0}
+            data-testid="button-export-csv"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </Button>
+          <Button
+            onClick={() => setIsFormVisible(!isFormVisible)}
+            data-testid="button-add-conversation"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            {isFormVisible ? "Cancel" : "Add Conversation"}
+          </Button>
+        </div>
       </div>
 
       {isFormVisible && (
