@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertTeacherSchema, insertTeachingGroupSchema } from "@shared/schema";
+import { insertTeacherSchema, insertTeachingGroupSchema, insertConversationSchema } from "@shared/schema";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -112,6 +112,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete teaching group" });
+    }
+  });
+
+  // Conversations routes
+  app.get("/api/conversations", async (req, res) => {
+    const schoolId = req.query.schoolId as string;
+    if (!schoolId) {
+      return res.status(400).json({ message: "School ID is required" });
+    }
+    
+    const conversations = await storage.getConversationsBySchool(schoolId);
+    res.json(conversations);
+  });
+
+  app.post("/api/conversations", async (req, res) => {
+    try {
+      const validated = insertConversationSchema.parse(req.body);
+      const conversation = await storage.createConversation(validated);
+      res.status(201).json(conversation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid conversation data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create conversation" });
     }
   });
 
