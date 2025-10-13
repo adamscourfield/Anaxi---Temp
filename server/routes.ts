@@ -17,19 +17,51 @@ type Role = "Teacher" | "Leader" | "Admin";
 async function requireRole(allowedRoles: Role[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const userId = req.headers['x-user-id'] as string;
+      // Get user from authenticated session
+      const sessionUser = (req.user as any);
       
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized: No user ID provided" });
+      if (!req.isAuthenticated() || !sessionUser || !sessionUser.claims || !sessionUser.claims.sub) {
+        return res.status(401).json({ message: "Unauthorized: No authenticated user" });
       }
 
-      const user = await storage.getTeacher(userId);
+      // Check token expiry and refresh if needed (same logic as isAuthenticated)
+      const now = Math.floor(Date.now() / 1000);
+      if (sessionUser.expires_at && now > sessionUser.expires_at) {
+        const refreshToken = sessionUser.refresh_token;
+        if (!refreshToken) {
+          return res.status(401).json({ message: "Unauthorized: Session expired" });
+        }
+
+        try {
+          const { getOidcConfig } = await import("./replitAuth");
+          const config = await getOidcConfig();
+          const client = await import("openid-client");
+          const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
+          
+          // Update session
+          sessionUser.claims = tokenResponse.claims();
+          sessionUser.access_token = tokenResponse.access_token;
+          sessionUser.refresh_token = tokenResponse.refresh_token;
+          sessionUser.expires_at = sessionUser.claims?.exp;
+        } catch (error) {
+          return res.status(401).json({ message: "Unauthorized: Token refresh failed" });
+        }
+      }
+
+      const userId = sessionUser.claims.sub;
+      const user = await storage.getUserByAuthId(userId);
       
       if (!user) {
-        return res.status(401).json({ message: "Unauthorized: User not found" });
+        return res.status(401).json({ message: "Unauthorized: User not found in system" });
       }
 
-      const userRole = (user.role || "Teacher") as Role;
+      const teacher = await storage.getTeacherByUserId(userId);
+      
+      if (!teacher) {
+        return res.status(401).json({ message: "Unauthorized: No teacher profile found" });
+      }
+
+      const userRole = (teacher.role || "Teacher") as Role;
       
       if (!allowedRoles.includes(userRole)) {
         return res.status(403).json({ 
@@ -38,7 +70,8 @@ async function requireRole(allowedRoles: Role[]) {
       }
 
       // Attach user info to request for later use
-      (req as any).currentUser = user;
+      (req as any).currentUser = teacher;
+      (req as any).authUser = user;
       next();
     } catch (error) {
       console.error("Permission check error:", error);
@@ -64,7 +97,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Teachers routes
-  app.get("/api/teachers", async (req, res) => {
+  app.get("/api/teachers", isAuthenticated, async (req, res) => {
     const schoolId = req.query.schoolId as string;
     if (!schoolId) {
       return res.status(400).json({ message: "School ID is required" });
@@ -87,31 +120,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/teachers/:id", async (req, res) => {
+  app.patch("/api/teachers/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.headers['x-user-id'] as string;
+      const authUserId = req.user.claims.sub;
       
-      console.log(`[PATCH /api/teachers/:id] teacherId=${id}, userId=${userId}`);
-      
-      if (!userId) {
-        console.log(`[PATCH] No user ID provided`);
-        return res.status(401).json({ message: "Unauthorized: No user ID provided" });
-      }
-
-      const user = await storage.getTeacher(userId);
-      
-      if (!user) {
-        console.log(`[PATCH] User not found: ${userId}`);
+      const authUser = await storage.getUserByAuthId(authUserId);
+      if (!authUser) {
         return res.status(401).json({ message: "Unauthorized: User not found" });
       }
 
-      const userRole = (user.role || "Teacher") as Role;
-      console.log(`[PATCH] User role: ${userRole}, editing ${id === userId ? "self" : "other"}`);
+      const currentTeacher = await storage.getTeacherByUserId(authUserId);
+      if (!currentTeacher) {
+        return res.status(401).json({ message: "Unauthorized: No teacher profile found" });
+      }
+
+      const userRole = (currentTeacher.role || "Teacher") as Role;
       
       // Users can edit their own profile, or Admins can edit anyone
-      if (userId !== id && userRole !== "Admin") {
-        console.log(`[PATCH] Permission denied: non-admin trying to edit another user`);
+      if (currentTeacher.id !== id && userRole !== "Admin") {
         return res.status(403).json({ 
           message: "Forbidden: You can only edit your own profile" 
         });
@@ -120,24 +147,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updates = req.body;
       
       // Prevent non-admins from changing their own role
-      if (userId === id && userRole !== "Admin" && updates.role) {
-        console.log(`[PATCH] Permission denied: non-admin trying to change own role`);
+      if (currentTeacher.id === id && userRole !== "Admin" && updates.role) {
         return res.status(403).json({ 
           message: "Forbidden: You cannot change your own role" 
         });
       }
       
-      console.log(`[PATCH] Updating teacher ${id}`, updates);
       const updatedTeacher = await storage.updateTeacher(id, updates);
       if (!updatedTeacher) {
-        console.log(`[PATCH] Teacher not found: ${id}`);
         return res.status(404).json({ message: "Teacher not found" });
       }
       
-      console.log(`[PATCH] Successfully updated teacher ${id}`);
       res.json(updatedTeacher);
     } catch (error) {
-      console.error(`[PATCH] Error:`, error);
+      console.error("Error updating teacher:", error);
       res.status(500).json({ message: "Failed to update teacher" });
     }
   });
@@ -158,7 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Teaching Groups routes
-  app.get("/api/teaching-groups", async (req, res) => {
+  app.get("/api/teaching-groups", isAuthenticated, async (req, res) => {
     const schoolId = req.query.schoolId as string;
     if (!schoolId) {
       return res.status(400).json({ message: "School ID is required" });
@@ -213,7 +236,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Conversations routes
-  app.get("/api/conversations", async (req, res) => {
+  app.get("/api/conversations", isAuthenticated, async (req, res) => {
     const schoolId = req.query.schoolId as string;
     if (!schoolId) {
       return res.status(400).json({ message: "School ID is required" });
@@ -223,7 +246,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(conversations);
   });
 
-  app.post("/api/conversations", async (req, res) => {
+  app.post("/api/conversations", isAuthenticated, async (req, res) => {
     try {
       const validated = insertConversationSchema.parse(req.body);
       const conversation = await storage.createConversation(validated);
@@ -239,8 +262,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Object Storage routes - Referenced from blueprint:javascript_object_storage
   
   // Endpoint for serving uploaded profile pictures with ACL check
-  app.get("/objects/:objectPath(*)", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
+  app.get("/objects/:objectPath(*)", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
     const objectStorageService = new ObjectStorageService();
     
     try {
@@ -266,12 +289,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoint for getting presigned upload URL
-  app.post("/api/objects/upload", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized: No user ID provided" });
-    }
+  app.post("/api/objects/upload", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
     
     const objectStorageService = new ObjectStorageService();
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
@@ -279,12 +298,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoint for setting ACL on uploaded object (doesn't update database)
-  app.post("/api/objects/set-acl", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized: No user ID provided" });
-    }
+  app.post("/api/objects/set-acl", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
     
     if (!req.body.objectURL) {
       return res.status(400).json({ error: "objectURL is required" });
@@ -311,12 +326,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Endpoint for updating current user's profile picture (sets ACL + updates database)
-  app.put("/api/profile-pictures", async (req, res) => {
-    const userId = req.headers['x-user-id'] as string;
-    
-    if (!userId) {
-      return res.status(401).json({ error: "Unauthorized: No user ID provided" });
-    }
+  app.put("/api/profile-pictures", isAuthenticated, async (req: any, res) => {
+    const userId = req.user.claims.sub;
     
     if (!req.body.profilePictureURL) {
       return res.status(400).json({ error: "profilePictureURL is required" });
@@ -333,8 +344,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       );
 
-      // Update the current user's profile picture in the database
-      const updatedTeacher = await storage.updateTeacher(userId, {
+      // Get the teacher profile for the authenticated user
+      const teacher = await storage.getTeacherByUserId(userId);
+      if (!teacher) {
+        return res.status(404).json({ error: "Teacher profile not found" });
+      }
+
+      // Update the teacher's profile picture in the database
+      const updatedTeacher = await storage.updateTeacher(teacher.id, {
         profilePicture: objectPath,
       });
 

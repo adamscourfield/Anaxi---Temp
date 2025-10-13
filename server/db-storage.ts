@@ -22,6 +22,11 @@ export class DbStorage implements IStorage {
     return user;
   }
 
+  async getUserByAuthId(authId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, authId));
+    return user;
+  }
+
   async upsertUser(userData: UpsertUser): Promise<User> {
     const [user] = await db
       .insert(users)
@@ -43,6 +48,11 @@ export class DbStorage implements IStorage {
 
   async getTeacher(id: string): Promise<Teacher | undefined> {
     const [teacher] = await db.select().from(teachers).where(eq(teachers.id, id));
+    return teacher;
+  }
+
+  async getTeacherByUserId(userId: string): Promise<Teacher | undefined> {
+    const [teacher] = await db.select().from(teachers).where(eq(teachers.userId, userId));
     return teacher;
   }
 

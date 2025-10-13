@@ -6,10 +6,12 @@ import { randomUUID } from "crypto";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
+  getUserByAuthId(authId: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   
   getTeachersBySchool(schoolId: string): Promise<Teacher[]>;
   getTeacher(id: string): Promise<Teacher | undefined>;
+  getTeacherByUserId(userId: string): Promise<Teacher | undefined>;
   createTeacher(teacher: InsertTeacher): Promise<Teacher>;
   updateTeacher(id: string, updates: Partial<Teacher>): Promise<Teacher | undefined>;
   deleteTeacher(id: string): Promise<boolean>;
@@ -127,6 +129,10 @@ export class MemStorage implements IStorage {
     return this.users.get(id);
   }
 
+  async getUserByAuthId(authId: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.id === authId);
+  }
+
   async upsertUser(userData: UpsertUser): Promise<User> {
     const id = userData.id || randomUUID();
     const user: User = { 
@@ -150,6 +156,10 @@ export class MemStorage implements IStorage {
 
   async getTeacher(id: string): Promise<Teacher | undefined> {
     return this.teachers.get(id);
+  }
+
+  async getTeacherByUserId(userId: string): Promise<Teacher | undefined> {
+    return Array.from(this.teachers.values()).find(teacher => teacher.userId === userId);
   }
 
   async createTeacher(insertTeacher: InsertTeacher): Promise<Teacher> {
