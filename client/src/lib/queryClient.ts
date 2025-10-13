@@ -8,14 +8,7 @@ async function throwIfResNotOk(res: Response) {
 }
 
 function getCurrentUserId(): string | null {
-  const userJson = localStorage.getItem('currentUser');
-  if (!userJson) return null;
-  try {
-    const user = JSON.parse(userJson);
-    return user.id || null;
-  } catch {
-    return null;
-  }
+  return localStorage.getItem('currentUserId');
 }
 
 export async function apiRequest(

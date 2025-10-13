@@ -67,18 +67,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/teachers/:id", await requireRole(["Admin"]), async (req, res) => {
+  app.patch("/api/teachers/:id", async (req, res) => {
     try {
       const { id } = req.params;
+      const userId = req.headers['x-user-id'] as string;
+      
+      console.log(`[PATCH /api/teachers/:id] teacherId=${id}, userId=${userId}`);
+      
+      if (!userId) {
+        console.log(`[PATCH] No user ID provided`);
+        return res.status(401).json({ message: "Unauthorized: No user ID provided" });
+      }
+
+      const user = await storage.getTeacher(userId);
+      
+      if (!user) {
+        console.log(`[PATCH] User not found: ${userId}`);
+        return res.status(401).json({ message: "Unauthorized: User not found" });
+      }
+
+      const userRole = (user.role || "Teacher") as Role;
+      console.log(`[PATCH] User role: ${userRole}, editing ${id === userId ? "self" : "other"}`);
+      
+      // Users can edit their own profile, or Admins can edit anyone
+      if (userId !== id && userRole !== "Admin") {
+        console.log(`[PATCH] Permission denied: non-admin trying to edit another user`);
+        return res.status(403).json({ 
+          message: "Forbidden: You can only edit your own profile" 
+        });
+      }
+      
       const updates = req.body;
       
+      // Prevent non-admins from changing their own role
+      if (userId === id && userRole !== "Admin" && updates.role) {
+        console.log(`[PATCH] Permission denied: non-admin trying to change own role`);
+        return res.status(403).json({ 
+          message: "Forbidden: You cannot change your own role" 
+        });
+      }
+      
+      console.log(`[PATCH] Updating teacher ${id}`, updates);
       const updatedTeacher = await storage.updateTeacher(id, updates);
       if (!updatedTeacher) {
+        console.log(`[PATCH] Teacher not found: ${id}`);
         return res.status(404).json({ message: "Teacher not found" });
       }
       
+      console.log(`[PATCH] Successfully updated teacher ${id}`);
       res.json(updatedTeacher);
     } catch (error) {
+      console.error(`[PATCH] Error:`, error);
       res.status(500).json({ message: "Failed to update teacher" });
     }
   });

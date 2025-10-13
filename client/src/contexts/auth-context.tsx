@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Teacher } from "@shared/schema";
 
 interface AuthContextType {
@@ -14,6 +14,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const SCHOOL_ID = "3d629223-97f8-4d33-8e7e-974bbbf156b8";
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const queryClient = useQueryClient();
   const [currentUserId, setCurrentUserId] = useState<string | null>(() => {
     return localStorage.getItem("currentUserId");
   });
@@ -30,10 +31,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const currentUser = currentUserId ? teachers.find(t => t.id === currentUserId) || null : null;
 
   const setCurrentUser = (updatedUser: Teacher) => {
-    // Update localStorage with the full user object for immediate UI updates
-    localStorage.setItem("currentUser", JSON.stringify(updatedUser));
-    // This will trigger a re-render with the updated user data
-    setCurrentUserId(updatedUser.id);
+    // Update the teachers cache immediately for instant UI updates
+    queryClient.setQueryData<Teacher[]>(["/api/teachers", SCHOOL_ID], (oldTeachers) => {
+      if (!oldTeachers) return [updatedUser];
+      return oldTeachers.map((teacher) =>
+        teacher.id === updatedUser.id ? updatedUser : teacher
+      );
+    });
   };
 
   useEffect(() => {
@@ -43,12 +47,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("currentUserId");
     }
   }, [currentUserId]);
-
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem("currentUser", JSON.stringify(currentUser));
-    }
-  }, [currentUser]);
 
   useEffect(() => {
     if (!currentUserId && teachers.length > 0) {

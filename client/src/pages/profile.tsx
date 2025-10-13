@@ -16,10 +16,22 @@ export default function Profile() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: currentUser?.name || "",
-    email: currentUser?.email || "",
-    profilePicture: currentUser?.profilePicture || "",
+    name: "",
+    email: "",
+    profilePicture: "",
   });
+
+  // Sync formData with currentUser when entering edit mode
+  const handleEdit = () => {
+    if (currentUser) {
+      setFormData({
+        name: currentUser.name || "",
+        email: currentUser.email || "",
+        profilePicture: currentUser.profilePicture || "",
+      });
+    }
+    setIsEditing(true);
+  };
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -46,6 +58,27 @@ export default function Profile() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate email format
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Validate name is not empty
+    if (!formData.name.trim()) {
+      toast({
+        title: "Invalid Name",
+        description: "Name cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     updateProfileMutation.mutate(formData);
   };
 
@@ -93,7 +126,7 @@ export default function Profile() {
             {!isEditing && (
               <Button
                 variant="outline"
-                onClick={() => setIsEditing(true)}
+                onClick={handleEdit}
                 data-testid="button-edit-profile"
               >
                 Edit Profile
@@ -104,7 +137,9 @@ export default function Profile() {
         <CardContent className="space-y-6">
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24">
-              {formData.profilePicture && <AvatarImage src={formData.profilePicture} />}
+              {(isEditing ? formData.profilePicture : currentUser.profilePicture) && (
+                <AvatarImage src={(isEditing ? formData.profilePicture : currentUser.profilePicture) || undefined} />
+              )}
               <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
