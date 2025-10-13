@@ -3,8 +3,10 @@ import { FeedbackReport } from "@/components/feedback-report";
 import { ObservationCard } from "@/components/observation-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft } from "lucide-react";
+import { Search, ArrowLeft, Download } from "lucide-react";
 import { Link } from "wouter";
+import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 const observations = [
   {
@@ -116,10 +118,46 @@ const sampleFeedback = {
 };
 
 export default function ObservationHistory() {
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedObservation, setSelectedObservation] = useState<string | null>(
     null
   );
+
+  const exportToCSV = () => {
+    const headers = ["Date", "Teacher", "Categories", "Score", "Max Score", "Percentage"];
+    const rows = observations.map((obs) => {
+      const percentage = obs.maxScore > 0 ? Math.round((obs.score / obs.maxScore) * 100) : 0;
+      return [
+        format(obs.date, "yyyy-MM-dd"),
+        obs.teacherName,
+        obs.categories.join("; "),
+        obs.score.toString(),
+        obs.maxScore.toString(),
+        `${percentage}%`,
+      ];
+    });
+
+    const csvContent = [
+      headers.join(","),
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(",")),
+    ].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", `observations_${format(new Date(), "yyyy-MM-dd")}.csv`);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Success",
+      description: `Exported ${observations.length} observations to CSV`,
+    });
+  };
 
   if (selectedObservation) {
     return (
@@ -158,11 +196,22 @@ export default function ObservationHistory() {
             View all completed observations
           </p>
         </div>
-        <Link href="/observe">
-          <Button data-testid="button-new-observation-history">
-            New Observation
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={exportToCSV}
+            disabled={observations.length === 0}
+            data-testid="button-export-csv"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
           </Button>
-        </Link>
+          <Link href="/observe">
+            <Button data-testid="button-new-observation-history">
+              New Observation
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="relative">
