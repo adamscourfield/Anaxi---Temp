@@ -4,14 +4,19 @@ import { AnalyticsChart } from "@/components/analytics-chart";
 import { CategoryPerformance } from "@/components/category-performance";
 import { TeachingGroupsSection } from "@/components/teaching-groups-section";
 import { ObservationDetailsPanel } from "@/components/observation-details-panel";
+import { FilteredObservationsPanel } from "@/components/filtered-observations-panel";
 import { Eye, Users, ClipboardCheck, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
+import { format } from "date-fns";
 
 export default function Dashboard() {
   const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<"day" | "teacher" | "category" | null>(null);
+  const [filterValue, setFilterValue] = useState<string | null>(null);
+  
   const observationTrend = [
     { label: "Mon", value: 3 },
     { label: "Tue", value: 5 },
@@ -237,6 +242,74 @@ export default function Dashboard() {
     ? allObservations.find(obs => obs.id === selectedObservationId) || null
     : null;
 
+  // Convert day name to a filter function
+  const getDayOfWeek = (date: Date): string => {
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    return days[date.getDay()];
+  };
+
+  // Filter observations based on current filter
+  const getFilteredObservations = () => {
+    if (!filterType || !filterValue) return [];
+
+    switch (filterType) {
+      case "day":
+        return allObservations.filter(obs => getDayOfWeek(obs.date) === filterValue);
+      case "teacher":
+        return allObservations.filter(obs => obs.teacherName === filterValue);
+      case "category":
+        return allObservations.filter(obs => 
+          obs.categories.some(cat => cat.name === filterValue)
+        );
+      default:
+        return [];
+    }
+  };
+
+  const filteredObservations = getFilteredObservations();
+
+  // Click handlers for different analytics sections
+  const handleDayClick = (day: string) => {
+    setFilterType("day");
+    setFilterValue(day);
+  };
+
+  const handleTeacherClick = (teacherName: string) => {
+    setFilterType("teacher");
+    setFilterValue(teacherName);
+  };
+
+  const handleCategoryClick = (categoryName: string) => {
+    setFilterType("category");
+    setFilterValue(categoryName);
+  };
+
+  const closeFilteredPanel = () => {
+    setFilterType(null);
+    setFilterValue(null);
+  };
+
+  const handleObservationClick = (obsId: string) => {
+    setSelectedObservationId(obsId);
+    closeFilteredPanel();
+  };
+
+  // Generate panel title based on filter type
+  const getFilterPanelTitle = () => {
+    if (!filterType || !filterValue) return "";
+    
+    switch (filterType) {
+      case "day":
+        return `Observations on ${filterValue}`;
+      case "teacher":
+        return `${filterValue}'s Observations`;
+      case "category":
+        return `${filterValue} Observations`;
+      default:
+        return "Filtered Observations";
+    }
+  };
+
   return (
     <div className="p-6 space-y-8">
       <div className="flex items-center justify-between">
@@ -329,16 +402,37 @@ export default function Dashboard() {
               title="Observation Activity"
               data={observationTrend}
               showFilter
+              onDataPointClick={handleDayClick}
             />
             <AnalyticsChart
               title="Top Performers"
               data={topPerformers}
               type="progress"
+              onDataPointClick={handleTeacherClick}
             />
           </div>
-          <CategoryPerformance categories={categoryPerformance} />
+          <CategoryPerformance 
+            categories={categoryPerformance} 
+            onCategoryClick={handleCategoryClick}
+          />
         </TabsContent>
       </Tabs>
+
+      <FilteredObservationsPanel
+        isOpen={filterType !== null && filterValue !== null}
+        onClose={closeFilteredPanel}
+        title={getFilterPanelTitle()}
+        observations={filteredObservations.map(obs => ({
+          id: obs.id,
+          teacherName: obs.teacherName,
+          teacherInitials: obs.teacherInitials,
+          date: obs.date,
+          categories: obs.categories.map(cat => cat.name),
+          score: obs.totalScore,
+          maxScore: obs.totalMaxScore,
+        }))}
+        onObservationClick={handleObservationClick}
+      />
 
       <ObservationDetailsPanel
         isOpen={selectedObservationId !== null}

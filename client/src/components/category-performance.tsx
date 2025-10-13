@@ -12,9 +12,10 @@ interface CategoryData {
 
 interface CategoryPerformanceProps {
   categories: CategoryData[];
+  onCategoryClick?: (categoryName: string) => void;
 }
 
-export function CategoryPerformance({ categories }: CategoryPerformanceProps) {
+export function CategoryPerformance({ categories, onCategoryClick }: CategoryPerformanceProps) {
   return (
     <Card>
       <CardHeader>
@@ -40,7 +41,9 @@ export function CategoryPerformance({ categories }: CategoryPerformanceProps) {
             return (
               <div
                 key={idx}
-                className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                className={`flex items-center justify-between p-3 rounded-lg bg-muted/50 ${onCategoryClick ? 'cursor-pointer hover-elevate active-elevate-2' : ''}`}
+                onClick={() => onCategoryClick?.(category.name)}
+                data-testid={`category-item-${category.name.toLowerCase().replace(/\s+/g, '-')}`}
               >
                 <div className="flex-1">
                   <div className="flex items-center justify-between mb-2">
@@ -57,7 +60,7 @@ export function CategoryPerformance({ categories }: CategoryPerformanceProps) {
                       </div>
                     </div>
                   </div>
-                  <div className="h-1.5 bg-background rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-background rounded-full overflow-visible">
                     <div
                       className="h-full bg-primary rounded-full transition-all"
                       style={{ width: `${percentage}%` }}

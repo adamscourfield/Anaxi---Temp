@@ -20,6 +20,7 @@ interface AnalyticsChartProps {
   data: DataPoint[];
   type?: "bar" | "progress";
   showFilter?: boolean;
+  onDataPointClick?: (label: string) => void;
 }
 
 export function AnalyticsChart({
@@ -27,6 +28,7 @@ export function AnalyticsChart({
   data,
   type = "bar",
   showFilter = false,
+  onDataPointClick,
 }: AnalyticsChartProps) {
   const [timeframe, setTimeframe] = useState("month");
 
@@ -54,7 +56,12 @@ export function AnalyticsChart({
       <CardContent>
         <div className="space-y-4">
           {data.map((item, idx) => (
-            <div key={idx} className="space-y-2">
+            <div 
+              key={idx} 
+              className={`space-y-2 ${onDataPointClick ? 'cursor-pointer hover-elevate active-elevate-2 p-2 -m-2 rounded-lg' : ''}`}
+              onClick={() => onDataPointClick?.(item.label)}
+              data-testid={`chart-item-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+            >
               <div className="flex items-center justify-between text-sm">
                 <span className="font-medium">{item.label}</span>
                 <div className="flex items-center gap-2">
@@ -67,7 +74,7 @@ export function AnalyticsChart({
                   )}
                 </div>
               </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
+              <div className="h-2 bg-muted rounded-full overflow-visible">
                 <div
                   className="h-full bg-primary rounded-full transition-all"
                   style={{
