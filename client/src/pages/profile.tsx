@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Image as ImageIcon } from "lucide-react";
+import { User, Mail, Image as ImageIcon, Upload } from "lucide-react";
+import { ObjectUploader } from "@/components/ObjectUploader";
+import type { UploadResult } from "@uppy/core";
 
 export default function Profile() {
   const { currentUser, setCurrentUser } = useAuth();
@@ -31,6 +33,62 @@ export default function Profile() {
       });
     }
     setIsEditing(true);
+  };
+
+  // Mutation for getting upload URL
+  const getUploadUrlMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/objects/upload");
+      return response.json();
+    },
+  });
+
+  // Mutation for setting profile picture after upload
+  const setProfilePictureMutation = useMutation({
+    mutationFn: async (profilePictureURL: string) => {
+      const response = await apiRequest("PUT", "/api/profile-pictures", {
+        profilePictureURL,
+      });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/teachers"] });
+      setCurrentUser(data.teacher);
+      setFormData({
+        ...formData,
+        profilePicture: data.objectPath,
+      });
+      toast({
+        title: "Success",
+        description: "Profile picture uploaded successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to upload profile picture",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Handler for getting upload parameters
+  const handleGetUploadParameters = async () => {
+    const data = await getUploadUrlMutation.mutateAsync();
+    return {
+      method: "PUT" as const,
+      url: data.uploadURL,
+    };
+  };
+
+  // Handler for upload complete
+  const handleUploadComplete = (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
+    if (result.successful && result.successful.length > 0) {
+      const uploadedFile = result.successful[0];
+      if (uploadedFile.uploadURL) {
+        setProfilePictureMutation.mutate(uploadedFile.uploadURL);
+      }
+    }
   };
 
   const updateProfileMutation = useMutation({
@@ -193,15 +251,31 @@ export default function Profile() {
               <div className="space-y-2">
                 <Label htmlFor="profilePicture">
                   <ImageIcon className="w-4 h-4 inline mr-2" />
-                  Profile Picture URL
+                  Profile Picture
                 </Label>
-                <Input
-                  id="profilePicture"
-                  value={formData.profilePicture}
-                  onChange={(e) => setFormData({ ...formData, profilePicture: e.target.value })}
-                  placeholder="https://example.com/photo.jpg"
-                  data-testid="input-profile-picture"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="profilePicture"
+                    value={formData.profilePicture}
+                    onChange={(e) => setFormData({ ...formData, profilePicture: e.target.value })}
+                    placeholder="https://example.com/photo.jpg or upload image"
+                    data-testid="input-profile-picture"
+                    className="flex-1"
+                  />
+                  <ObjectUploader
+                    maxNumberOfFiles={1}
+                    maxFileSize={5242880}
+                    onGetUploadParameters={handleGetUploadParameters}
+                    onComplete={handleUploadComplete}
+                    buttonVariant="outline"
+                  >
+                    <Upload className="w-4 h-4 mr-2" />
+                    Upload
+                  </ObjectUploader>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Upload an image or enter a URL
+                </p>
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
