@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 import type { Conversation, Teacher } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -30,10 +31,13 @@ const ratingColors = {
 
 export default function Conversations() {
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [filterTeacherId, setFilterTeacherId] = useState<string>("all");
   const [filterRating, setFilterRating] = useState<string>("all");
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+
+  const canExport = currentUser?.role === "Leader" || currentUser?.role === "Admin";
 
   const [formData, setFormData] = useState({
     teacherId: "",
@@ -150,15 +154,17 @@ export default function Conversations() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={exportToCSV}
-            disabled={filteredConversations.length === 0}
-            data-testid="button-export-csv"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          {canExport && (
+            <Button
+              variant="outline"
+              onClick={exportToCSV}
+              disabled={filteredConversations.length === 0}
+              data-testid="button-export-csv"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          )}
           <Button
             onClick={() => setIsFormVisible(!isFormVisible)}
             data-testid="button-add-conversation"

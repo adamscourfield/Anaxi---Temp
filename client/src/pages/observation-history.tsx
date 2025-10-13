@@ -7,6 +7,7 @@ import { Search, ArrowLeft, Download } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 
 const observations = [
   {
@@ -119,10 +120,13 @@ const sampleFeedback = {
 
 export default function ObservationHistory() {
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedObservation, setSelectedObservation] = useState<string | null>(
     null
   );
+
+  const canExport = currentUser?.role === "Leader" || currentUser?.role === "Admin";
 
   const exportToCSV = () => {
     const headers = ["Date", "Teacher", "Categories", "Score", "Max Score", "Percentage"];
@@ -197,15 +201,17 @@ export default function ObservationHistory() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            onClick={exportToCSV}
-            disabled={observations.length === 0}
-            data-testid="button-export-csv"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
+          {canExport && (
+            <Button
+              variant="outline"
+              onClick={exportToCSV}
+              disabled={observations.length === 0}
+              data-testid="button-export-csv"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export CSV
+            </Button>
+          )}
           <Link href="/observe">
             <Button data-testid="button-new-observation-history">
               New Observation

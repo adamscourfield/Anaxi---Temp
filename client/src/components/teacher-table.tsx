@@ -51,6 +51,8 @@ interface TeacherTableProps {
 }
 
 export function TeacherTable({ teachers, teachingGroups, onEdit, onDelete, onAssignGroup }: TeacherTableProps) {
+  const hasActions = !!onEdit || !!onDelete;
+  
   return (
     <div className="border rounded-lg">
       <Table>
@@ -61,7 +63,7 @@ export function TeacherTable({ teachers, teachingGroups, onEdit, onDelete, onAss
             <TableHead>Role</TableHead>
             <TableHead>Teaching Group</TableHead>
             <TableHead>Observations</TableHead>
-            <TableHead className="w-[50px]"></TableHead>
+            {hasActions && <TableHead className="w-[50px]"></TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -115,36 +117,42 @@ export function TeacherTable({ teachers, teachingGroups, onEdit, onDelete, onAss
               <TableCell data-testid={`text-observation-count-${teacher.id}`}>
                 {teacher.observationCount}
               </TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      data-testid={`button-actions-${teacher.id}`}
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={() => onEdit?.(teacher)}
-                      data-testid="button-edit-teacher"
-                    >
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onDelete?.(teacher)}
-                      className="text-destructive"
-                      data-testid="button-delete-teacher"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
+              {hasActions && (
+                <TableCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        data-testid={`button-actions-${teacher.id}`}
+                      >
+                        <MoreHorizontal className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {onEdit && (
+                        <DropdownMenuItem
+                          onClick={() => onEdit(teacher)}
+                          data-testid="button-edit-teacher"
+                        >
+                          <Pencil className="h-4 w-4 mr-2" />
+                          Edit
+                        </DropdownMenuItem>
+                      )}
+                      {onDelete && (
+                        <DropdownMenuItem
+                          onClick={() => onDelete(teacher)}
+                          className="text-destructive"
+                          data-testid="button-delete-teacher"
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </TableCell>
+              )}
             </TableRow>
           ))}
         </TableBody>

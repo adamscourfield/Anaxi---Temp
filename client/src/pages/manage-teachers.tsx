@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 import type { Teacher, TeachingGroup } from "@shared/schema";
 
 const SCHOOL_ID = "3d629223-97f8-4d33-8e7e-974bbbf156b8";
@@ -23,8 +24,11 @@ function getInitials(name: string): string {
 
 export default function ManageTeachers() {
   const { toast } = useToast();
+  const { currentUser } = useAuth();
   const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+
+  const isAdmin = currentUser?.role === "Admin";
 
   const { data: teachers = [], isLoading: teachersLoading } = useQuery<Teacher[]>({
     queryKey: ["/api/teachers", SCHOOL_ID],
@@ -92,10 +96,12 @@ export default function ManageTeachers() {
         </TabsList>
 
         <TabsContent value="teachers" className="space-y-6">
-          <div className="flex justify-end gap-2">
-            <ImportTeachersDialog />
-            <AddTeacherDialog />
-          </div>
+          {isAdmin && (
+            <div className="flex justify-end gap-2">
+              <ImportTeachersDialog />
+              <AddTeacherDialog />
+            </div>
+          )}
           {teachersLoading ? (
             <div className="text-center py-8 text-muted-foreground">Loading teachers...</div>
           ) : (
@@ -103,11 +109,11 @@ export default function ManageTeachers() {
               <TeacherTable
                 teachers={teachersWithMeta}
                 teachingGroups={teachingGroups}
-                onEdit={(teacher) => {
+                onEdit={isAdmin ? (teacher) => {
                   setEditingTeacher(teacher);
                   setEditDialogOpen(true);
-                }}
-                onDelete={(teacher) => console.log("Delete teacher:", teacher)}
+                } : undefined}
+                onDelete={isAdmin ? (teacher) => console.log("Delete teacher:", teacher) : undefined}
                 onAssignGroup={(teacherId, groupId) => {
                   assignGroupMutation.mutate({ teacherId, groupId });
                 }}
