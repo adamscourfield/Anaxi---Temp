@@ -114,9 +114,9 @@ export default function ManageTeachers() {
                   setEditDialogOpen(true);
                 } : undefined}
                 onDelete={isAdmin ? (teacher) => console.log("Delete teacher:", teacher) : undefined}
-                onAssignGroup={(teacherId, groupId) => {
+                onAssignGroup={isAdmin ? (teacherId, groupId) => {
                   assignGroupMutation.mutate({ teacherId, groupId });
-                }}
+                } : undefined}
               />
               {editingTeacher && (
                 <EditTeacherDialog

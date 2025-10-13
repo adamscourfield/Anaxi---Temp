@@ -97,6 +97,7 @@ export function TeacherTable({ teachers, teachingGroups, onEdit, onDelete, onAss
                     const groupId = value === "none" ? null : value;
                     onAssignGroup?.(teacher.id, groupId);
                   }}
+                  disabled={!onAssignGroup}
                 >
                   <SelectTrigger 
                     className="w-[200px]" 
