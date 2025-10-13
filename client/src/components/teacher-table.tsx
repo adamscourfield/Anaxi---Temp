@@ -31,6 +31,7 @@ interface Teacher {
   name: string;
   initials: string;
   email: string | null;
+  role?: string;
   groupId?: string | null;
   groupName?: string;
   observationCount: number;
@@ -57,6 +58,7 @@ export function TeacherTable({ teachers, teachingGroups, onEdit, onDelete, onAss
           <TableRow>
             <TableHead>Teacher</TableHead>
             <TableHead>Email</TableHead>
+            <TableHead>Role</TableHead>
             <TableHead>Teaching Group</TableHead>
             <TableHead>Observations</TableHead>
             <TableHead className="w-[50px]"></TableHead>
@@ -74,6 +76,18 @@ export function TeacherTable({ teachers, teachingGroups, onEdit, onDelete, onAss
                 </div>
               </TableCell>
               <TableCell className="text-muted-foreground">{teacher.email || "—"}</TableCell>
+              <TableCell>
+                <Badge 
+                  variant={
+                    teacher.role === "Admin" ? "default" : 
+                    teacher.role === "Leader" ? "secondary" : 
+                    "outline"
+                  }
+                  data-testid={`badge-role-${teacher.id}`}
+                >
+                  {teacher.role || "Teacher"}
+                </Badge>
+              </TableCell>
               <TableCell>
                 <Select
                   value={teacher.groupId || "none"}
