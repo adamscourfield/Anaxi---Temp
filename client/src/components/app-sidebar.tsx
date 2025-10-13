@@ -4,6 +4,7 @@ import {
   ClipboardList,
   Eye,
   History,
+  MessageSquare,
 } from "lucide-react";
 import {
   Sidebar,
@@ -39,6 +40,12 @@ const menuItems = [
     url: "/history",
     icon: History,
     color: "teal",
+  },
+  {
+    title: "Conversations",
+    url: "/conversations",
+    icon: MessageSquare,
+    color: "info",
   },
   {
     title: "Manage Rubrics",
