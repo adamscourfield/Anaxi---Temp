@@ -17,6 +17,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { MessageSquare, Plus, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ConversationDetailsPanel } from "@/components/conversation-details-panel";
@@ -266,44 +274,36 @@ export default function Conversations() {
         </Card>
       )}
 
-      <Card data-testid="card-conversations-list">
-        <CardHeader>
-          <CardTitle>All Conversations</CardTitle>
-          <div className="flex gap-4 mt-4">
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="filter-teacher">Filter by Teacher</Label>
-              <Select value={filterTeacherId} onValueChange={setFilterTeacherId}>
-                <SelectTrigger id="filter-teacher" data-testid="select-filter-teacher">
-                  <SelectValue placeholder="All teachers" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Teachers</SelectItem>
-                  {teachers.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>
-                      {teacher.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+      <div className="space-y-4">
+        <div className="flex gap-3">
+          <Select value={filterTeacherId} onValueChange={setFilterTeacherId}>
+            <SelectTrigger className="w-[220px]" data-testid="select-filter-teacher">
+              <SelectValue placeholder="All teachers" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Teachers</SelectItem>
+              {teachers.map((teacher) => (
+                <SelectItem key={teacher.id} value={teacher.id}>
+                  {teacher.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-            <div className="flex-1 space-y-2">
-              <Label htmlFor="filter-rating">Filter by Rating</Label>
-              <Select value={filterRating} onValueChange={setFilterRating}>
-                <SelectTrigger id="filter-rating" data-testid="select-filter-rating">
-                  <SelectValue placeholder="All ratings" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Ratings</SelectItem>
-                  <SelectItem value="Best Practice">Best Practice</SelectItem>
-                  <SelectItem value="Neutral">Neutral</SelectItem>
-                  <SelectItem value="Concern">Concern</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
+          <Select value={filterRating} onValueChange={setFilterRating}>
+            <SelectTrigger className="w-[180px]" data-testid="select-filter-rating">
+              <SelectValue placeholder="All ratings" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Ratings</SelectItem>
+              <SelectItem value="Best Practice">Best Practice</SelectItem>
+              <SelectItem value="Neutral">Neutral</SelectItem>
+              <SelectItem value="Concern">Concern</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="border rounded-lg" data-testid="table-conversations">
           {conversationsLoading ? (
             <div className="text-center py-8 text-muted-foreground" data-testid="text-loading">
               Loading conversations...
@@ -315,47 +315,52 @@ export default function Conversations() {
               <p className="text-sm mt-1">Click "Add Conversation" to get started</p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {filteredConversations.map((conversation) => (
-                <Card
-                  key={conversation.id}
-                  className="hover-elevate cursor-pointer"
-                  data-testid={`card-conversation-${conversation.id}`}
-                  onClick={() => setSelectedConversationId(conversation.id)}
-                >
-                  <CardContent className="pt-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 space-y-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-semibold" data-testid={`text-subject-${conversation.id}`}>
-                            {conversation.subject}
-                          </h3>
-                          <Badge
-                            variant="outline"
-                            className={ratingColors[conversation.rating as keyof typeof ratingColors]}
-                            data-testid={`badge-rating-${conversation.id}`}
-                          >
-                            {conversation.rating}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground" data-testid={`text-teacher-${conversation.id}`}>
-                          <span className="font-medium">Teacher:</span> {getTeacherName(conversation.teacherId)}
-                        </p>
-                        <p className="text-sm" data-testid={`text-details-${conversation.id}`}>
-                          {conversation.details}
-                        </p>
-                        <p className="text-xs text-muted-foreground" data-testid={`text-date-${conversation.id}`}>
-                          {format(new Date(conversation.createdAt), "PPP 'at' p")}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Teacher</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Details</TableHead>
+                  <TableHead>Rating</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredConversations.map((conversation) => (
+                  <TableRow
+                    key={conversation.id}
+                    className="cursor-pointer"
+                    data-testid={`row-conversation-${conversation.id}`}
+                    onClick={() => setSelectedConversationId(conversation.id)}
+                  >
+                    <TableCell className="text-sm text-muted-foreground" data-testid={`text-date-${conversation.id}`}>
+                      {format(new Date(conversation.createdAt), "MMM d, yyyy")}
+                    </TableCell>
+                    <TableCell className="font-medium" data-testid={`text-teacher-${conversation.id}`}>
+                      {getTeacherName(conversation.teacherId)}
+                    </TableCell>
+                    <TableCell className="font-medium" data-testid={`text-subject-${conversation.id}`}>
+                      {conversation.subject}
+                    </TableCell>
+                    <TableCell className="max-w-md truncate" data-testid={`text-details-${conversation.id}`}>
+                      {conversation.details}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={ratingColors[conversation.rating as keyof typeof ratingColors]}
+                        data-testid={`badge-rating-${conversation.id}`}
+                      >
+                        {conversation.rating}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       <ConversationDetailsPanel
         isOpen={selectedConversationId !== null}
