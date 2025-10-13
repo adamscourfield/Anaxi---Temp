@@ -260,14 +260,14 @@ export default function Dashboard() {
           value="24"
           icon={Eye}
           description="This month"
-          color="info"
+          color="primary"
         />
         <StatCard
           title="Active Teachers"
           value="18"
           icon={Users}
           description="In your school"
-          color="pink"
+          color="teal"
         />
         <StatCard
           title="Avg. Score"
@@ -281,7 +281,7 @@ export default function Dashboard() {
           value="+12%"
           icon={TrendingUp}
           description="vs. last month"
-          color="teal"
+          color="amber"
         />
       </div>
 
