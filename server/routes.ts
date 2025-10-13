@@ -1,10 +1,46 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { DbStorage } from "./db-storage";
 import { insertTeacherSchema, insertTeachingGroupSchema, insertConversationSchema } from "@shared/schema";
 import { z } from "zod";
 
 const storage = new DbStorage();
+
+// Permission middleware
+type Role = "Teacher" | "Leader" | "Admin";
+
+async function requireRole(allowedRoles: Role[]) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const userId = req.headers['x-user-id'] as string;
+      
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized: No user ID provided" });
+      }
+
+      const user = await storage.getTeacher(userId);
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized: User not found" });
+      }
+
+      const userRole = (user.role || "Teacher") as Role;
+      
+      if (!allowedRoles.includes(userRole)) {
+        return res.status(403).json({ 
+          message: `Forbidden: ${userRole}s are not allowed to perform this action. Required role: ${allowedRoles.join(" or ")}` 
+        });
+      }
+
+      // Attach user info to request for later use
+      (req as any).currentUser = user;
+      next();
+    } catch (error) {
+      console.error("Permission check error:", error);
+      res.status(500).json({ message: "Permission check failed" });
+    }
+  };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Teachers routes
@@ -18,7 +54,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(teachers);
   });
 
-  app.post("/api/teachers", async (req, res) => {
+  app.post("/api/teachers", await requireRole(["Admin"]), async (req, res) => {
     try {
       const validated = insertTeacherSchema.parse(req.body);
       const teacher = await storage.createTeacher(validated);
@@ -31,7 +67,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/teachers/:id", async (req, res) => {
+  app.patch("/api/teachers/:id", await requireRole(["Admin"]), async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -47,7 +83,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/teachers/:id", async (req, res) => {
+  app.delete("/api/teachers/:id", await requireRole(["Admin"]), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteTeacher(id);
@@ -73,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(groups);
   });
 
-  app.post("/api/teaching-groups", async (req, res) => {
+  app.post("/api/teaching-groups", await requireRole(["Admin"]), async (req, res) => {
     try {
       const validated = insertTeachingGroupSchema.parse(req.body);
       const group = await storage.createTeachingGroup(validated);
@@ -86,7 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/teaching-groups/:id", async (req, res) => {
+  app.patch("/api/teaching-groups/:id", await requireRole(["Admin"]), async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -102,7 +138,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/teaching-groups/:id", async (req, res) => {
+  app.delete("/api/teaching-groups/:id", await requireRole(["Admin"]), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteTeachingGroup(id);
