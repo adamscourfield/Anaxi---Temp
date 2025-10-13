@@ -3,6 +3,9 @@ import { createServer, type Server } from "http";
 import { DbStorage } from "./db-storage";
 import { insertTeacherSchema, insertTeachingGroupSchema, insertConversationSchema } from "@shared/schema";
 import { z } from "zod";
+// Referenced from blueprint:javascript_object_storage
+import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
+import { ObjectPermission } from "./objectAcl";
 
 const storage = new DbStorage();
 
@@ -213,6 +216,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid conversation data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  // Object Storage routes - Referenced from blueprint:javascript_object_storage
+  
+  // Endpoint for serving uploaded profile pictures with ACL check
+  app.get("/objects/:objectPath(*)", async (req, res) => {
+    const userId = req.headers['x-user-id'] as string;
+    const objectStorageService = new ObjectStorageService();
+    
+    try {
+      const objectFile = await objectStorageService.getObjectEntityFile(req.path);
+      const canAccess = await objectStorageService.canAccessObjectEntity({
+        objectFile,
+        userId: userId,
+        requestedPermission: ObjectPermission.READ,
+      });
+      
+      if (!canAccess) {
+        return res.sendStatus(401);
+      }
+      
+      objectStorageService.downloadObject(objectFile, res);
+    } catch (error) {
+      console.error("Error checking object access:", error);
+      if (error instanceof ObjectNotFoundError) {
+        return res.sendStatus(404);
+      }
+      return res.sendStatus(500);
+    }
+  });
+
+  // Endpoint for getting presigned upload URL
+  app.post("/api/objects/upload", async (req, res) => {
+    const userId = req.headers['x-user-id'] as string;
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized: No user ID provided" });
+    }
+    
+    const objectStorageService = new ObjectStorageService();
+    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
+    res.json({ uploadURL });
+  });
+
+  // Endpoint for updating profile picture after upload (sets ACL policy)
+  app.put("/api/profile-pictures", async (req, res) => {
+    const userId = req.headers['x-user-id'] as string;
+    
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized: No user ID provided" });
+    }
+    
+    if (!req.body.profilePictureURL) {
+      return res.status(400).json({ error: "profilePictureURL is required" });
+    }
+
+    try {
+      const objectStorageService = new ObjectStorageService();
+      const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
+        req.body.profilePictureURL,
+        {
+          owner: userId,
+          // Profile pictures are public so they can be viewed by other users
+          visibility: "public",
+        },
+      );
+
+      // Update the teacher's profile picture in the database
+      const updatedTeacher = await storage.updateTeacher(userId, {
+        profilePicture: objectPath,
+      });
+
+      if (!updatedTeacher) {
+        return res.status(404).json({ error: "Teacher not found" });
+      }
+
+      res.status(200).json({
+        objectPath: objectPath,
+        teacher: updatedTeacher,
+      });
+    } catch (error) {
+      console.error("Error setting profile picture:", error);
+      res.status(500).json({ error: "Internal server error" });
     }
   });
 
