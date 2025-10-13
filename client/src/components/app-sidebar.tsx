@@ -30,13 +30,13 @@ const menuItems = [
     color: "primary",
   },
   {
-    title: "Conduct Observation",
+    title: "Observe",
     url: "/observe",
     icon: Eye,
     color: "info",
   },
   {
-    title: "Observation History",
+    title: "View observations",
     url: "/history",
     icon: History,
     color: "teal",
@@ -48,7 +48,7 @@ const menuItems = [
     color: "info",
   },
   {
-    title: "Manage Rubrics",
+    title: "Manage Rubric",
     url: "/rubrics",
     icon: ClipboardList,
     color: "amber",
