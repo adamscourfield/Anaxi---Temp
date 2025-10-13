@@ -7,6 +7,7 @@ interface StatCardProps {
   icon: LucideIcon;
   description?: string;
   color?: "primary" | "success" | "info" | "warning" | "teal" | "amber" | "pink";
+  variant?: "default" | "dark";
 }
 
 const colorClasses = {
@@ -19,7 +20,41 @@ const colorClasses = {
   pink: "bg-primary/[0.06] text-primary",
 };
 
-export function StatCard({ title, value, icon: Icon, description, color = "primary" }: StatCardProps) {
+const darkColorClasses = {
+  primary: "bg-primary/20 text-primary",
+  success: "bg-[hsl(var(--success)_/_0.2)] text-[hsl(var(--success))]",
+  info: "bg-[hsl(225_15%_25%_/_0.2)] text-[hsl(225_15%_25%)]",
+  warning: "bg-[hsl(var(--warning)_/_0.2)] text-[hsl(var(--warning))]",
+  teal: "bg-[hsl(var(--teal)_/_0.2)] text-[hsl(var(--teal))]",
+  amber: "bg-primary/20 text-primary",
+  pink: "bg-primary/20 text-primary",
+};
+
+export function StatCard({ title, value, icon: Icon, description, color = "primary", variant = "default" }: StatCardProps) {
+  if (variant === "dark") {
+    return (
+      <Card 
+        data-testid={`card-stat-${title.toLowerCase().replace(/\s+/g, '-')}`}
+        className="bg-[hsl(220_25%_25%)] border-[hsl(220_25%_30%)]"
+      >
+        <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">
+          <h3 className="text-sm font-medium text-white/70">{title}</h3>
+          <div className={`h-10 w-10 rounded-lg flex items-center justify-center ${darkColorClasses[color]}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="text-2xl font-semibold text-white" data-testid={`text-stat-value-${title.toLowerCase().replace(/\s+/g, '-')}`}>
+            {value}
+          </div>
+          {description && (
+            <p className="text-xs text-white/60 mt-1">{description}</p>
+          )}
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card data-testid={`card-stat-${title.toLowerCase().replace(/\s+/g, '-')}`}>
       <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-2">

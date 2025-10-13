@@ -36,7 +36,7 @@ const menuItems = [
     color: "info",
   },
   {
-    title: "View observations",
+    title: "View Observations",
     url: "/history",
     icon: History,
     color: "teal",

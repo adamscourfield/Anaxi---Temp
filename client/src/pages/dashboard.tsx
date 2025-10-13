@@ -275,6 +275,7 @@ export default function Dashboard() {
           icon={ClipboardCheck}
           description="Out of 5"
           color="amber"
+          variant="dark"
         />
         <StatCard
           title="Improvement"
