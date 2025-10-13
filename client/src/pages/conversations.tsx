@@ -18,6 +18,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { MessageSquare, Plus } from "lucide-react";
 import { format } from "date-fns";
+import { ConversationDetailsPanel } from "@/components/conversation-details-panel";
 
 const SCHOOL_ID = "default-school";
 
@@ -32,6 +33,7 @@ export default function Conversations() {
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [filterTeacherId, setFilterTeacherId] = useState<string>("all");
   const [filterRating, setFilterRating] = useState<string>("all");
+  const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     teacherId: "",
@@ -269,8 +271,9 @@ export default function Conversations() {
               {filteredConversations.map((conversation) => (
                 <Card
                   key={conversation.id}
-                  className="hover-elevate"
+                  className="hover-elevate cursor-pointer"
                   data-testid={`card-conversation-${conversation.id}`}
+                  onClick={() => setSelectedConversationId(conversation.id)}
                 >
                   <CardContent className="pt-6">
                     <div className="flex items-start justify-between gap-4">
@@ -305,6 +308,19 @@ export default function Conversations() {
           )}
         </CardContent>
       </Card>
+
+      <ConversationDetailsPanel
+        isOpen={selectedConversationId !== null}
+        onClose={() => setSelectedConversationId(null)}
+        conversation={
+          selectedConversationId
+            ? {
+                ...conversations.find((c) => c.id === selectedConversationId)!,
+                teacherName: getTeacherName(conversations.find((c) => c.id === selectedConversationId)?.teacherId || ""),
+              }
+            : null
+        }
+      />
     </div>
   );
 }
