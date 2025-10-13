@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Teacher, type InsertTeacher, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation } from "@shared/schema";
+import { type User, type UpsertUser, type Teacher, type InsertTeacher, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -6,8 +6,7 @@ import { randomUUID } from "crypto";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
   
   getTeachersBySchool(schoolId: string): Promise<Teacher[]>;
   getTeacher(id: string): Promise<Teacher | undefined>;
@@ -69,37 +68,52 @@ export class MemStorage implements IStorage {
     const teachers: Teacher[] = [
       {
         id: "teacher-1",
+        userId: null,
         schoolId,
         name: "Sarah Mitchell",
         email: "s.mitchell@school.edu",
+        role: "Teacher",
+        profilePicture: null,
         groupId: "group-1",
       },
       {
         id: "teacher-2",
+        userId: null,
         schoolId,
         name: "James Chen",
         email: "j.chen@school.edu",
+        role: "Leader",
+        profilePicture: null,
         groupId: "group-2",
       },
       {
         id: "teacher-3",
+        userId: null,
         schoolId,
         name: "Emily Rodriguez",
         email: "e.rodriguez@school.edu",
+        role: "Admin",
+        profilePicture: null,
         groupId: "group-3",
       },
       {
         id: "teacher-4",
+        userId: null,
         schoolId,
         name: "Michael Thompson",
         email: "m.thompson@school.edu",
+        role: "Teacher",
+        profilePicture: null,
         groupId: "group-1",
       },
       {
         id: "teacher-5",
+        userId: null,
         schoolId,
         name: "Lisa Anderson",
         email: "l.anderson@school.edu",
+        role: "Teacher",
+        profilePicture: null,
         groupId: null,
       },
     ];
@@ -113,15 +127,17 @@ export class MemStorage implements IStorage {
     return this.users.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
-  }
-
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const id = userData.id || randomUUID();
+    const user: User = { 
+      id,
+      email: userData.email || null,
+      firstName: userData.firstName || null,
+      lastName: userData.lastName || null,
+      profileImageUrl: userData.profileImageUrl || null,
+      createdAt: userData.createdAt || new Date(),
+      updatedAt: new Date(),
+    };
     this.users.set(id, user);
     return user;
   }
@@ -141,7 +157,10 @@ export class MemStorage implements IStorage {
     const teacher: Teacher = { 
       ...insertTeacher, 
       id,
+      userId: insertTeacher.userId ?? null,
       email: insertTeacher.email ?? null,
+      role: insertTeacher.role ?? "Teacher",
+      profilePicture: insertTeacher.profilePicture ?? null,
       groupId: insertTeacher.groupId ?? null
     };
     this.teachers.set(id, teacher);
