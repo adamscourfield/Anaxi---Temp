@@ -8,7 +8,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { Teacher, TeachingGroup } from "@shared/schema";
 
-const SCHOOL_ID = "default-school";
+const SCHOOL_ID = "3d629223-97f8-4d33-8e7e-974bbbf156b8";
 
 function getInitials(name: string): string {
   return name

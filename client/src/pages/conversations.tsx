@@ -20,7 +20,7 @@ import { MessageSquare, Plus, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ConversationDetailsPanel } from "@/components/conversation-details-panel";
 
-const SCHOOL_ID = "default-school";
+const SCHOOL_ID = "3d629223-97f8-4d33-8e7e-974bbbf156b8";
 
 const ratingColors = {
   "Best Practice": "bg-success/10 text-success border-success/20",
