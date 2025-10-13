@@ -260,28 +260,28 @@ export default function Dashboard() {
           value="24"
           icon={Eye}
           description="This month"
-          color="primary"
+          color="warning"
         />
         <StatCard
           title="Active Teachers"
           value="18"
           icon={Users}
           description="In your school"
-          color="teal"
+          color="primary"
         />
         <StatCard
           title="Avg. Score"
           value="4.2"
           icon={ClipboardCheck}
           description="Out of 5"
-          color="success"
+          color="amber"
         />
         <StatCard
           title="Improvement"
           value="+12%"
           icon={TrendingUp}
           description="vs. last month"
-          color="amber"
+          color="warning"
         />
       </div>
 
