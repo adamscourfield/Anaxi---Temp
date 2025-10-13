@@ -44,11 +44,11 @@ async function seed() {
 
   // Create teachers
   const teacherData = [
-    { name: "Sarah Mitchell", email: "sarah.mitchell@springdale.edu", groupId: englishGroup.id },
-    { name: "James Chen", email: "james.chen@springdale.edu", groupId: mathGroup.id },
-    { name: "Emily Rodriguez", email: "emily.rodriguez@springdale.edu", groupId: scienceGroup.id },
-    { name: "Lisa Anderson", email: "lisa.anderson@springdale.edu", groupId: englishGroup.id },
-    { name: "Michael Brown", email: "michael.brown@springdale.edu", groupId: mathGroup.id },
+    { name: "Sarah Mitchell", email: "sarah.mitchell@springdale.edu", groupId: englishGroup.id, role: "Admin" },
+    { name: "James Chen", email: "james.chen@springdale.edu", groupId: mathGroup.id, role: "Leader" },
+    { name: "Emily Rodriguez", email: "emily.rodriguez@springdale.edu", groupId: scienceGroup.id, role: "Leader" },
+    { name: "Lisa Anderson", email: "lisa.anderson@springdale.edu", groupId: englishGroup.id, role: "Teacher" },
+    { name: "Michael Brown", email: "michael.brown@springdale.edu", groupId: mathGroup.id, role: "Teacher" },
   ];
 
   const createdTeachers = await db

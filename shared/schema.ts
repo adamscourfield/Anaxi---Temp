@@ -42,6 +42,8 @@ export const teachers = pgTable("teachers", {
   schoolId: varchar("school_id").notNull().references(() => schools.id),
   name: text("name").notNull(),
   email: text("email"),
+  role: text("role").notNull().default("Teacher"),
+  profilePicture: text("profile_picture"),
   groupId: varchar("group_id").references(() => teachingGroups.id),
 });
 
