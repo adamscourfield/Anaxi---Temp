@@ -52,23 +52,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware - Referenced from blueprint:javascript_log_in_with_replit
   await setupAuth(app);
 
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const authId = req.user.claims.sub;
-      const user = await storage.getUserByAuthId(authId);
-      
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
-
   // Teachers routes
   app.get("/api/teachers", isAuthenticated, async (req, res) => {
     const schoolId = req.query.schoolId as string;
@@ -96,14 +79,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch("/api/teachers/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const authUserId = req.user.claims.sub;
+      const authUser = req.user; // User is set by isAuthenticated middleware
       
-      const authUser = await storage.getUserByAuthId(authUserId);
       if (!authUser) {
         return res.status(401).json({ message: "Unauthorized: User not found" });
       }
 
-      const currentTeacher = await storage.getTeacherByUserId(authUserId);
+      const currentTeacher = await storage.getTeacherByUserId(authUser.id);
       if (!currentTeacher) {
         return res.status(401).json({ message: "Unauthorized: No teacher profile found" });
       }
