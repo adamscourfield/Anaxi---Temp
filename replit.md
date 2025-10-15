@@ -40,12 +40,41 @@ Preferred communication style: Simple, everyday language.
 
 **Storage Layer**: Abstracted storage interface (`IStorage`) with in-memory implementation (`MemStorage`) for development. Designed to support database integration through interface implementation pattern.
 
-**Session Management**: Prepared for session-based authentication using connect-pg-simple for PostgreSQL session store.
+**Session Management**: Session-based authentication using connect-pg-simple for PostgreSQL session store.
 
 **Development Features**:
 - Request/response logging middleware with performance metrics
 - Vite integration for HMR during development
 - Error handling middleware with status code normalization
+
+### Authentication & Security
+
+**Authentication Method**: Email/password authentication with bcrypt password hashing (10 salt rounds).
+
+**Session Configuration**:
+- PostgreSQL-backed session storage (connect-pg-simple)
+- 1-week session TTL
+- Cookie settings: `httpOnly: true`, `secure: true`, `sameSite: 'lax'`
+- CSRF protection via sameSite cookie attribute
+- Session cookie name: `connect.sid`
+
+**Security Features**:
+- Password requirements: Minimum 8 characters
+- Bcrypt hashing with 10 salt rounds
+- Secure session management with automatic cookie clearing on logout
+- Protected routes with `isAuthenticated` middleware
+- Role-based access control (Teacher, Leader, Admin)
+
+**Authentication Endpoints**:
+- POST `/api/auth/register` - Create new user account
+- POST `/api/auth/login` - Authenticate user credentials
+- POST `/api/auth/logout` - Destroy session and clear cookie
+- GET `/api/auth/user` - Get current authenticated user
+
+**Environment Requirements**:
+- `SESSION_SECRET`: Required for session encryption (must be set in production)
+- HTTPS required in production for secure cookies (`secure: true`)
+- Trust proxy enabled for correct client IP detection behind reverse proxies
 
 ### Data Architecture
 

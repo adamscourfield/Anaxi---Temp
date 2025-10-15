@@ -24,6 +24,7 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: true,
+      sameSite: 'lax',
       maxAge: sessionTtl,
     },
   });
@@ -122,6 +123,13 @@ export async function setupAuth(app: Express) {
         console.error("[AUTH] Logout error:", err);
         return res.status(500).json({ message: "Failed to logout" });
       }
+      // Clear the session cookie with the same options used when setting it
+      res.clearCookie('connect.sid', {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+      });
       res.json({ message: "Logged out successfully" });
     });
   });
