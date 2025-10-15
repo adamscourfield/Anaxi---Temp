@@ -14,11 +14,11 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table for Replit Auth
+// User storage table with email/password authentication
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  auth_id: varchar("auth_id").unique().notNull(),
-  email: varchar("email").unique(),
+  email: varchar("email").unique().notNull(),
+  password_hash: varchar("password_hash").notNull(),
   first_name: varchar("first_name"),
   last_name: varchar("last_name"),
   profile_image_url: varchar("profile_image_url"),
@@ -26,7 +26,8 @@ export const users = pgTable("users", {
   updated_at: timestamp("updated_at").defaultNow(),
 });
 
-export type UpsertUser = typeof users.$inferInsert;
+export const insertUserSchema = createInsertSchema(users).omit({ id: true, created_at: true, updated_at: true });
+export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
 export const schools = pgTable("schools", {
