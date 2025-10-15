@@ -79,7 +79,10 @@ export default function Landing() {
       </main>
 
       <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby="auth-dialog-description">
+          <span id="auth-dialog-description" className="sr-only">
+            Login or create an account to access the Anaxi platform
+          </span>
           <AuthForm />
         </DialogContent>
       </Dialog>
