@@ -1,4 +1,4 @@
-import { type User, type UpsertUser, type Teacher, type InsertTeacher, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation } from "@shared/schema";
+import { type User, type InsertUser, type Teacher, type InsertTeacher, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -6,8 +6,9 @@ import { randomUUID } from "crypto";
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
-  getUserByAuthId(authId: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
+  updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   
   getTeachersBySchool(schoolId: string): Promise<Teacher[]>;
   getTeacher(id: string): Promise<Teacher | undefined>;
@@ -129,23 +130,33 @@ export class MemStorage implements IStorage {
     return this.users.get(id);
   }
 
-  async getUserByAuthId(authId: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.id === authId);
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.email === email);
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    const id = userData.id || randomUUID();
+  async createUser(userData: InsertUser): Promise<User> {
+    const id = randomUUID();
     const user: User = { 
       id,
-      email: userData.email || null,
-      firstName: userData.firstName || null,
-      lastName: userData.lastName || null,
-      profileImageUrl: userData.profileImageUrl || null,
-      createdAt: userData.createdAt || new Date(),
-      updatedAt: new Date(),
+      email: userData.email,
+      password_hash: userData.password_hash,
+      first_name: userData.first_name || null,
+      last_name: userData.last_name || null,
+      profile_image_url: userData.profile_image_url || null,
+      created_at: new Date(),
+      updated_at: new Date(),
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    const updated = { ...user, ...updates, updated_at: new Date() };
+    this.users.set(id, updated);
+    return updated;
   }
 
   async getTeachersBySchool(schoolId: string): Promise<Teacher[]> {

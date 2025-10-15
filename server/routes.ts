@@ -6,8 +6,7 @@ import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-// Referenced from blueprint:javascript_log_in_with_replit
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./auth";
 
 const storage = new DbStorage();
 
@@ -17,45 +16,14 @@ type Role = "Teacher" | "Leader" | "Admin";
 async function requireRole(allowedRoles: Role[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Get user from authenticated session
-      const sessionUser = (req.user as any);
+      // Get user from authenticated session (set by isAuthenticated middleware)
+      const user = (req as any).user;
       
-      if (!req.isAuthenticated() || !sessionUser || !sessionUser.claims || !sessionUser.claims.sub) {
+      if (!user) {
         return res.status(401).json({ message: "Unauthorized: No authenticated user" });
       }
 
-      // Check token expiry and refresh if needed (same logic as isAuthenticated)
-      const now = Math.floor(Date.now() / 1000);
-      if (sessionUser.expires_at && now > sessionUser.expires_at) {
-        const refreshToken = sessionUser.refresh_token;
-        if (!refreshToken) {
-          return res.status(401).json({ message: "Unauthorized: Session expired" });
-        }
-
-        try {
-          const { getOidcConfig } = await import("./replitAuth");
-          const config = await getOidcConfig();
-          const client = await import("openid-client");
-          const tokenResponse = await client.refreshTokenGrant(config, refreshToken);
-          
-          // Update session
-          sessionUser.claims = tokenResponse.claims();
-          sessionUser.access_token = tokenResponse.access_token;
-          sessionUser.refresh_token = tokenResponse.refresh_token;
-          sessionUser.expires_at = sessionUser.claims?.exp;
-        } catch (error) {
-          return res.status(401).json({ message: "Unauthorized: Token refresh failed" });
-        }
-      }
-
-      const userId = sessionUser.claims.sub;
-      const user = await storage.getUserByAuthId(userId);
-      
-      if (!user) {
-        return res.status(401).json({ message: "Unauthorized: User not found in system" });
-      }
-
-      const teacher = await storage.getTeacherByUserId(userId);
+      const teacher = await storage.getTeacherByUserId(user.id);
       
       if (!teacher) {
         return res.status(401).json({ message: "Unauthorized: No teacher profile found" });

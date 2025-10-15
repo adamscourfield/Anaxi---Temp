@@ -2,7 +2,7 @@ import { db } from "./db";
 import { eq } from "drizzle-orm";
 import { 
   type User, 
-  type UpsertUser, 
+  type InsertUser, 
   type Teacher, 
   type InsertTeacher, 
   type TeachingGroup, 
@@ -22,27 +22,31 @@ export class DbStorage implements IStorage {
     return user;
   }
 
-  async getUserByAuthId(authId: string): Promise<User | undefined> {
-    console.log("[DB] getUserByAuthId searching for authId:", authId);
-    const [user] = await db.select().from(users).where(eq(users.auth_id, authId));
-    console.log("[DB] getUserByAuthId result:", user ? `Found user ${user.id}` : "No user found");
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    console.log("[DB] getUserByEmail searching for email:", email);
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    console.log("[DB] getUserByEmail result:", user ? `Found user ${user.id}` : "No user found");
     return user;
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    console.log("[DB] upsertUser input:", JSON.stringify(userData, null, 2));
+  async createUser(userData: InsertUser): Promise<User> {
+    console.log("[DB] createUser input:", { email: userData.email });
     const [user] = await db
       .insert(users)
       .values(userData)
-      .onConflictDoUpdate({
-        target: users.auth_id,
-        set: {
-          ...userData,
-          updated_at: new Date(),
-        },
-      })
       .returning();
-    console.log("[DB] upsertUser result:", JSON.stringify(user, null, 2));
+    console.log("[DB] createUser result:", { id: user.id, email: user.email });
+    return user;
+  }
+
+  async updateUser(id: string, updates: Partial<User>): Promise<User | undefined> {
+    console.log("[DB] updateUser:", { id, updates });
+    const [user] = await db
+      .update(users)
+      .set({ ...updates, updated_at: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    console.log("[DB] updateUser result:", user ? `Updated user ${user.id}` : "No user found");
     return user;
   }
 
