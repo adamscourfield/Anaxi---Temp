@@ -1,16 +1,27 @@
+import { useState } from "react";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { AuthForm } from "@/components/auth-form";
 import { useAuth } from "@/hooks/use-auth";
 import { Eye, Users, MessageSquare, TrendingUp } from "lucide-react";
 
 export default function Landing() {
-  const { login } = useAuth();
+  const [showAuthDialog, setShowAuthDialog] = useState(false);
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (user) {
+    setLocation("/dashboard");
+    return null;
+  }
 
   return (
     <div className="min-h-screen flex flex-col">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Anaxi</h1>
-          <Button onClick={login} data-testid="button-login">
+          <Button onClick={() => setShowAuthDialog(true)} data-testid="button-login">
             Log In
           </Button>
         </div>
@@ -60,12 +71,18 @@ export default function Landing() {
               </div>
             </div>
 
-            <Button size="lg" onClick={login} data-testid="button-login-cta">
+            <Button size="lg" onClick={() => setShowAuthDialog(true)} data-testid="button-login-cta">
               Get Started
             </Button>
           </div>
         </div>
       </main>
+
+      <Dialog open={showAuthDialog} onOpenChange={setShowAuthDialog}>
+        <DialogContent className="sm:max-w-md">
+          <AuthForm />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

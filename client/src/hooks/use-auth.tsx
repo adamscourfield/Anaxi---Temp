@@ -6,7 +6,6 @@ import { apiRequest } from "@/lib/queryClient";
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
-  login: () => void;
   logout: () => void;
 }
 
@@ -29,16 +28,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [userLoading]);
 
-  const login = () => {
-    window.location.href = '/api/login';
-  };
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      return await apiRequest("POST", "/api/auth/logout");
+    },
+    onSuccess: () => {
+      queryClient.setQueryData(['/api/auth/user'], null);
+      window.location.href = '/';
+    },
+  });
 
   const logout = () => {
-    window.location.href = '/api/logout';
+    logoutMutation.mutate();
   };
 
   return (
-    <AuthContext.Provider value={{ user: user || null, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user: user || null, isLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );
