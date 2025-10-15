@@ -23,22 +23,26 @@ export class DbStorage implements IStorage {
   }
 
   async getUserByAuthId(authId: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, authId));
+    console.log("[DB] getUserByAuthId searching for authId:", authId);
+    const [user] = await db.select().from(users).where(eq(users.auth_id, authId));
+    console.log("[DB] getUserByAuthId result:", user ? `Found user ${user.id}` : "No user found");
     return user;
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    console.log("[DB] upsertUser input:", JSON.stringify(userData, null, 2));
     const [user] = await db
       .insert(users)
       .values(userData)
       .onConflictDoUpdate({
-        target: users.id,
+        target: users.auth_id,
         set: {
           ...userData,
-          updatedAt: new Date(),
+          updated_at: new Date(),
         },
       })
       .returning();
+    console.log("[DB] upsertUser result:", JSON.stringify(user, null, 2));
     return user;
   }
 

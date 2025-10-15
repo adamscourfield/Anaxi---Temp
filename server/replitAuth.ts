@@ -57,13 +57,26 @@ function updateUserSession(
 async function upsertUser(
   claims: any,
 ) {
-  await storage.upsertUser({
-    id: claims["sub"],
+  console.log("[AUTH] upsertUser called with claims:", {
+    sub: claims["sub"],
     email: claims["email"],
     firstName: claims["first_name"],
     lastName: claims["last_name"],
-    profileImageUrl: claims["profile_image_url"],
   });
+  
+  try {
+    const user = await storage.upsertUser({
+      auth_id: claims["sub"],
+      email: claims["email"],
+      first_name: claims["first_name"],
+      last_name: claims["last_name"],
+      profile_image_url: claims["profile_image_url"],
+    });
+    console.log("[AUTH] User upserted successfully:", user.id, user.auth_id);
+  } catch (error) {
+    console.error("[AUTH] Error upserting user:", error);
+    throw error;
+  }
 }
 
 export async function setupAuth(app: Express) {

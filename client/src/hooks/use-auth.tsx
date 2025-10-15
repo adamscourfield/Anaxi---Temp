@@ -19,7 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: user, isLoading: userLoading } = useQuery<User>({
     queryKey: ['/api/auth/user'],
     retry: false,
-    refetchOnWindowFocus: false,
+    refetchOnWindowFocus: true,
     refetchInterval: false,
   });
 
