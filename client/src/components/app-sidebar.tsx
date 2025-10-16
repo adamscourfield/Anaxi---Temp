@@ -75,12 +75,12 @@ export function AppSidebar() {
   const [location] = useLocation();
   const { user, isCreator } = useAuth();
 
-  const userName = user?.firstName && user?.lastName 
-    ? `${user.firstName} ${user.lastName}` 
+  const userName = user?.first_name && user?.last_name 
+    ? `${user.first_name} ${user.last_name}` 
     : user?.email || "User";
 
-  const userInitials = user?.firstName && user?.lastName
-    ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
+  const userInitials = user?.first_name && user?.last_name
+    ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
     : user?.email?.[0]?.toUpperCase() || "?";
 
   return (
@@ -126,8 +126,8 @@ export function AppSidebar() {
         <Link href="/profile" data-testid="link-profile">
           <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer">
             <Avatar className="h-8 w-8">
-              {user?.profileImageUrl && (
-                <AvatarImage src={user.profileImageUrl} />
+              {user?.profile_image_url && (
+                <AvatarImage src={user.profile_image_url} />
               )}
               <AvatarFallback>{userInitials}</AvatarFallback>
             </Avatar>
