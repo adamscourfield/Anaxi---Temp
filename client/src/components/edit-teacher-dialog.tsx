@@ -41,6 +41,7 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
     profilePicture: teacher.profilePicture || "",
     groupId: teacher.groupId || "",
   });
+  const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     setFormData({
@@ -129,6 +130,7 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
         description: "Teacher updated successfully",
       });
       onOpenChange(false);
+      setNewPassword("");
     },
     onError: () => {
       toast({
@@ -139,9 +141,36 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (password: string) => {
+      return apiRequest("POST", `/api/teachers/${teacher.id}/reset-password`, { password });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Password reset successfully",
+      });
+      setNewPassword("");
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reset password",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    updateMutation.mutate(formData);
+    
+    // Update teacher info
+    await updateMutation.mutateAsync(formData);
+    
+    // Reset password if provided
+    if (newPassword.trim()) {
+      await resetPasswordMutation.mutateAsync(newPassword);
+    }
   };
 
   return (
@@ -245,6 +274,20 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-password">Reset Password (Admin Only)</Label>
+              <Input
+                id="edit-password"
+                type="password"
+                placeholder="Enter new password (optional)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                data-testid="input-edit-password"
+              />
+              <p className="text-sm text-muted-foreground">
+                Leave blank to keep current password. Minimum 8 characters.
+              </p>
             </div>
           </div>
           <DialogFooter>
