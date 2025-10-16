@@ -1,4 +1,4 @@
-import { useAuth } from "@/contexts/auth-context";
+import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import type { Teacher } from "@shared/schema";
 import {

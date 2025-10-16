@@ -66,10 +66,17 @@ Preferred communication style: Simple, everyday language.
 - Role-based access control (Teacher, Leader, Admin)
 
 **Authentication Endpoints**:
-- POST `/api/auth/register` - Create new user account
 - POST `/api/auth/login` - Authenticate user credentials
 - POST `/api/auth/logout` - Destroy session and clear cookie
 - GET `/api/auth/user` - Get current authenticated user
+
+**Note**: Public registration has been removed. Schools must create teacher accounts through the admin interface.
+
+**Admin Password Reset**:
+- POST `/api/teachers/:id/reset-password` - Admin-only endpoint to reset a teacher's password
+- Requires Admin role
+- Accepts `{ password: string }` (minimum 8 characters)
+- Updates user password with bcrypt hashing
 
 **Environment Requirements**:
 - `SESSION_SECRET`: Required for session encryption (must be set in production)

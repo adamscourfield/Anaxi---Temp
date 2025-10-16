@@ -1,15 +1,19 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { User } from "@shared/schema";
+import type { User, Teacher } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 interface AuthContextType {
   user: User | null;
+  currentUser: Teacher | null;
   isLoading: boolean;
   logout: () => void;
+  setCurrentUser: (user: Teacher) => void;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+
+const SCHOOL_ID = "3d629223-97f8-4d33-8e7e-974bbbf156b8"; // TODO: Make this dynamic
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
@@ -21,6 +25,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refetchOnWindowFocus: true,
     refetchInterval: false,
   });
+
+  // Fetch teacher profile for the authenticated user
+  const { data: teachers = [] } = useQuery<Teacher[]>({
+    queryKey: ["/api/teachers", SCHOOL_ID],
+    enabled: !!user,
+    queryFn: async () => {
+      const response = await fetch(`/api/teachers?schoolId=${SCHOOL_ID}`);
+      if (!response.ok) throw new Error("Failed to fetch teachers");
+      return response.json();
+    },
+  });
+
+  // Find the teacher profile for the current user
+  const currentUser = user && teachers ? teachers.find(t => t.userId === user.id) || null : null;
 
   useEffect(() => {
     if (!userLoading) {
@@ -42,8 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logoutMutation.mutate();
   };
 
+  const setCurrentUser = (updatedUser: Teacher) => {
+    // Update the teachers cache immediately for instant UI updates
+    queryClient.setQueryData<Teacher[]>(["/api/teachers", SCHOOL_ID], (oldTeachers) => {
+      if (!oldTeachers) return [updatedUser];
+      return oldTeachers.map((teacher) =>
+        teacher.id === updatedUser.id ? updatedUser : teacher
+      );
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user: user || null, isLoading, logout }}>
+    <AuthContext.Provider value={{ user: user || null, currentUser, isLoading, logout, setCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );
