@@ -22,6 +22,7 @@ export const users = pgTable("users", {
   first_name: varchar("first_name"),
   last_name: varchar("last_name"),
   profile_image_url: varchar("profile_image_url"),
+  global_role: text("global_role"), // "Creator" for platform admins, null for regular users
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
 });
@@ -50,6 +51,24 @@ export const insertTeachingGroupSchema = createInsertSchema(teachingGroups).omit
 export type InsertTeachingGroup = z.infer<typeof insertTeachingGroupSchema>;
 export type TeachingGroup = typeof teachingGroups.$inferSelect;
 
+// School memberships - links users to schools with roles
+// Replaces the teachers table with a cleaner many-to-many relationship
+export const schoolMemberships = pgTable("school_memberships", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  schoolId: varchar("school_id").notNull().references(() => schools.id),
+  role: text("role").notNull().default("Teacher"), // Teacher, Leader, Admin
+  displayName: text("display_name"), // Optional: display name override for this school
+  profilePicture: text("profile_picture"), // Optional: profile picture override for this school
+  groupId: varchar("group_id").references(() => teachingGroups.id),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertSchoolMembershipSchema = createInsertSchema(schoolMemberships).omit({ id: true, createdAt: true });
+export type InsertSchoolMembership = z.infer<typeof insertSchoolMembershipSchema>;
+export type SchoolMembership = typeof schoolMemberships.$inferSelect;
+
+// DEPRECATED: Legacy teachers table - will be removed after migration to school_memberships
 export const teachers = pgTable("teachers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id),
