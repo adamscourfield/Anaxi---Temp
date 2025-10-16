@@ -24,10 +24,12 @@ Preferred communication style: Simple, everyday language.
 
 **State Management**: TanStack Query (React Query) for server state management with custom query client configuration. Local component state managed with React hooks.
 
+**Authentication State**: Unified auth context via `hooks/use-auth.tsx` provides both User (from session) and Teacher (current user profile) data. Consolidates authentication state across the application with automatic cache invalidation on updates.
+
 **Design Patterns**:
 - Component-based architecture with reusable UI components
 - Compound component pattern for complex UI elements (dialogs, dropdowns, accordions)
-- Custom hooks for shared logic (mobile detection, toast notifications)
+- Custom hooks for shared logic (mobile detection, toast notifications, unified auth)
 - Example components provided for development reference
 
 ### Backend Architecture
