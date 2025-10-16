@@ -24,7 +24,7 @@ Preferred communication style: Simple, everyday language.
 
 **State Management**: TanStack Query (React Query) for server state management with custom query client configuration. Local component state managed with React hooks.
 
-**Authentication State**: Unified auth context via `hooks/use-auth.tsx` provides User (from session), Teacher (current user profile), and Creator status. Exposes `isCreator` flag for role-based UI rendering. Consolidates authentication state across the application with automatic cache invalidation on updates.
+**Authentication State**: Unified auth context via `hooks/use-auth.tsx` provides User (from session) and Creator status. Exposes `isCreator` flag for role-based UI rendering. School-specific data (teachers, observations, rubrics) fetched via `hooks/use-school-data.tsx` using the current school from `hooks/use-school.tsx` context.
 
 **Design Patterns**:
 - Component-based architecture with reusable UI components
@@ -128,6 +128,15 @@ Preferred communication style: Simple, everyday language.
 - All school management operations logged and audited
 
 **Migration Strategy**: New multi-school tables (schools, school_memberships) coexist with legacy teachers table. Backend supports both during transition. Future work includes data backfill and full migration to membership-based system.
+
+**School Switching Implementation**:
+- `hooks/use-school.tsx` - Context provider that fetches user's schools and manages current school selection
+- `hooks/use-school-data.tsx` - Helper hooks for fetching school-scoped data (teachers, etc.)
+- `components/school-selector.tsx` - Dynamic dropdown showing user's schools with localStorage persistence
+- School selection persists across sessions via localStorage
+- Regular users see only their schools; Creators see all schools
+- Sidebar dynamically displays current school name
+- All data queries filter by `currentSchoolId` from context
 
 ### Data Architecture
 

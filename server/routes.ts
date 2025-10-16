@@ -137,6 +137,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get current user's memberships (with school details)
+  app.get("/api/my-memberships", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const memberships = await storage.getMembershipsByUser(user.id);
+      res.json(memberships);
+    } catch (error) {
+      console.error("Error fetching user memberships:", error);
+      res.status(500).json({ message: "Failed to fetch memberships" });
+    }
+  });
+
   // School membership routes
   app.get("/api/schools/:schoolId/memberships", isAuthenticated, async (req: any, res) => {
     try {

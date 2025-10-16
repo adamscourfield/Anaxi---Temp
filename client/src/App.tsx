@@ -9,7 +9,7 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { SchoolSelector } from "@/components/school-selector";
 import { UserMenu } from "@/components/user-menu";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
-import { useState } from "react";
+import { SchoolProvider } from "@/hooks/use-school";
 
 import Dashboard from "@/pages/dashboard";
 import ConductObservation from "@/pages/conduct-observation";
@@ -40,13 +40,6 @@ function Router() {
 
 function AppContent() {
   const { user, isLoading } = useAuth();
-  const [selectedSchool, setSelectedSchool] = useState("1");
-
-  const schools = [
-    { id: "1", name: "Springdale Academy" },
-    { id: "2", name: "Riverside High School" },
-    { id: "3", name: "Oakmont College" },
-  ];
 
   const style = {
     "--sidebar-width": "16rem",
@@ -65,33 +58,31 @@ function AppContent() {
   }
 
   return (
-    <TooltipProvider>
-      <SidebarProvider style={style as React.CSSProperties}>
-        <div className="flex h-screen w-full">
-          <AppSidebar />
-          <div className="flex flex-col flex-1">
-            <header className="flex items-center justify-between gap-4 p-4 border-b">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger data-testid="button-sidebar-toggle" />
-                <SchoolSelector
-                  schools={schools}
-                  selectedSchool={selectedSchool}
-                  onSelectSchool={setSelectedSchool}
-                />
-              </div>
-              <div className="flex items-center gap-4">
-                <UserMenu />
-                <ThemeToggle />
-              </div>
-            </header>
-            <main className="flex-1 overflow-auto">
-              <Router />
-            </main>
+    <SchoolProvider>
+      <TooltipProvider>
+        <SidebarProvider style={style as React.CSSProperties}>
+          <div className="flex h-screen w-full">
+            <AppSidebar />
+            <div className="flex flex-col flex-1">
+              <header className="flex items-center justify-between gap-4 p-4 border-b">
+                <div className="flex items-center gap-4">
+                  <SidebarTrigger data-testid="button-sidebar-toggle" />
+                  <SchoolSelector />
+                </div>
+                <div className="flex items-center gap-4">
+                  <UserMenu />
+                  <ThemeToggle />
+                </div>
+              </header>
+              <main className="flex-1 overflow-auto">
+                <Router />
+              </main>
+            </div>
           </div>
-        </div>
-      </SidebarProvider>
-      <Toaster />
-    </TooltipProvider>
+        </SidebarProvider>
+        <Toaster />
+      </TooltipProvider>
+    </SchoolProvider>
   );
 }
 

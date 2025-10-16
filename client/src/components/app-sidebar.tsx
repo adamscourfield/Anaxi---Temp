@@ -22,6 +22,7 @@ import {
 import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
+import { useSchool } from "@/hooks/use-school";
 import anaxiLogo from "@assets/7_1760131494886.png";
 
 const menuItems = [
@@ -74,6 +75,9 @@ const iconColorClasses: Record<string, string> = {
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, isCreator } = useAuth();
+  const { schools, currentSchoolId } = useSchool();
+
+  const currentSchool = schools.find(s => s.id === currentSchoolId);
 
   const userName = user?.first_name && user?.last_name 
     ? `${user.first_name} ${user.last_name}` 
@@ -90,7 +94,9 @@ export function AppSidebar() {
           <img src={anaxiLogo} alt="Anaxi Logo" className="h-10 w-10" />
           <div>
             <h2 className="font-semibold text-base">Anaxi</h2>
-            <p className="text-xs text-muted-foreground">Springdale Academy</p>
+            <p className="text-xs text-muted-foreground">
+              {currentSchool?.name || "Loading..."}
+            </p>
           </div>
         </div>
       </SidebarHeader>
