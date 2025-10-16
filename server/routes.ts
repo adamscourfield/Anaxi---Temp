@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { DbStorage } from "./db-storage";
-import { insertTeacherSchema, insertTeachingGroupSchema, insertConversationSchema } from "@shared/schema";
+import { insertTeacherSchema, insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertConversationSchema } from "@shared/schema";
 import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -12,6 +12,32 @@ const storage = new DbStorage();
 
 // Permission middleware
 type Role = "Teacher" | "Leader" | "Admin";
+type GlobalRole = "Creator";
+
+// Middleware to require Creator global role
+async function requireCreator() {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const user = (req as any).user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized: No authenticated user" });
+      }
+
+      if (user.global_role !== "Creator") {
+        return res.status(403).json({ 
+          message: "Forbidden: Only Creators can perform this action" 
+        });
+      }
+
+      (req as any).authUser = user;
+      next();
+    } catch (error) {
+      console.error("Permission check error:", error);
+      res.status(500).json({ message: "Permission check failed" });
+    }
+  };
+}
 
 async function requireRole(allowedRoles: Role[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
@@ -21,6 +47,12 @@ async function requireRole(allowedRoles: Role[]) {
       
       if (!user) {
         return res.status(401).json({ message: "Unauthorized: No authenticated user" });
+      }
+
+      // Creators have access to everything
+      if (user.global_role === "Creator") {
+        (req as any).authUser = user;
+        return next();
       }
 
       const teacher = await storage.getTeacherByUserId(user.id);
@@ -51,6 +83,187 @@ async function requireRole(allowedRoles: Role[]) {
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware - Referenced from blueprint:javascript_log_in_with_replit
   await setupAuth(app);
+
+  // School management routes (Creator only)
+  app.get("/api/schools", isAuthenticated, await requireCreator(), async (req, res) => {
+    try {
+      const schools = await storage.getAllSchools();
+      res.json(schools);
+    } catch (error) {
+      console.error("Error fetching schools:", error);
+      res.status(500).json({ message: "Failed to fetch schools" });
+    }
+  });
+
+  app.post("/api/schools", isAuthenticated, await requireCreator(), async (req, res) => {
+    try {
+      const validated = insertSchoolSchema.parse(req.body);
+      const school = await storage.createSchool(validated);
+      res.status(201).json(school);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid school data", errors: error.errors });
+      }
+      console.error("Error creating school:", error);
+      res.status(500).json({ message: "Failed to create school" });
+    }
+  });
+
+  app.patch("/api/schools/:id", isAuthenticated, await requireCreator(), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const school = await storage.updateSchool(id, req.body);
+      if (!school) {
+        return res.status(404).json({ message: "School not found" });
+      }
+      res.json(school);
+    } catch (error) {
+      console.error("Error updating school:", error);
+      res.status(500).json({ message: "Failed to update school" });
+    }
+  });
+
+  app.delete("/api/schools/:id", isAuthenticated, await requireCreator(), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const deleted = await storage.deleteSchool(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "School not found" });
+      }
+      res.json({ message: "School deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting school:", error);
+      res.status(500).json({ message: "Failed to delete school" });
+    }
+  });
+
+  // School membership routes
+  app.get("/api/schools/:schoolId/memberships", isAuthenticated, async (req: any, res) => {
+    try {
+      const { schoolId } = req.params;
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Creators can see all memberships
+      if (user.global_role === "Creator") {
+        const memberships = await storage.getMembershipsBySchool(schoolId);
+        return res.json(memberships);
+      }
+
+      // Regular users can only see memberships for schools they belong to
+      const userMembership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+      if (!userMembership) {
+        return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+      }
+
+      const memberships = await storage.getMembershipsBySchool(schoolId);
+      res.json(memberships);
+    } catch (error) {
+      console.error("Error fetching memberships:", error);
+      res.status(500).json({ message: "Failed to fetch memberships" });
+    }
+  });
+
+  app.post("/api/schools/:schoolId/memberships", isAuthenticated, async (req: any, res) => {
+    try {
+      const { schoolId } = req.params;
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Creators can create memberships in any school
+      if (user.global_role !== "Creator") {
+        // Regular users must be Admin in this school to create memberships
+        const userMembership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!userMembership || userMembership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: You must be an Admin in this school" });
+        }
+      }
+
+      const membershipData = {
+        ...req.body,
+        schoolId,
+      };
+      const validated = insertSchoolMembershipSchema.parse(membershipData);
+      const membership = await storage.createMembership(validated);
+      res.status(201).json(membership);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid membership data", errors: error.errors });
+      }
+      console.error("Error creating membership:", error);
+      res.status(500).json({ message: "Failed to create membership" });
+    }
+  });
+
+  app.patch("/api/memberships/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get the membership to check school
+      const membership = await storage.getMembership(id);
+      if (!membership) {
+        return res.status(404).json({ message: "Membership not found" });
+      }
+
+      // Creators can update any membership
+      if (user.global_role !== "Creator") {
+        // Regular users must be Admin in the school to update memberships
+        const userMembership = await storage.getMembershipByUserAndSchool(user.id, membership.schoolId);
+        if (!userMembership || userMembership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: You must be an Admin in this school" });
+        }
+      }
+
+      const updated = await storage.updateMembership(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating membership:", error);
+      res.status(500).json({ message: "Failed to update membership" });
+    }
+  });
+
+  app.delete("/api/memberships/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Get the membership to check school
+      const membership = await storage.getMembership(id);
+      if (!membership) {
+        return res.status(404).json({ message: "Membership not found" });
+      }
+
+      // Creators can delete any membership
+      if (user.global_role !== "Creator") {
+        // Regular users must be Admin in the school to delete memberships
+        const userMembership = await storage.getMembershipByUserAndSchool(user.id, membership.schoolId);
+        if (!userMembership || userMembership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: You must be an Admin in this school" });
+        }
+      }
+
+      const deleted = await storage.deleteMembership(id);
+      res.json({ message: "Membership deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting membership:", error);
+      res.status(500).json({ message: "Failed to delete membership" });
+    }
+  });
 
   // Teachers routes
   app.get("/api/teachers", isAuthenticated, async (req, res) => {

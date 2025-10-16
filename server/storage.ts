@@ -1,15 +1,33 @@
-import { type User, type InsertUser, type Teacher, type InsertTeacher, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation } from "@shared/schema";
+import { type User, type InsertUser, type Teacher, type InsertTeacher, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
 // you might need
 
 export interface IStorage {
+  // Users
   getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, updates: Partial<User>): Promise<User | undefined>;
   
+  // Schools
+  getAllSchools(): Promise<School[]>;
+  getSchool(id: string): Promise<School | undefined>;
+  createSchool(school: InsertSchool): Promise<School>;
+  updateSchool(id: string, updates: Partial<School>): Promise<School | undefined>;
+  deleteSchool(id: string): Promise<boolean>;
+  
+  // School Memberships
+  getMembershipsBySchool(schoolId: string): Promise<SchoolMembership[]>;
+  getMembershipsByUser(userId: string): Promise<SchoolMembership[]>;
+  getMembership(id: string): Promise<SchoolMembership | undefined>;
+  getMembershipByUserAndSchool(userId: string, schoolId: string): Promise<SchoolMembership | undefined>;
+  createMembership(membership: InsertSchoolMembership): Promise<SchoolMembership>;
+  updateMembership(id: string, updates: Partial<SchoolMembership>): Promise<SchoolMembership | undefined>;
+  deleteMembership(id: string): Promise<boolean>;
+  
+  // Teachers (DEPRECATED - use School Memberships instead)
   getTeachersBySchool(schoolId: string): Promise<Teacher[]>;
   getTeacher(id: string): Promise<Teacher | undefined>;
   getTeacherByUserId(userId: string): Promise<Teacher | undefined>;
@@ -17,12 +35,14 @@ export interface IStorage {
   updateTeacher(id: string, updates: Partial<Teacher>): Promise<Teacher | undefined>;
   deleteTeacher(id: string): Promise<boolean>;
   
+  // Teaching Groups
   getTeachingGroupsBySchool(schoolId: string): Promise<TeachingGroup[]>;
   getTeachingGroup(id: string): Promise<TeachingGroup | undefined>;
   createTeachingGroup(group: InsertTeachingGroup): Promise<TeachingGroup>;
   updateTeachingGroup(id: string, updates: Partial<TeachingGroup>): Promise<TeachingGroup | undefined>;
   deleteTeachingGroup(id: string): Promise<boolean>;
   
+  // Conversations
   getConversationsBySchool(schoolId: string): Promise<Conversation[]>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
 }
@@ -143,6 +163,7 @@ export class MemStorage implements IStorage {
       first_name: userData.first_name || null,
       last_name: userData.last_name || null,
       profile_image_url: userData.profile_image_url || null,
+      global_role: userData.global_role || null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -159,6 +180,57 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
+  // Schools - Not implemented in MemStorage (use DbStorage)
+  async getAllSchools(): Promise<School[]> {
+    throw new Error("Schools not implemented in MemStorage");
+  }
+
+  async getSchool(id: string): Promise<School | undefined> {
+    throw new Error("Schools not implemented in MemStorage");
+  }
+
+  async createSchool(school: InsertSchool): Promise<School> {
+    throw new Error("Schools not implemented in MemStorage");
+  }
+
+  async updateSchool(id: string, updates: Partial<School>): Promise<School | undefined> {
+    throw new Error("Schools not implemented in MemStorage");
+  }
+
+  async deleteSchool(id: string): Promise<boolean> {
+    throw new Error("Schools not implemented in MemStorage");
+  }
+
+  // School Memberships - Not implemented in MemStorage (use DbStorage)
+  async getMembershipsBySchool(schoolId: string): Promise<SchoolMembership[]> {
+    throw new Error("School memberships not implemented in MemStorage");
+  }
+
+  async getMembershipsByUser(userId: string): Promise<SchoolMembership[]> {
+    throw new Error("School memberships not implemented in MemStorage");
+  }
+
+  async getMembership(id: string): Promise<SchoolMembership | undefined> {
+    throw new Error("School memberships not implemented in MemStorage");
+  }
+
+  async getMembershipByUserAndSchool(userId: string, schoolId: string): Promise<SchoolMembership | undefined> {
+    throw new Error("School memberships not implemented in MemStorage");
+  }
+
+  async createMembership(membership: InsertSchoolMembership): Promise<SchoolMembership> {
+    throw new Error("School memberships not implemented in MemStorage");
+  }
+
+  async updateMembership(id: string, updates: Partial<SchoolMembership>): Promise<SchoolMembership | undefined> {
+    throw new Error("School memberships not implemented in MemStorage");
+  }
+
+  async deleteMembership(id: string): Promise<boolean> {
+    throw new Error("School memberships not implemented in MemStorage");
+  }
+
+  // Teachers (DEPRECATED)
   async getTeachersBySchool(schoolId: string): Promise<Teacher[]> {
     return Array.from(this.teachers.values()).filter(
       (teacher) => teacher.schoolId === schoolId,

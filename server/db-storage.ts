@@ -1,16 +1,22 @@
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { 
   type User, 
   type InsertUser, 
   type Teacher, 
-  type InsertTeacher, 
+  type InsertTeacher,
+  type SchoolMembership,
+  type InsertSchoolMembership,
+  type School,
+  type InsertSchool,
   type TeachingGroup, 
   type InsertTeachingGroup, 
   type Conversation, 
   type InsertConversation,
   users,
   teachers,
+  schoolMemberships,
+  schools,
   teachingGroups,
   conversations,
 } from "@shared/schema";
@@ -50,6 +56,72 @@ export class DbStorage implements IStorage {
     return user;
   }
 
+  // Schools
+  async getAllSchools(): Promise<School[]> {
+    return await db.select().from(schools);
+  }
+
+  async getSchool(id: string): Promise<School | undefined> {
+    const [school] = await db.select().from(schools).where(eq(schools.id, id));
+    return school;
+  }
+
+  async createSchool(insertSchool: InsertSchool): Promise<School> {
+    const [school] = await db.insert(schools).values(insertSchool).returning();
+    return school;
+  }
+
+  async updateSchool(id: string, updates: Partial<School>): Promise<School | undefined> {
+    const [school] = await db.update(schools).set(updates).where(eq(schools.id, id)).returning();
+    return school;
+  }
+
+  async deleteSchool(id: string): Promise<boolean> {
+    const result = await db.delete(schools).where(eq(schools.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // School Memberships
+  async getMembershipsBySchool(schoolId: string): Promise<SchoolMembership[]> {
+    return await db.select().from(schoolMemberships).where(eq(schoolMemberships.schoolId, schoolId));
+  }
+
+  async getMembershipsByUser(userId: string): Promise<SchoolMembership[]> {
+    return await db.select().from(schoolMemberships).where(eq(schoolMemberships.userId, userId));
+  }
+
+  async getMembership(id: string): Promise<SchoolMembership | undefined> {
+    const [membership] = await db.select().from(schoolMemberships).where(eq(schoolMemberships.id, id));
+    return membership;
+  }
+
+  async getMembershipByUserAndSchool(userId: string, schoolId: string): Promise<SchoolMembership | undefined> {
+    const [membership] = await db
+      .select()
+      .from(schoolMemberships)
+      .where(and(
+        eq(schoolMemberships.userId, userId),
+        eq(schoolMemberships.schoolId, schoolId)
+      ));
+    return membership;
+  }
+
+  async createMembership(insertMembership: InsertSchoolMembership): Promise<SchoolMembership> {
+    const [membership] = await db.insert(schoolMemberships).values(insertMembership).returning();
+    return membership;
+  }
+
+  async updateMembership(id: string, updates: Partial<SchoolMembership>): Promise<SchoolMembership | undefined> {
+    const [membership] = await db.update(schoolMemberships).set(updates).where(eq(schoolMemberships.id, id)).returning();
+    return membership;
+  }
+
+  async deleteMembership(id: string): Promise<boolean> {
+    const result = await db.delete(schoolMemberships).where(eq(schoolMemberships.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Teachers (DEPRECATED - use School Memberships instead)
   async getTeachersBySchool(schoolId: string): Promise<Teacher[]> {
     return await db.select().from(teachers).where(eq(teachers.schoolId, schoolId));
   }

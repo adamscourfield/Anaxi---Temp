@@ -6,6 +6,7 @@ import { apiRequest } from "@/lib/queryClient";
 interface AuthContextType {
   user: User | null;
   currentUser: Teacher | null;
+  isCreator: boolean;
   isLoading: boolean;
   logout: () => void;
   setCurrentUser: (user: Teacher) => void;
@@ -39,6 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Find the teacher profile for the current user
   const currentUser = user && teachers ? teachers.find(t => t.userId === user.id) || null : null;
+  
+  // Check if user has Creator global role
+  const isCreator = user?.global_role === "Creator";
 
   useEffect(() => {
     if (!userLoading) {
@@ -71,7 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user: user || null, currentUser, isLoading, logout, setCurrentUser }}>
+    <AuthContext.Provider value={{ user: user || null, currentUser, isCreator, isLoading, logout, setCurrentUser }}>
       {children}
     </AuthContext.Provider>
   );

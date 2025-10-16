@@ -23,7 +23,7 @@ export function getSession() {
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: sessionTtl,
     },
@@ -91,7 +91,7 @@ export async function setupAuth(app: Express) {
       // Clear the session cookie with the same options used when setting it
       res.clearCookie('connect.sid', {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/',
       });
