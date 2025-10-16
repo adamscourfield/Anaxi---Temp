@@ -24,7 +24,7 @@ Preferred communication style: Simple, everyday language.
 
 **State Management**: TanStack Query (React Query) for server state management with custom query client configuration. Local component state managed with React hooks.
 
-**Authentication State**: Unified auth context via `hooks/use-auth.tsx` provides both User (from session) and Teacher (current user profile) data. Consolidates authentication state across the application with automatic cache invalidation on updates.
+**Authentication State**: Unified auth context via `hooks/use-auth.tsx` provides User (from session), Teacher (current user profile), and Creator status. Exposes `isCreator` flag for role-based UI rendering. Consolidates authentication state across the application with automatic cache invalidation on updates.
 
 **Design Patterns**:
 - Component-based architecture with reusable UI components
@@ -56,7 +56,8 @@ Preferred communication style: Simple, everyday language.
 **Session Configuration**:
 - PostgreSQL-backed session storage (connect-pg-simple)
 - 1-week session TTL
-- Cookie settings: `httpOnly: true`, `secure: true`, `sameSite: 'lax'`
+- Cookie settings: `httpOnly: true`, `secure: NODE_ENV === 'production'`, `sameSite: 'lax'`
+- Secure cookies enabled in production (HTTPS), disabled in development (HTTP) for local testing
 - CSRF protection via sameSite cookie attribute
 - Session cookie name: `connect.sid`
 
@@ -65,7 +66,8 @@ Preferred communication style: Simple, everyday language.
 - Bcrypt hashing with 10 salt rounds
 - Secure session management with automatic cookie clearing on logout
 - Protected routes with `isAuthenticated` middleware
-- Role-based access control (Teacher, Leader, Admin)
+- Role-based access control (Teacher, Leader, Admin, Creator)
+- Creator global role for platform-wide school management
 
 **Authentication Endpoints**:
 - POST `/api/auth/login` - Authenticate user credentials
@@ -84,6 +86,48 @@ Preferred communication style: Simple, everyday language.
 - `SESSION_SECRET`: Required for session encryption (must be set in production)
 - HTTPS required in production for secure cookies (`secure: true`)
 - Trust proxy enabled for correct client IP detection behind reverse proxies
+
+### Multi-School Architecture
+
+**Overview**: Platform supports multiple schools with complete data isolation. Users can have different roles at different schools through the school_memberships system.
+
+**Creator Role**:
+- Platform-wide administrators with `global_role = "Creator"` in users table
+- Can create, update, and delete schools
+- Access all schools and their data across the platform
+- Manage school memberships for any school
+- UI: Dedicated "Manage Schools" page visible only to Creators
+
+**School Isolation**:
+- Regular users (non-Creators) can only access their own school data
+- Membership endpoints enforce school-level access control
+- API checks: Creators bypass isolation, others limited to their memberships
+- Frontend hides cross-school data automatically
+
+**Data Model**:
+- `users` table: Authentication and global roles (Creator role stored here)
+- `schools` table: School entities with unique IDs and names
+- `school_memberships` table: Links users to schools with role (Teacher, Leader, Admin)
+- `teachers` table: Legacy table (being phased out in favor of school_memberships)
+
+**School Management API** (Creator only):
+- GET `/api/schools` - List all schools
+- POST `/api/schools` - Create new school with `{ name: string }`
+- PATCH `/api/schools/:id` - Update school details
+- DELETE `/api/schools/:id` - Remove school and cascade data
+
+**Membership API** (authenticated):
+- GET `/api/schools/:schoolId/memberships` - List school members (school-scoped)
+- POST `/api/schools/:schoolId/memberships` - Add user to school
+- PATCH `/api/memberships/:id` - Update membership role
+- DELETE `/api/memberships/:id` - Remove user from school
+
+**Security Model**:
+- `requireCreator()` middleware enforces Creator-only endpoints
+- Membership endpoints check: Creator OR user belongs to requested school
+- All school management operations logged and audited
+
+**Migration Strategy**: New multi-school tables (schools, school_memberships) coexist with legacy teachers table. Backend supports both during transition. Future work includes data backfill and full migration to membership-based system.
 
 ### Data Architecture
 
