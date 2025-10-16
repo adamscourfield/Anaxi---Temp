@@ -46,43 +46,8 @@ export async function setupAuth(app: Express) {
   app.set("trust proxy", 1);
   app.use(getSession());
 
-  // Register route
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const data = registerSchema.parse(req.body);
-      
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(data.email);
-      if (existingUser) {
-        return res.status(400).json({ message: "User already exists" });
-      }
-
-      // Hash password
-      const password_hash = await bcrypt.hash(data.password, SALT_ROUNDS);
-
-      // Create user
-      const user = await storage.createUser({
-        email: data.email,
-        password_hash,
-        first_name: data.first_name || null,
-        last_name: data.last_name || null,
-        profile_image_url: null,
-      });
-
-      // Set session
-      (req.session as any).userId = user.id;
-      
-      // Return user without password
-      const { password_hash: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid input", errors: error.errors });
-      }
-      console.error("[AUTH] Registration error:", error);
-      res.status(500).json({ message: "Failed to register" });
-    }
-  });
+  // Note: Public registration has been removed. 
+  // Schools must create teacher accounts through the admin interface.
 
   // Login route
   app.post("/api/auth/login", async (req, res) => {
@@ -175,3 +140,8 @@ export const isAuthenticated: RequestHandler = async (req, res, next) => {
   (req as any).user = user;
   next();
 };
+
+// Helper function to hash passwords (exported for admin use)
+export async function hashPassword(password: string): Promise<string> {
+  return await bcrypt.hash(password, SALT_ROUNDS);
+}

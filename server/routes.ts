@@ -6,7 +6,7 @@ import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
-import { setupAuth, isAuthenticated } from "./auth";
+import { setupAuth, isAuthenticated, hashPassword } from "./auth";
 
 const storage = new DbStorage();
 
@@ -132,6 +132,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete teacher" });
+    }
+  });
+
+  // Admin password reset route
+  app.post("/api/teachers/:id/reset-password", await requireRole(["Admin"]), async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { password } = req.body;
+
+      if (!password || typeof password !== 'string' || password.length < 8) {
+        return res.status(400).json({ 
+          message: "Password must be at least 8 characters" 
+        });
+      }
+
+      // Get the teacher to verify they exist
+      const teacher = await storage.getTeacher(id);
+      if (!teacher) {
+        return res.status(404).json({ message: "Teacher not found" });
+      }
+
+      if (!teacher.userId) {
+        return res.status(400).json({ message: "Teacher has no associated user account" });
+      }
+
+      // Hash the new password
+      const password_hash = await hashPassword(password);
+
+      // Update the user's password
+      const updatedUser = await storage.updateUser(teacher.userId, { password_hash });
+      if (!updatedUser) {
+        return res.status(500).json({ message: "Failed to update password" });
+      }
+
+      res.json({ message: "Password reset successfully" });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
     }
   });
 
