@@ -98,16 +98,6 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-4">
-              {isCreator && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/schools"}>
-                    <Link href="/schools" data-testid="link-manage-schools">
-                      <Building2 className="text-sidebar-foreground" />
-                      <span>Manage Schools</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
               {menuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
@@ -118,6 +108,16 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {isCreator && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/schools"}>
+                    <Link href="/schools" data-testid="link-manage-schools">
+                      <Building2 className="text-sidebar-foreground" />
+                      <span>Manage Schools</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
