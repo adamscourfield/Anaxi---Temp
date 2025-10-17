@@ -20,7 +20,7 @@ interface MembershipWithUser extends SchoolMembership {
 }
 
 export default function ManageSchools() {
-  const { user, isCreator } = useAuth();
+  const { user, isCreator, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newSchoolName, setNewSchoolName] = useState("");
@@ -253,6 +253,16 @@ export default function ManageSchools() {
     }
   };
 
+  // Show loading while auth is resolving
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  // Check access after auth is loaded
   if (!isCreator) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -268,6 +278,7 @@ export default function ManageSchools() {
     );
   }
 
+  // Show loading while schools are being fetched
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
