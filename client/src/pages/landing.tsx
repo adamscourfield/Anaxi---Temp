@@ -6,7 +6,6 @@ import { AuthForm } from "@/components/auth-form";
 import { useAuth } from "@/hooks/use-auth";
 import { Eye, Users, MessageSquare, TrendingUp, CheckCircle, ArrowRight } from "lucide-react";
 import anaxiLogo from "@assets/7_1760131494886.png";
-import teacherFeedbackImage from "@assets/stock_images/professional_teacher_553038f1.jpg";
 
 export default function Landing() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
@@ -39,77 +38,41 @@ export default function Landing() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background" />
         
         <div className="container relative mx-auto px-4 py-20 lg:py-32">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left column - Content */}
-            <div className="space-y-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
-                <CheckCircle className="w-4 h-4" />
-                Trusted by Schools Worldwide
-              </div>
-              
-              <h2 className="text-5xl lg:text-6xl font-bold tracking-tight">
-                Professional Teacher
-                <span className="block text-primary">Observation Platform</span>
-              </h2>
-              
-              <p className="text-xl text-muted-foreground max-w-xl">
-                Empower educators with peer observations, structured feedback, and data-driven professional development tracking.
-              </p>
-
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button 
-                  size="lg" 
-                  onClick={() => setShowAuthDialog(true)} 
-                  data-testid="button-login-cta"
-                  className="group"
-                >
-                  Get Started
-                  <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
-                <Button 
-                  size="lg" 
-                  variant="outline"
-                  onClick={() => {
-                    document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
-                  }}
-                  data-testid="button-learn-more"
-                >
-                  Learn More
-                </Button>
-              </div>
-
-              {/* Key stats */}
-              <div className="grid grid-cols-3 gap-6 pt-8 border-t">
-                <div>
-                  <div className="text-3xl font-bold text-primary">98%</div>
-                  <div className="text-sm text-muted-foreground">Teacher Satisfaction</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-primary">50K+</div>
-                  <div className="text-sm text-muted-foreground">Observations</div>
-                </div>
-                <div>
-                  <div className="text-3xl font-bold text-primary">200+</div>
-                  <div className="text-sm text-muted-foreground">Schools</div>
-                </div>
-              </div>
+          <div className="max-w-4xl mx-auto text-center space-y-8">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium">
+              <CheckCircle className="w-4 h-4" />
+              Trusted by Schools Worldwide
             </div>
+            
+            <h2 className="text-5xl lg:text-6xl font-bold tracking-tight">
+              Professional Teacher
+              <span className="block text-primary">Observation Platform</span>
+            </h2>
+            
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Empower educators with peer observations, structured feedback, and data-driven professional development tracking.
+            </p>
 
-            {/* Right column - Teacher feedback image */}
-            <div className="relative lg:h-[600px] flex items-center justify-center">
-              <div className="relative rounded-2xl overflow-hidden shadow-2xl">
-                <img 
-                  src={teacherFeedbackImage} 
-                  alt="Teachers collaborating and providing feedback" 
-                  className="w-full h-full object-cover"
-                />
-                {/* Subtle overlay */}
-                <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent" />
-              </div>
-
-              {/* Decorative elements */}
-              <div className="absolute top-1/4 -left-12 w-72 h-72 bg-primary/10 rounded-full blur-3xl -z-10" />
-              <div className="absolute bottom-1/4 -right-12 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10" />
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg" 
+                onClick={() => setShowAuthDialog(true)} 
+                data-testid="button-login-cta"
+                className="group"
+              >
+                Get Started
+                <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </Button>
+              <Button 
+                size="lg" 
+                variant="outline"
+                onClick={() => {
+                  document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+                data-testid="button-learn-more"
+              >
+                Learn More
+              </Button>
             </div>
           </div>
         </div>
