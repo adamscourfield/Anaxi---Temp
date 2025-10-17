@@ -518,7 +518,7 @@ export default function ManageSchools() {
                     {memberships.map((membership) => (
                       <TableRow key={membership.id}>
                         <TableCell className="font-medium" data-testid={`member-name-${membership.id}`}>
-                          {membership.user?.name || "Unknown"}
+                          {membership.user ? `${membership.user.first_name || ''} ${membership.user.last_name || ''}`.trim() || membership.user.email : "Unknown"}
                         </TableCell>
                         <TableCell data-testid={`member-email-${membership.id}`}>
                           {membership.user?.email || "N/A"}
@@ -564,7 +564,7 @@ export default function ManageSchools() {
           <DialogHeader>
             <DialogTitle>Edit Member Role</DialogTitle>
             <DialogDescription>
-              Change the role for {editingMembership?.user?.name}
+              Change the role for {editingMembership && (editingMembership as MembershipWithUser).user ? `${(editingMembership as MembershipWithUser).user!.first_name || ''} ${(editingMembership as MembershipWithUser).user!.last_name || ''}`.trim() || (editingMembership as MembershipWithUser).user!.email : "this member"}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

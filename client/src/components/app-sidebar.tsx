@@ -134,16 +134,6 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              {isAdmin && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton asChild isActive={location === "/memberships"}>
-                    <Link href="/memberships" data-testid="link-school-memberships">
-                      <Users className="text-sidebar-foreground" />
-                      <span>School Memberships</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
               {isCreator && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/schools"}>
