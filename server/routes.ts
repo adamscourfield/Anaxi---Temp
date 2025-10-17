@@ -324,18 +324,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Only Admin or Creator can view user memberships
-      if (user.global_role !== "Creator") {
-        // Check if user has Admin role in any school
-        const userMemberships = await storage.getMembershipsByUser(user.id);
-        const isAdmin = userMemberships.some(m => m.role === "Admin");
-        if (!isAdmin) {
-          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can view user memberships" });
-        }
+      const targetMemberships = await storage.getMembershipsByUser(userId);
+
+      // Creators can view all memberships
+      if (user.global_role === "Creator") {
+        return res.json(targetMemberships);
       }
 
-      const memberships = await storage.getMembershipsByUser(userId);
-      res.json(memberships);
+      // Admins can only view memberships for schools they manage
+      const userMemberships = await storage.getMembershipsByUser(user.id);
+      const adminSchoolIds = userMemberships
+        .filter(m => m.role === "Admin")
+        .map(m => m.schoolId);
+
+      if (adminSchoolIds.length === 0) {
+        return res.status(403).json({ message: "Forbidden: Only Admins or Creators can view user memberships" });
+      }
+
+      // Filter target memberships to only include schools the Admin manages
+      const filteredMemberships = targetMemberships.filter(m => 
+        adminSchoolIds.includes(m.schoolId)
+      );
+
+      res.json(filteredMemberships);
     } catch (error) {
       console.error("Error fetching user memberships:", error);
       res.status(500).json({ message: "Failed to fetch user memberships" });

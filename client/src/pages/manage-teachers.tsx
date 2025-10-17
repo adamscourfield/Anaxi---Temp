@@ -197,16 +197,18 @@ export default function ManageTeachers() {
   const handleAssignSchools = async (teacher: User) => {
     setSelectedTeacher(teacher);
     
-    // Fetch current school assignments for this teacher
+    // Fetch current school assignments for this teacher using react-query
     try {
-      const response = await fetch(`/api/users/${teacher.id}/memberships`);
-      if (response.ok) {
-        const memberships: SchoolMembership[] = await response.json();
-        const schoolIds = memberships.map(m => m.schoolId);
-        setAssignedSchools(schoolIds);
-      } else {
-        setAssignedSchools([]);
-      }
+      const memberships = await queryClient.fetchQuery<SchoolMembership[]>({
+        queryKey: ["/api/users", teacher.id, "memberships"],
+        queryFn: async () => {
+          const response = await fetch(`/api/users/${teacher.id}/memberships`);
+          if (!response.ok) throw new Error("Failed to fetch memberships");
+          return response.json();
+        },
+      });
+      const schoolIds = memberships.map(m => m.schoolId);
+      setAssignedSchools(schoolIds);
     } catch (error) {
       console.error("Failed to fetch teacher memberships:", error);
       setAssignedSchools([]);
