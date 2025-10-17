@@ -23,6 +23,8 @@ import { Link, useLocation } from "wouter";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { useSchool } from "@/hooks/use-school";
+import { useQuery } from "@tanstack/react-query";
+import type { SchoolMembership } from "@shared/schema";
 import anaxiLogo from "@assets/7_1760131494886.png";
 
 const menuItems = [
@@ -79,6 +81,24 @@ export function AppSidebar() {
 
   const currentSchool = schools.find(s => s.id === currentSchoolId);
 
+  // Check if user is Admin in current school
+  const { data: currentMembership } = useQuery<SchoolMembership>({
+    queryKey: ["/api/my-membership-role", currentSchoolId],
+    enabled: !!user && !!currentSchoolId && !isCreator,
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/schools/${currentSchoolId}/memberships`);
+        if (!response.ok) return null;
+        const memberships = await response.json();
+        return memberships.find((m: any) => m.userId === user?.id) || null;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const isAdmin = isCreator || currentMembership?.role === "Admin";
+
   const userName = user?.first_name && user?.last_name 
     ? `${user.first_name} ${user.last_name}` 
     : user?.email || "User";
@@ -114,6 +134,16 @@ export function AppSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
+              {isAdmin && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={location === "/memberships"}>
+                    <Link href="/memberships" data-testid="link-school-memberships">
+                      <Users className="text-sidebar-foreground" />
+                      <span>School Memberships</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {isCreator && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={location === "/schools"}>

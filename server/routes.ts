@@ -170,10 +170,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(memberships);
       }
 
-      // Regular users can only see memberships for schools they belong to
+      // Check if user has Admin role in this school
       const userMembership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
       if (!userMembership) {
         return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+      }
+
+      if (userMembership.role !== "Admin") {
+        return res.status(403).json({ message: "Forbidden: Only administrators can view memberships" });
       }
 
       const memberships = await storage.getMembershipsBySchool(schoolId);
@@ -479,6 +483,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid conversation data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  // User lookup endpoint (for membership management)
+  app.get("/api/users", isAuthenticated, async (req, res) => {
+    try {
+      const email = req.query.email as string;
+      if (!email) {
+        return res.status(400).json({ message: "Email parameter is required" });
+      }
+
+      const user = await storage.getUserByEmail(email);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 

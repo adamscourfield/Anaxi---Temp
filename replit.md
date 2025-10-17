@@ -129,6 +129,14 @@ Preferred communication style: Simple, everyday language.
 
 **Migration Strategy**: New multi-school tables (schools, school_memberships) coexist with legacy teachers table. Backend supports both during transition. Future work includes data backfill and full migration to membership-based system.
 
+**School Membership Management UI** (`/memberships`):
+- Dedicated page for managing school memberships
+- Add teachers to schools by email (user must exist first)
+- Assign roles (Teacher, Leader, Admin) per school
+- Edit roles and remove members
+- Filtered by current school context
+- Admin/Creator access only
+
 **School Switching Implementation**:
 - `hooks/use-school.tsx` - Context provider that fetches user's schools and manages current school selection
 - `hooks/use-school-data.tsx` - Helper hooks for fetching school-scoped data (teachers, etc.)
