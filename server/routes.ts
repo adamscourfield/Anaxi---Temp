@@ -286,7 +286,239 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Teachers routes
+  // Teacher management routes (Admin/Creator only)
+  // Get all teachers (users) with their school memberships
+  app.get("/api/users/teachers", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only Admin or Creator can view all teachers
+      if (user.global_role !== "Creator") {
+        // Check if user has Admin role in any school
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const isAdmin = userMemberships.some(m => m.role === "Admin");
+        if (!isAdmin) {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can view teachers" });
+        }
+      }
+
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching teachers:", error);
+      res.status(500).json({ message: "Failed to fetch teachers" });
+    }
+  });
+
+  // Create a new teacher (user account)
+  app.post("/api/users/teachers", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only Admin or Creator can create teachers
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const isAdmin = userMemberships.some(m => m.role === "Admin");
+        if (!isAdmin) {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can create teachers" });
+        }
+      }
+
+      const { email, password, first_name, last_name, schoolIds, role } = req.body;
+
+      // Validate required fields
+      if (!email || !password) {
+        return res.status(400).json({ message: "Email and password are required" });
+      }
+
+      // Check if user already exists
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "User with this email already exists" });
+      }
+
+      // Create user account
+      const hashedPassword = await hashPassword(password);
+      const newUser = await storage.createUser({
+        email,
+        password_hash: hashedPassword,
+        first_name: first_name || null,
+        last_name: last_name || null,
+        global_role: null,
+      });
+
+      // Create school memberships if schoolIds provided
+      if (schoolIds && Array.isArray(schoolIds) && schoolIds.length > 0) {
+        for (const schoolId of schoolIds) {
+          await storage.createMembership({
+            userId: newUser.id,
+            schoolId,
+            role: role || "Teacher",
+          });
+        }
+      }
+
+      res.status(201).json(newUser);
+    } catch (error) {
+      console.error("Error creating teacher:", error);
+      res.status(500).json({ message: "Failed to create teacher" });
+    }
+  });
+
+  // Bulk import teachers from CSV
+  app.post("/api/users/teachers/import-csv", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only Admin or Creator can import teachers
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const isAdmin = userMemberships.some(m => m.role === "Admin");
+        if (!isAdmin) {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can import teachers" });
+        }
+      }
+
+      const { teachers } = req.body;
+
+      if (!teachers || !Array.isArray(teachers)) {
+        return res.status(400).json({ message: "Invalid CSV data. Expected an array of teachers." });
+      }
+
+      const results = {
+        success: [] as any[],
+        errors: [] as any[],
+      };
+
+      for (const teacherData of teachers) {
+        try {
+          const { email, password, first_name, last_name, schoolIds, role } = teacherData;
+
+          // Validate required fields
+          if (!email || !password) {
+            results.errors.push({
+              email: email || "unknown",
+              error: "Email and password are required",
+            });
+            continue;
+          }
+
+          // Check if user already exists
+          const existingUser = await storage.getUserByEmail(email);
+          if (existingUser) {
+            results.errors.push({
+              email,
+              error: "User with this email already exists",
+            });
+            continue;
+          }
+
+          // Create user account
+          const hashedPassword = await hashPassword(password);
+          const newUser = await storage.createUser({
+            email,
+            password_hash: hashedPassword,
+            first_name: first_name || null,
+            last_name: last_name || null,
+            global_role: null,
+          });
+
+          // Create school memberships
+          if (schoolIds && Array.isArray(schoolIds) && schoolIds.length > 0) {
+            for (const schoolId of schoolIds) {
+              await storage.createMembership({
+                userId: newUser.id,
+                schoolId,
+                role: role || "Teacher",
+              });
+            }
+          }
+
+          results.success.push({
+            email: newUser.email,
+            id: newUser.id,
+          });
+        } catch (error: any) {
+          results.errors.push({
+            email: teacherData.email || "unknown",
+            error: error.message || "Failed to create teacher",
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Error importing teachers:", error);
+      res.status(500).json({ message: "Failed to import teachers" });
+    }
+  });
+
+  // Update teacher school assignments
+  app.post("/api/users/:userId/schools", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { userId } = req.params;
+      const { schoolIds, role } = req.body;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only Admin or Creator can manage school assignments
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const isAdmin = userMemberships.some(m => m.role === "Admin");
+        if (!isAdmin) {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can manage school assignments" });
+        }
+      }
+
+      if (!schoolIds || !Array.isArray(schoolIds)) {
+        return res.status(400).json({ message: "schoolIds must be an array" });
+      }
+
+      // Get existing memberships
+      const existingMemberships = await storage.getMembershipsByUser(userId);
+      
+      // Remove memberships that are not in the new schoolIds
+      for (const membership of existingMemberships) {
+        if (!schoolIds.includes(membership.schoolId)) {
+          await storage.deleteMembership(membership.id);
+        }
+      }
+
+      // Add new memberships
+      for (const schoolId of schoolIds) {
+        const exists = existingMemberships.find(m => m.schoolId === schoolId);
+        if (!exists) {
+          await storage.createMembership({
+            userId,
+            schoolId,
+            role: role || "Teacher",
+          });
+        }
+      }
+
+      res.json({ message: "School assignments updated successfully" });
+    } catch (error) {
+      console.error("Error updating school assignments:", error);
+      res.status(500).json({ message: "Failed to update school assignments" });
+    }
+  });
+
+  // Teachers routes (DEPRECATED - uses old teachers table)
   app.get("/api/teachers", isAuthenticated, async (req, res) => {
     const schoolId = req.query.schoolId as string;
     if (!schoolId) {
