@@ -1,22 +1,26 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Upload, Users } from "lucide-react";
+import { Plus, Upload, Search, Pencil, Users } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import type { User, School, SchoolMembership } from "@shared/schema";
 
 export default function ManageTeachers() {
   const { user: currentUser, isCreator, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Add teacher state
   const [isAddOpen, setIsAddOpen] = useState(false);
@@ -25,6 +29,13 @@ export default function ManageTeachers() {
   const [newTeacherFirstName, setNewTeacherFirstName] = useState("");
   const [newTeacherLastName, setNewTeacherLastName] = useState("");
   const [newTeacherSchools, setNewTeacherSchools] = useState<string[]>([]);
+  
+  // Edit teacher state
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingTeacher, setEditingTeacher] = useState<User | null>(null);
+  const [editFirstName, setEditFirstName] = useState("");
+  const [editLastName, setEditLastName] = useState("");
+  const [editEmail, setEditEmail] = useState("");
   
   // CSV import state
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -48,6 +59,27 @@ export default function ManageTeachers() {
     enabled: !authLoading,
   });
 
+  // Fetch memberships for all teachers
+  const { data: allMemberships = [] } = useQuery<SchoolMembership[]>({
+    queryKey: ["/api/all-memberships"],
+    queryFn: async () => {
+      // Fetch memberships for each teacher
+      const membershipPromises = teachers.map(teacher =>
+        queryClient.fetchQuery<SchoolMembership[]>({
+          queryKey: ["/api/users", teacher.id, "memberships"],
+          queryFn: async () => {
+            const response = await fetch(`/api/users/${teacher.id}/memberships`);
+            if (!response.ok) return [];
+            return response.json();
+          },
+        })
+      );
+      const results = await Promise.all(membershipPromises);
+      return results.flat();
+    },
+    enabled: teachers.length > 0,
+  });
+
   // Create teacher mutation
   const createTeacherMutation = useMutation({
     mutationFn: async (data: {
@@ -61,6 +93,7 @@ export default function ManageTeachers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
       setIsAddOpen(false);
       resetAddForm();
       toast({
@@ -77,6 +110,33 @@ export default function ManageTeachers() {
     },
   });
 
+  // Update teacher mutation
+  const updateTeacherMutation = useMutation({
+    mutationFn: async (data: { id: string; first_name: string; last_name: string; email: string }) => {
+      return await apiRequest("PATCH", `/api/users/${data.id}`, {
+        first_name: data.first_name,
+        last_name: data.last_name,
+        email: data.email,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/teachers"] });
+      setIsEditOpen(false);
+      setEditingTeacher(null);
+      toast({
+        title: "Teacher updated",
+        description: "The teacher information has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update teacher",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Import CSV mutation
   const importCsvMutation = useMutation({
     mutationFn: async (teachers: any[]) => {
@@ -84,6 +144,7 @@ export default function ManageTeachers() {
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
       setImportResults(data);
       toast({
         title: "Import complete",
@@ -108,6 +169,7 @@ export default function ManageTeachers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
       setIsAssignOpen(false);
       setSelectedTeacher(null);
       setAssignedSchools([]);
@@ -152,9 +214,27 @@ export default function ManageTeachers() {
     });
   };
 
+  const handleEditTeacher = (teacher: User) => {
+    setEditingTeacher(teacher);
+    setEditFirstName(teacher.first_name || "");
+    setEditLastName(teacher.last_name || "");
+    setEditEmail(teacher.email);
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateTeacher = () => {
+    if (!editingTeacher) return;
+
+    updateTeacherMutation.mutate({
+      id: editingTeacher.id,
+      first_name: editFirstName,
+      last_name: editLastName,
+      email: editEmail,
+    });
+  };
+
   const handleImportCsv = () => {
     try {
-      // Parse CSV data
       const lines = csvData.trim().split("\n");
       if (lines.length < 2) {
         toast({
@@ -174,7 +254,6 @@ export default function ManageTeachers() {
         
         headers.forEach((header, index) => {
           if (header === "schoolIds") {
-            // Parse schoolIds as array
             teacher[header] = values[index] ? values[index].split(";").map(s => s.trim()) : [];
           } else {
             teacher[header] = values[index] || "";
@@ -197,7 +276,6 @@ export default function ManageTeachers() {
   const handleAssignSchools = async (teacher: User) => {
     setSelectedTeacher(teacher);
     
-    // Fetch current school assignments for this teacher using react-query
     try {
       const memberships = await queryClient.fetchQuery<SchoolMembership[]>({
         queryKey: ["/api/users", teacher.id, "memberships"],
@@ -242,7 +320,24 @@ export default function ManageTeachers() {
     );
   };
 
-  // Show loading while auth is resolving
+  // Get school names for a teacher
+  const getTeacherSchools = (teacherId: string) => {
+    const teacherMemberships = allMemberships.filter(m => m.userId === teacherId);
+    return teacherMemberships.map(m => {
+      const school = schools.find(s => s.id === m.schoolId);
+      return school?.name || "Unknown";
+    });
+  };
+
+  // Filter teachers based on search
+  const filteredTeachers = teachers.filter(teacher => {
+    const fullName = `${teacher.first_name || ""} ${teacher.last_name || ""}`.toLowerCase();
+    const email = teacher.email.toLowerCase();
+    const query = searchQuery.toLowerCase();
+    
+    return fullName.includes(query) || email.includes(query);
+  });
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -251,7 +346,6 @@ export default function ManageTeachers() {
     );
   }
 
-  // Show loading while teachers are being fetched
   if (teachersLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -261,12 +355,12 @@ export default function ManageTeachers() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
+    <div className="container mx-auto p-6 max-w-7xl">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Manage Teachers</h1>
           <p className="text-muted-foreground mt-1">
-            Add teachers and assign them to schools
+            Search, edit, and manage teacher accounts
           </p>
         </div>
 
@@ -301,8 +395,8 @@ export default function ManageTeachers() {
                 {importResults && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Import Results:</p>
-                    <p className="text-sm text-green-600">✓ {importResults.success.length} teachers imported</p>
-                    {importResults.errors.length > 0 && (
+                    <p className="text-sm text-green-600">✓ {importResults.success?.length || 0} teachers imported</p>
+                    {importResults.errors?.length > 0 && (
                       <div className="text-sm text-destructive">
                         <p>✗ {importResults.errors.length} errors:</p>
                         <ul className="list-disc list-inside">
@@ -446,51 +540,162 @@ export default function ManageTeachers() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {teachers.map((teacher) => (
-          <Card key={teacher.id} className="hover-elevate">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg" data-testid={`teacher-name-${teacher.id}`}>
-                    {teacher.first_name || teacher.last_name
-                      ? `${teacher.first_name || ""} ${teacher.last_name || ""}`.trim()
-                      : teacher.email}
-                  </CardTitle>
-                  <CardDescription className="mt-1">
-                    {teacher.email}
-                  </CardDescription>
-                  {teacher.global_role === "Creator" && (
-                    <Badge variant="default" className="mt-2">
-                      Creator
-                    </Badge>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => handleAssignSchools(teacher)}
-                  data-testid={`button-assign-schools-${teacher.id}`}
-                >
-                  <Users className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardHeader>
-          </Card>
-        ))}
-
-        {teachers.length === 0 && (
-          <Card className="col-span-full">
-            <CardContent className="flex flex-col items-center justify-center py-12">
-              <p className="text-muted-foreground mb-4">No teachers yet</p>
-              <Button onClick={() => setIsAddOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add your first teacher
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+      {/* Search Bar */}
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Search teachers by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+            data-testid="input-search-teachers"
+          />
+        </div>
       </div>
+
+      {/* Teachers Table */}
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Schools</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredTeachers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                    {searchQuery ? "No teachers found matching your search" : "No teachers yet"}
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredTeachers.map((teacher) => {
+                  const teacherSchools = getTeacherSchools(teacher.id);
+                  const displayName = teacher.first_name || teacher.last_name
+                    ? `${teacher.first_name || ""} ${teacher.last_name || ""}`.trim()
+                    : "—";
+
+                  return (
+                    <TableRow key={teacher.id} data-testid={`row-teacher-${teacher.id}`}>
+                      <TableCell className="font-medium">
+                        {displayName}
+                        {teacher.global_role === "Creator" && (
+                          <Badge variant="default" className="ml-2">Creator</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell>{teacher.email}</TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1">
+                          {teacherSchools.length > 0 ? (
+                            teacherSchools.map((schoolName, idx) => (
+                              <Badge key={idx} variant="secondary">
+                                {schoolName}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-muted-foreground text-sm">No schools</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEditTeacher(teacher)}
+                            data-testid={`button-edit-${teacher.id}`}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleAssignSchools(teacher)}
+                            data-testid={`button-assign-schools-${teacher.id}`}
+                          >
+                            <Users className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Edit Teacher Dialog */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Teacher</DialogTitle>
+            <DialogDescription>
+              Update teacher information
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="edit-first-name">First Name</Label>
+                <Input
+                  id="edit-first-name"
+                  data-testid="input-edit-first-name"
+                  value={editFirstName}
+                  onChange={(e) => setEditFirstName(e.target.value)}
+                  placeholder="First name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-last-name">Last Name</Label>
+                <Input
+                  id="edit-last-name"
+                  data-testid="input-edit-last-name"
+                  value={editLastName}
+                  onChange={(e) => setEditLastName(e.target.value)}
+                  placeholder="Last name"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="edit-email">Email</Label>
+              <Input
+                id="edit-email"
+                data-testid="input-edit-email"
+                type="email"
+                value={editEmail}
+                onChange={(e) => setEditEmail(e.target.value)}
+                placeholder="teacher@school.edu"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditOpen(false);
+                setEditingTeacher(null);
+              }}
+              data-testid="button-cancel-edit"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpdateTeacher}
+              disabled={updateTeacherMutation.isPending}
+              data-testid="button-submit-edit"
+            >
+              {updateTeacherMutation.isPending ? "Updating..." : "Update Teacher"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* School Assignment Dialog */}
       <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>

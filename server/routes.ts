@@ -532,6 +532,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update teacher information
+  app.patch("/api/users/:userId", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { userId } = req.params;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only Admin or Creator can update teachers
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const isAdmin = userMemberships.some(m => m.role === "Admin");
+        if (!isAdmin) {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can update teachers" });
+        }
+      }
+
+      const { first_name, last_name, email } = req.body;
+
+      // Check if email is being changed and if it's already in use
+      if (email) {
+        const existingUser = await storage.getUserByEmail(email);
+        if (existingUser && existingUser.id !== userId) {
+          return res.status(400).json({ message: "Email is already in use by another user" });
+        }
+      }
+
+      // Update user
+      const updatedUser = await storage.updateUser(userId, {
+        first_name: first_name !== undefined ? first_name : undefined,
+        last_name: last_name !== undefined ? last_name : undefined,
+        email: email !== undefined ? email : undefined,
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error updating teacher:", error);
+      res.status(500).json({ message: "Failed to update teacher" });
+    }
+  });
+
   // Update teacher school assignments
   app.post("/api/users/:userId/schools", isAuthenticated, async (req: any, res) => {
     try {
