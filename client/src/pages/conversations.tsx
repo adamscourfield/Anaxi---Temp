@@ -3,7 +3,8 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
-import type { Conversation, Teacher } from "@shared/schema";
+import { useSchool } from "@/hooks/use-school";
+import type { Conversation, Teacher, SchoolMembership } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,8 +30,6 @@ import { MessageSquare, Plus, Download } from "lucide-react";
 import { format } from "date-fns";
 import { ConversationDetailsPanel } from "@/components/conversation-details-panel";
 
-const SCHOOL_ID = "3d629223-97f8-4d33-8e7e-974bbbf156b8";
-
 const ratingColors = {
   "Best Practice": "bg-success/10 text-success border-success/20",
   "Neutral": "bg-muted text-muted-foreground border-border",
@@ -39,13 +38,12 @@ const ratingColors = {
 
 export default function Conversations() {
   const { toast } = useToast();
-  const { currentUser } = useAuth();
+  const { user, isCreator } = useAuth();
+  const { currentSchoolId } = useSchool();
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [filterTeacherId, setFilterTeacherId] = useState<string>("all");
   const [filterRating, setFilterRating] = useState<string>("all");
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
-
-  const canExport = currentUser?.role === "Leader" || currentUser?.role === "Admin";
 
   const [formData, setFormData] = useState({
     teacherId: "",
@@ -54,33 +52,54 @@ export default function Conversations() {
     rating: "",
   });
 
-  const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
-    queryKey: ["/api/conversations", SCHOOL_ID],
+  // Get current user's membership to check role
+  const { data: currentMembership } = useQuery<SchoolMembership>({
+    queryKey: ["/api/my-membership-role", currentSchoolId],
+    enabled: !!user && !!currentSchoolId && !isCreator,
     queryFn: async () => {
-      const response = await fetch(`/api/conversations?schoolId=${SCHOOL_ID}`);
-      if (!response.ok) throw new Error("Failed to fetch conversations");
-      return response.json();
+      try {
+        const response = await fetch(`/api/schools/${currentSchoolId}/memberships`);
+        if (!response.ok) return null;
+        const memberships = await response.json();
+        return memberships.find((m: any) => m.userId === user?.id) || null;
+      } catch {
+        return null;
+      }
     },
   });
 
-  const { data: teachers = [] } = useQuery<Teacher[]>({
-    queryKey: ["/api/teachers", SCHOOL_ID],
+  // Leaders, Admins, and Creators can export
+  const canExport = isCreator || currentMembership?.role === "Admin" || currentMembership?.role === "Leader";
+
+  const { data: conversations = [], isLoading: conversationsLoading } = useQuery<Conversation[]>({
+    queryKey: ["/api/conversations", currentSchoolId],
     queryFn: async () => {
-      const response = await fetch(`/api/teachers?schoolId=${SCHOOL_ID}`);
+      const response = await fetch(`/api/conversations?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch conversations");
+      return response.json();
+    },
+    enabled: !!currentSchoolId,
+  });
+
+  const { data: teachers = [] } = useQuery<Teacher[]>({
+    queryKey: ["/api/teachers", currentSchoolId],
+    queryFn: async () => {
+      const response = await fetch(`/api/teachers?schoolId=${currentSchoolId}`);
       if (!response.ok) throw new Error("Failed to fetch teachers");
       return response.json();
     },
+    enabled: !!currentSchoolId,
   });
 
   const createConversationMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       return apiRequest("POST", "/api/conversations", {
         ...data,
-        schoolId: SCHOOL_ID,
+        schoolId: currentSchoolId,
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/conversations", SCHOOL_ID] });
+      queryClient.invalidateQueries({ queryKey: ["/api/conversations", currentSchoolId] });
       toast({
         title: "Success",
         description: "Conversation recorded successfully",
