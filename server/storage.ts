@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Teacher, type InsertTeacher, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation } from "@shared/schema";
+import { type User, type InsertUser, type Teacher, type InsertTeacher, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation, type Observation, type InsertObservation } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -45,6 +45,12 @@ export interface IStorage {
   // Conversations
   getConversationsBySchool(schoolId: string): Promise<Conversation[]>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
+  
+  // Observations
+  getObservationsBySchool(schoolId: string): Promise<Observation[]>;
+  getObservationsByTeacher(teacherId: string): Promise<Observation[]>;
+  getObservation(id: string): Promise<Observation | undefined>;
+  createObservation(observation: InsertObservation): Promise<Observation>;
 }
 
 export class MemStorage implements IStorage {
@@ -322,6 +328,23 @@ export class MemStorage implements IStorage {
     };
     this.conversations.set(id, conversation);
     return conversation;
+  }
+  
+  // Observations - Not implemented in MemStorage (use DbStorage)
+  async getObservationsBySchool(schoolId: string): Promise<Observation[]> {
+    throw new Error("Observations not implemented in MemStorage");
+  }
+  
+  async getObservationsByTeacher(teacherId: string): Promise<Observation[]> {
+    throw new Error("Observations not implemented in MemStorage");
+  }
+  
+  async getObservation(id: string): Promise<Observation | undefined> {
+    throw new Error("Observations not implemented in MemStorage");
+  }
+  
+  async createObservation(observation: InsertObservation): Promise<Observation> {
+    throw new Error("Observations not implemented in MemStorage");
   }
 }
 

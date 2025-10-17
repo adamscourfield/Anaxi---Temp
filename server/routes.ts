@@ -482,6 +482,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Observation routes with role-based filtering
+  app.get("/api/observations", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const schoolId = req.query.schoolId as string;
+
+      if (!schoolId) {
+        return res.status(400).json({ message: "School ID is required" });
+      }
+
+      // Creators can see all observations across all schools
+      if (user.global_role === "Creator") {
+        const observations = await storage.getObservationsBySchool(schoolId);
+        return res.json(observations);
+      }
+
+      // Get teacher profile to check role
+      const teacher = await storage.getTeacherByUserId(user.id);
+      
+      if (!teacher) {
+        return res.status(401).json({ message: "No teacher profile found" });
+      }
+
+      const role = teacher.role || "Teacher";
+
+      // Leaders and Admins can see all observations in their school
+      if (role === "Leader" || role === "Admin") {
+        const observations = await storage.getObservationsBySchool(schoolId);
+        return res.json(observations);
+      }
+
+      // Teachers can only see their own observations
+      const observations = await storage.getObservationsByTeacher(teacher.id);
+      res.json(observations);
+    } catch (error) {
+      console.error("Error fetching observations:", error);
+      res.status(500).json({ message: "Failed to fetch observations" });
+    }
+  });
+
   // Object Storage routes - Referenced from blueprint:javascript_object_storage
   
   // Endpoint for serving uploaded profile pictures with ACL check

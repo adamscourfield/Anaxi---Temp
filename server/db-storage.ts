@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { 
   type User, 
   type InsertUser, 
@@ -13,12 +13,15 @@ import {
   type InsertTeachingGroup, 
   type Conversation, 
   type InsertConversation,
+  type Observation,
+  type InsertObservation,
   users,
   teachers,
   schoolMemberships,
   schools,
   teachingGroups,
   conversations,
+  observations,
 } from "@shared/schema";
 import { type IStorage } from "./storage";
 
@@ -182,5 +185,32 @@ export class DbStorage implements IStorage {
   async createConversation(insertConversation: InsertConversation): Promise<Conversation> {
     const [conversation] = await db.insert(conversations).values(insertConversation).returning();
     return conversation;
+  }
+
+  // Observations
+  async getObservationsBySchool(schoolId: string): Promise<Observation[]> {
+    return await db
+      .select()
+      .from(observations)
+      .where(eq(observations.schoolId, schoolId))
+      .orderBy(desc(observations.date));
+  }
+
+  async getObservationsByTeacher(teacherId: string): Promise<Observation[]> {
+    return await db
+      .select()
+      .from(observations)
+      .where(eq(observations.teacherId, teacherId))
+      .orderBy(desc(observations.date));
+  }
+
+  async getObservation(id: string): Promise<Observation | undefined> {
+    const [observation] = await db.select().from(observations).where(eq(observations.id, id));
+    return observation;
+  }
+
+  async createObservation(insertObservation: InsertObservation): Promise<Observation> {
+    const [observation] = await db.insert(observations).values(insertObservation).returning();
+    return observation;
   }
 }
