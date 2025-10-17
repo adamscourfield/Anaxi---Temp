@@ -23,7 +23,12 @@ Preferred communication style: Simple, everyday language.
 - **Session Management**: PostgreSQL-backed session management using `connect-pg-simple`.
 - **Authentication**: Email/password with bcrypt hashing (10 salt rounds), secure session configuration, role-based access control (Teacher, Leader, Admin, Creator). Public registration removed; admin-only teacher account creation.
 - **Multi-School Architecture**: Supports multiple schools with data isolation. `Creator` role manages schools platform-wide. Regular users access only their school data. Data models include `users`, `schools`, `school_memberships`.
-- **School Management**: Creator-only `/schools` page with integrated membership management. School details and member management unified in a tabbed dialog (Overview + Members tabs). Membership operations (add, edit, remove) scoped to selected school.
+- **School Management**: Creator-only `/schools` page for adding and editing schools. Simple interface focused on school CRUD operations only.
+- **Teacher Management**: Centralized `/teachers` page (Admin/Creator access) for managing teacher accounts. Features include:
+  - Add individual teachers with email/password authentication
+  - Bulk CSV import for multiple teachers
+  - Multi-school assignment per teacher
+  - Teacher accounts are `users` with school memberships linking them to one or more schools
 - **Dashboard**: Real-time stats and analytics scoped to the current school, dynamically fetched from the database.
 
 ### Data Architecture
