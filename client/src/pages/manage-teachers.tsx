@@ -42,25 +42,11 @@ export default function ManageTeachers() {
     enabled: !authLoading,
   });
 
-  // Fetch all schools
+  // Fetch all schools (Creators see all, Admins see their schools)
   const { data: schools = [] } = useQuery<School[]>({
     queryKey: ["/api/schools"],
-    enabled: isCreator,
+    enabled: !authLoading,
   });
-
-  // Fetch memberships for each teacher
-  const getMembershipsForTeacher = (teacherId: string) => {
-    return useQuery<SchoolMembership[]>({
-      queryKey: ["/api/users", teacherId, "memberships"],
-      queryFn: async () => {
-        const response = await fetch(`/api/my-memberships`);
-        if (!response.ok) throw new Error("Failed to fetch memberships");
-        const allMemberships: SchoolMembership[] = await response.json();
-        return allMemberships.filter(m => m.userId === teacherId);
-      },
-      enabled: !!teacherId,
-    });
-  };
 
   // Create teacher mutation
   const createTeacherMutation = useMutation({
@@ -208,11 +194,24 @@ export default function ManageTeachers() {
     }
   };
 
-  const handleAssignSchools = (teacher: User) => {
+  const handleAssignSchools = async (teacher: User) => {
     setSelectedTeacher(teacher);
-    // Get current school assignments for this teacher
-    // This would need to be fetched from memberships
-    setAssignedSchools([]);
+    
+    // Fetch current school assignments for this teacher
+    try {
+      const response = await fetch(`/api/users/${teacher.id}/memberships`);
+      if (response.ok) {
+        const memberships: SchoolMembership[] = await response.json();
+        const schoolIds = memberships.map(m => m.schoolId);
+        setAssignedSchools(schoolIds);
+      } else {
+        setAssignedSchools([]);
+      }
+    } catch (error) {
+      console.error("Failed to fetch teacher memberships:", error);
+      setAssignedSchools([]);
+    }
+    
     setIsAssignOpen(true);
   };
 
