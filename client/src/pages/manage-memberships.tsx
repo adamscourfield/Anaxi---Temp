@@ -66,6 +66,7 @@ export default function ManageMemberships() {
   // Form state for adding membership
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>("Teacher");
+  const [addError, setAddError] = useState<string | null>(null);
 
   // Fetch memberships for current school
   const { data: memberships = [], isLoading } = useQuery<MembershipWithUser[]>({
@@ -81,23 +82,29 @@ export default function ManageMemberships() {
   // Add membership mutation
   const addMembershipMutation = useMutation({
     mutationFn: async (data: { email: string; role: string }) => {
-      // First, find or create user by email
-      const userResponse = await fetch(`/api/users?email=${encodeURIComponent(data.email)}`);
-      let user: User;
-      
-      if (userResponse.ok) {
-        user = await userResponse.json();
-      } else {
-        // User doesn't exist, show error
-        throw new Error("User not found. Please ensure the user account exists first.");
-      }
+      try {
+        // First, find user by email
+        const userResponse = await fetch(`/api/users?email=${encodeURIComponent(data.email)}`);
+        
+        if (!userResponse.ok) {
+          const errorData = await userResponse.json().catch(() => ({ message: "User not found" }));
+          throw new Error(errorData.message || "User not found. Please create the user account first or check the email address.");
+        }
 
-      // Create membership
-      return apiRequest("POST", `/api/schools/${currentSchoolId}/memberships`, {
-        userId: user.id,
-        schoolId: currentSchoolId,
-        role: data.role,
-      });
+        const user: User = await userResponse.json();
+
+        // Create membership
+        const result = await apiRequest("POST", `/api/schools/${currentSchoolId}/memberships`, {
+          userId: user.id,
+          schoolId: currentSchoolId,
+          role: data.role,
+        });
+        
+        return result;
+      } catch (error: any) {
+        // Re-throw to ensure onError is called
+        throw new Error(error.message || "Failed to add teacher to school");
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schools", currentSchoolId, "memberships"] });
@@ -108,11 +115,15 @@ export default function ManageMemberships() {
       setAddDialogOpen(false);
       setEmail("");
       setRole("Teacher");
+      setAddError(null);
     },
     onError: (error: Error) => {
+      console.error("Add membership error:", error);
+      const errorMessage = error.message || "Failed to add teacher to school";
+      setAddError(errorMessage);
       toast({
         title: "Error",
-        description: error.message || "Failed to add teacher to school",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -163,10 +174,14 @@ export default function ManageMemberships() {
   });
 
   const handleAddMembership = () => {
+    setAddError(null); // Clear previous errors
+    
     if (!email.trim()) {
+      const errorMsg = "Please enter an email address";
+      setAddError(errorMsg);
       toast({
         title: "Error",
-        description: "Please enter an email address",
+        description: errorMsg,
         variant: "destructive",
       });
       return;
@@ -225,6 +240,11 @@ export default function ManageMemberships() {
                 Add an existing user to this school with a specific role
               </DialogDescription>
             </DialogHeader>
+            {addError && (
+              <div className="bg-destructive/15 text-destructive px-4 py-3 rounded-md text-sm" data-testid="error-message">
+                {addError}
+              </div>
+            )}
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email Address</Label>

@@ -1,269 +1,76 @@
 # Anaxi - Teacher Observation Platform
 
 ## Overview
-
-Anaxi is a professional teacher observation and development platform designed for schools. The application enables educators to conduct peer observations using custom rubrics, provide structured feedback through habit-based checklists, and track professional development over time. The platform emphasizes clarity and efficiency, supporting multiple schools with role-based workflows for observers and teachers.
+Anaxi is a professional teacher observation and development platform for schools. It enables educators to conduct peer observations using custom rubrics, provide structured feedback via habit-based checklists, and track professional development. The platform supports multiple schools with role-based workflows for observers and teachers, focusing on clarity and efficiency.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Frontend Architecture
+### Frontend
+- **Technology**: React with TypeScript, Vite.
+- **UI/Styling**: shadcn/ui with Radix UI primitives, Tailwind CSS with a warm gradient design (peachy/salmon to white), enhanced card shadows, light/dark mode support. Custom Lufga font.
+- **Routing**: Wouter for client-side routing.
+- **State Management**: TanStack Query for server state, React hooks for local state.
+- **Authentication State**: `use-auth.tsx` for user/creator status, `use-school-data.tsx` for school-specific data, and `use-school.tsx` for current school context.
+- **Design Patterns**: Component-based, compound components, custom hooks for shared logic.
 
-**Technology Stack**: React with TypeScript, using Vite as the build tool and development server.
-
-**UI Framework**: Built on shadcn/ui component library with Radix UI primitives, providing accessible, customizable components following the "new-york" style variant.
-
-**Styling Approach**: Tailwind CSS with a warm gradient design system. The application uses CSS variables for theming, supporting both light and dark modes. Features a radial gradient background (peachy/salmon at top fading to white) with enhanced card shadows (shadow-md) for elevated appearance. Color palette emphasizes warmth and approachability with hue 20° base tones and purposeful accent colors for status indicators.
-
-**Typography**: Custom font implementation using Lufga from CDN, with defined hierarchy for page titles, section headers, card titles, body text, and labels.
-
-**Routing**: Client-side routing implemented with Wouter (lightweight alternative to React Router).
-
-**State Management**: TanStack Query (React Query) for server state management with custom query client configuration. Local component state managed with React hooks.
-
-**Authentication State**: Unified auth context via `hooks/use-auth.tsx` provides User (from session) and Creator status. Exposes `isCreator` flag for role-based UI rendering. School-specific data (teachers, observations, rubrics) fetched via `hooks/use-school-data.tsx` using the current school from `hooks/use-school.tsx` context.
-
-**Design Patterns**:
-- Component-based architecture with reusable UI components
-- Compound component pattern for complex UI elements (dialogs, dropdowns, accordions)
-- Custom hooks for shared logic (mobile detection, toast notifications, unified auth)
-- Example components provided for development reference
-
-### Backend Architecture
-
-**Runtime**: Node.js with Express server framework.
-
-**Language**: TypeScript with ES modules.
-
-**API Design**: RESTful API structure with `/api` prefix for all application routes. Centralized route registration through `registerRoutes` function.
-
-**Storage Layer**: Abstracted storage interface (`IStorage`) with in-memory implementation (`MemStorage`) for development. Designed to support database integration through interface implementation pattern.
-
-**Session Management**: Session-based authentication using connect-pg-simple for PostgreSQL session store.
-
-**Development Features**:
-- Request/response logging middleware with performance metrics
-- Vite integration for HMR during development
-- Error handling middleware with status code normalization
-
-### Authentication & Security
-
-**Authentication Method**: Email/password authentication with bcrypt password hashing (10 salt rounds).
-
-**Session Configuration**:
-- PostgreSQL-backed session storage (connect-pg-simple)
-- 1-week session TTL
-- Cookie settings: `httpOnly: true`, `secure: NODE_ENV === 'production'`, `sameSite: 'lax'`
-- Secure cookies enabled in production (HTTPS), disabled in development (HTTP) for local testing
-- CSRF protection via sameSite cookie attribute
-- Session cookie name: `connect.sid`
-
-**Security Features**:
-- Password requirements: Minimum 8 characters
-- Bcrypt hashing with 10 salt rounds
-- Secure session management with automatic cookie clearing on logout
-- Protected routes with `isAuthenticated` middleware
-- Role-based access control (Teacher, Leader, Admin, Creator)
-- Creator global role for platform-wide school management
-
-**Authentication Endpoints**:
-- POST `/api/auth/login` - Authenticate user credentials
-- POST `/api/auth/logout` - Destroy session and clear cookie
-- GET `/api/auth/user` - Get current authenticated user
-
-**Note**: Public registration has been removed. Schools must create teacher accounts through the admin interface.
-
-**Admin Password Reset**:
-- POST `/api/teachers/:id/reset-password` - Admin-only endpoint to reset a teacher's password
-- Requires Admin role
-- Accepts `{ password: string }` (minimum 8 characters)
-- Updates user password with bcrypt hashing
-
-**Environment Requirements**:
-- `SESSION_SECRET`: Required for session encryption (must be set in production)
-- HTTPS required in production for secure cookies (`secure: true`)
-- Trust proxy enabled for correct client IP detection behind reverse proxies
-
-### Multi-School Architecture
-
-**Overview**: Platform supports multiple schools with complete data isolation. Users can have different roles at different schools through the school_memberships system.
-
-**Creator Role**:
-- Platform-wide administrators with `global_role = "Creator"` in users table
-- Can create, update, and delete schools
-- Access all schools and their data across the platform
-- Manage school memberships for any school
-- UI: Dedicated "Manage Schools" page visible only to Creators
-
-**School Isolation**:
-- Regular users (non-Creators) can only access their own school data
-- Membership endpoints enforce school-level access control
-- API checks: Creators bypass isolation, others limited to their memberships
-- Frontend hides cross-school data automatically
-
-**Data Model**:
-- `users` table: Authentication and global roles (Creator role stored here)
-- `schools` table: School entities with unique IDs and names
-- `school_memberships` table: Links users to schools with role (Teacher, Leader, Admin)
-- `teachers` table: Legacy table (being phased out in favor of school_memberships)
-
-**School Management API** (Creator only):
-- GET `/api/schools` - List all schools
-- POST `/api/schools` - Create new school with `{ name: string }`
-- PATCH `/api/schools/:id` - Update school details
-- DELETE `/api/schools/:id` - Remove school and cascade data
-
-**Membership API** (authenticated):
-- GET `/api/schools/:schoolId/memberships` - List school members (school-scoped)
-- POST `/api/schools/:schoolId/memberships` - Add user to school
-- PATCH `/api/memberships/:id` - Update membership role
-- DELETE `/api/memberships/:id` - Remove user from school
-
-**Security Model**:
-- `requireCreator()` middleware enforces Creator-only endpoints
-- Membership endpoints check: Creator OR user belongs to requested school
-- All school management operations logged and audited
-
-**Migration Strategy**: New multi-school tables (schools, school_memberships) coexist with legacy teachers table. Backend supports both during transition. Future work includes data backfill and full migration to membership-based system.
-
-**School Membership Management UI** (`/memberships`):
-- Dedicated page for managing school memberships
-- Add teachers to schools by email (user must exist first)
-- Assign roles (Teacher, Leader, Admin) per school
-- Edit roles and remove members
-- Filtered by current school context
-- Admin/Creator access only
-
-**School Switching Implementation**:
-- `hooks/use-school.tsx` - Context provider that fetches user's schools and manages current school selection
-- `hooks/use-school-data.tsx` - Helper hooks for fetching school-scoped data (teachers, etc.)
-- `components/school-selector.tsx` - Dynamic dropdown showing user's schools with localStorage persistence
-- School selection persists across sessions via localStorage
-- Regular users see only their schools; Creators see all schools
-- Sidebar dynamically displays current school name
-- All data queries filter by `currentSchoolId` from context
+### Backend
+- **Technology**: Node.js with Express, TypeScript.
+- **API**: RESTful API (`/api` prefix).
+- **Storage**: Abstracted storage interface (`IStorage`) with in-memory implementation for development, designed for database integration.
+- **Session Management**: PostgreSQL-backed session management using `connect-pg-simple`.
+- **Authentication**: Email/password with bcrypt hashing (10 salt rounds), secure session configuration, role-based access control (Teacher, Leader, Admin, Creator). Public registration removed; admin-only teacher account creation.
+- **Multi-School Architecture**: Supports multiple schools with data isolation. `Creator` role manages schools platform-wide. Regular users access only their school data. Data models include `users`, `schools`, `school_memberships`.
+- **Dashboard**: Real-time stats and analytics scoped to the current school, dynamically fetched from the database.
 
 ### Data Architecture
+- **ORM**: Drizzle ORM for PostgreSQL (Neon serverless database).
+- **Schema**: Type-safe schema definitions with Zod validation.
+- **Connection**: Connection pooling via `@neondatabase/serverless`.
+- **Migrations**: Drizzle Kit for schema migrations.
 
-**ORM**: Drizzle ORM configured for PostgreSQL with Neon serverless database support.
-
-**Schema Design**: Type-safe schema definitions using Drizzle with Zod validation integration. Currently implements basic user model with username/password authentication foundation.
-
-**Database Connection**: Connection pooling using @neondatabase/serverless with WebSocket support for serverless environments.
-
-**Migrations**: Drizzle Kit configured for schema migrations with output to `/migrations` directory.
-
-**Data Flow**: 
-- Schema definitions shared between client and server through `@shared` alias
-- Type inference from database schema using Drizzle's type utilities
-- Validation schemas generated from database models using drizzle-zod
-
-### Object Storage Architecture
-
-**Integration**: Replit Object Storage (Google Cloud Storage via sidecar endpoint at http://127.0.0.1:1106).
-
-**Components**:
-- **ObjectStorageService** (`server/objectStorage.ts`): Core service for upload/download operations with presigned URL support
-- **ACL Framework** (`server/objectAcl.ts`): Access control layer with owner-based permissions and visibility policies (public/private)
-- **ObjectUploader** (`client/src/components/ObjectUploader.tsx`): Uppy-based modal component for file uploads (5MB max, single file)
-
-**Upload Flows**:
-
-*Profile Page Flow* (User updating own profile picture):
-1. User clicks upload button → ObjectUploader modal opens
-2. Frontend requests presigned URL from `POST /api/objects/upload`
-3. User selects image → direct upload to object storage via presigned URL
-4. Frontend calls `PUT /api/profile-pictures` with upload URL
-5. Backend sets ACL to public visibility and updates current user's `profilePicture` field in database
-6. Returns object path for immediate display
-
-*Edit Teacher Dialog Flow* (Admin updating another teacher's profile):
-1. Admin clicks upload button → ObjectUploader modal opens
-2. Frontend requests presigned URL from `POST /api/objects/upload`
-3. Admin selects image → direct upload to object storage via presigned URL
-4. Frontend calls `POST /api/objects/set-acl` with upload URL
-5. Backend sets ACL to public visibility (does NOT update database)
-6. Form data updated with object path
-7. Admin clicks "Save Changes" → `PATCH /api/teachers/:id` updates teacher's `profilePicture` field
-8. Teacher record updated with new profile picture
-
-**Security**:
-- All uploads require authentication (X-User-Id header)
-- Profile pictures use public visibility ACL policy (accessible by all authenticated users)
-- Downloads enforce ACL checks via `GET /objects/:objectPath` endpoint
-- Owner-based access control prevents unauthorized modifications
-
-**Environment Variables**:
-- `PRIVATE_OBJECT_DIR`: Directory for private objects (e.g., ".private")
-- `PUBLIC_OBJECT_SEARCH_PATHS`: Search paths for public assets (e.g., "public")
+### Object Storage
+- **Integration**: Replit Object Storage (Google Cloud Storage) via `ObjectStorageService`.
+- **ACL Framework**: `ObjectAcl.ts` for owner-based permissions and public/private visibility.
+- **Uploader**: `ObjectUploader.tsx` (Uppy-based) for file uploads (e.g., profile pictures).
+- **Security**: Authenticated uploads, public visibility for profile pictures, ACL checks for downloads.
 
 ### Design System
-
-**Core Principles**:
-1. Warm gradient foundation with peachy/salmon tones for welcoming atmosphere
-2. Elevated card design with enhanced shadows for visual depth
-3. Professional warmth maintaining credibility while feeling approachable
-4. Clear data hierarchy through color and elevation
-
-**Background System**: 
-- Radial gradient background from peachy (hue 20°) at top to white at bottom
-- Enhanced shadow system with shadow-md (0px 6px 16px) for card elevation
-- Dark mode uses darker blue gradients for consistency
-
-**Elevation System**: 
-- CSS-based hover and active states using custom `--elevate-1` and `--elevate-2` variables
-- Shadow-sm for minor elevation (0px 2px 6px)
-- Shadow-md for card elevation (0px 6px 16px)
-- Creates depth through layered shadows and subtle overlays
-
-**Component Variants**: Comprehensive button and badge variants (default, destructive, outline, secondary, ghost) with consistent border and shadow treatments.
-
-**Responsive Design**: Mobile-first approach with breakpoint-aware components and custom mobile detection hook.
+- **Principles**: Warm gradient foundation, elevated card design, professional warmth, clear data hierarchy.
+- **Background**: Radial gradient (peachy/salmon to white).
+- **Elevation**: CSS-based hover/active states with custom variables and shadow system (shadow-sm, shadow-md).
+- **Components**: Comprehensive button and badge variants.
+- **Responsiveness**: Mobile-first approach.
 
 ## External Dependencies
 
-### Core Framework Dependencies
-- **React 18**: UI library with concurrent features
-- **TypeScript**: Type safety across frontend and backend
-- **Vite**: Build tool and dev server with plugin ecosystem
-- **Express**: Backend web framework
-- **Drizzle ORM**: Type-safe database toolkit
+### Core Framework
+- **React 18**: UI library.
+- **TypeScript**: Type safety.
+- **Vite**: Build tool.
+- **Express**: Backend framework.
+- **Drizzle ORM**: Database toolkit.
 
 ### Database & Storage
-- **@neondatabase/serverless**: Serverless PostgreSQL client with WebSocket support
-- **connect-pg-simple**: PostgreSQL session store for Express
+- **@neondatabase/serverless**: Serverless PostgreSQL client.
+- **connect-pg-simple**: PostgreSQL session store.
 
-### UI Component Libraries
-- **Radix UI**: Headless UI primitives (@radix-ui/react-*)
-  - Complete suite including dialog, dropdown, popover, select, tabs, tooltip, etc.
-  - Ensures accessibility compliance and keyboard navigation
-- **shadcn/ui**: Component library configuration and tooling
-- **Tailwind CSS**: Utility-first CSS framework
-- **class-variance-authority**: Type-safe variant management for components
-- **cmdk**: Command menu/palette component
-- **embla-carousel-react**: Carousel/slider component
+### UI Components
+- **Radix UI**: Headless UI primitives.
+- **shadcn/ui**: Component library configuration.
+- **Tailwind CSS**: Utility-first CSS.
+- **class-variance-authority**: Variant management.
+- **cmdk**: Command menu.
+- **embla-carousel-react**: Carousel.
 
 ### Form & Data Management
-- **React Hook Form**: Form state management with @hookform/resolvers
-- **Zod**: Schema validation library
-- **TanStack Query**: Server state management and caching
-- **date-fns**: Date manipulation and formatting
-
-### Development Tools
-- **Replit Plugins**: Development tooling for Replit environment
-  - vite-plugin-runtime-error-modal
-  - vite-plugin-cartographer (development only)
-  - vite-plugin-dev-banner (development only)
+- **React Hook Form**: Form state.
+- **Zod**: Schema validation.
+- **TanStack Query**: Server state management.
+- **date-fns**: Date manipulation.
 
 ### Typography & Assets
-- **Lufga Font**: Custom typography via CDN (https://fonts.cdnfonts.com/css/lufga)
-- **Lucide React**: Icon library for UI elements
-
-### Build & Deployment
-- **esbuild**: JavaScript bundler for production server bundle
-- **tsx**: TypeScript execution for development
-- **PostCSS**: CSS processing with Autoprefixer
-- **WebSocket (ws)**: WebSocket implementation for Neon database connection
+- **Lufga Font**: Custom typography (CDN).
+- **Lucide React**: Icon library.
