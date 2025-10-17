@@ -8,36 +8,13 @@ import { Link } from "wouter";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useSchool } from "@/hooks/use-school";
+import { useQuery } from "@tanstack/react-query";
+import type { Observation, Teacher } from "@shared/schema";
 
-const observations = [
-  {
-    id: "1",
-    teacherName: "Sarah Mitchell",
-    teacherInitials: "SM",
-    date: new Date(2025, 9, 8),
-    categories: ["Entrance and Do Now", "Direct Instruction"],
-    score: 8,
-    maxScore: 11,
-  },
-  {
-    id: "2",
-    teacherName: "James Chen",
-    teacherInitials: "JC",
-    date: new Date(2025, 9, 5),
-    categories: ["Behaviour Routines", "Academic Talk"],
-    score: 7,
-    maxScore: 9,
-  },
-  {
-    id: "3",
-    teacherName: "Emily Rodriguez",
-    teacherInitials: "ER",
-    date: new Date(2025, 9, 3),
-    categories: ["Application", "Exit Routine"],
-    score: 9,
-    maxScore: 10,
-  },
-];
+interface ObservationWithTeacher extends Observation {
+  teacher?: Teacher;
+}
 
 const sampleFeedback = {
   teacherName: "Sarah Mitchell",
@@ -120,24 +97,68 @@ const sampleFeedback = {
 
 export default function ObservationHistory() {
   const { toast } = useToast();
-  const { currentUser } = useAuth();
+  const { user, isCreator } = useAuth();
+  const { currentSchoolId, hasNoSchools } = useSchool();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedObservation, setSelectedObservation] = useState<string | null>(
-    null
-  );
+  const [selectedObservation, setSelectedObservation] = useState<string | null>(null);
 
-  const canExport = currentUser?.role === "Leader" || currentUser?.role === "Admin";
+  // Fetch observations for current school
+  const { data: observations = [], isLoading: observationsLoading } = useQuery<Observation[]>({
+    queryKey: ["/api/observations", currentSchoolId],
+    enabled: !!currentSchoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/observations?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch observations");
+      return response.json();
+    },
+  });
+
+  // Fetch teachers for display names
+  const { data: teachers = [] } = useQuery<Teacher[]>({
+    queryKey: ["/api/teachers", currentSchoolId],
+    enabled: !!currentSchoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/teachers?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch teachers");
+      return response.json();
+    },
+  });
+
+  // Get teacher profile to check role for export permissions
+  const { data: currentTeacher } = useQuery<Teacher>({
+    queryKey: ["/api/teachers/me", currentSchoolId],
+    enabled: !!user && !!currentSchoolId && !isCreator,
+    queryFn: async () => {
+      const response = await fetch(`/api/teachers?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch teachers");
+      const allTeachers: Teacher[] = await response.json();
+      const myTeacher = allTeachers.find(t => t.userId === user?.id);
+      if (!myTeacher) throw new Error("Teacher profile not found");
+      return myTeacher;
+    },
+  });
+
+  const canExport = isCreator || currentTeacher?.role === "Leader" || currentTeacher?.role === "Admin";
+
+  // Map observations with teacher names
+  const observationsWithNames = observations.map(obs => {
+    const teacher = teachers.find(t => t.id === obs.teacherId);
+    return {
+      ...obs,
+      teacherName: teacher?.name || "Unknown",
+      teacherInitials: teacher ? teacher.name.split(' ').map(n => n[0]).join('') : "??",
+    };
+  });
 
   const exportToCSV = () => {
-    const headers = ["Date", "Teacher", "Categories", "Score", "Max Score", "Percentage"];
-    const rows = observations.map((obs) => {
-      const percentage = obs.maxScore > 0 ? Math.round((obs.score / obs.maxScore) * 100) : 0;
+    const headers = ["Date", "Teacher", "Score", "Max Score", "Percentage"];
+    const rows = observationsWithNames.map((obs) => {
+      const percentage = obs.totalMaxScore > 0 ? Math.round((obs.totalScore / obs.totalMaxScore) * 100) : 0;
       return [
-        format(obs.date, "yyyy-MM-dd"),
+        format(new Date(obs.date), "yyyy-MM-dd"),
         obs.teacherName,
-        obs.categories.join("; "),
-        obs.score.toString(),
-        obs.maxScore.toString(),
+        obs.totalScore.toString(),
+        obs.totalMaxScore.toString(),
         `${percentage}%`,
       ];
     });
@@ -231,15 +252,28 @@ export default function ObservationHistory() {
         />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {observations.map((obs) => (
-          <ObservationCard
-            key={obs.id}
-            {...obs}
-            onView={() => setSelectedObservation(obs.id)}
-          />
-        ))}
-      </div>
+      {observationsLoading ? (
+        <div className="text-center text-muted-foreground py-12">Loading observations...</div>
+      ) : hasNoSchools ? (
+        <div className="text-center text-muted-foreground py-12">No school assigned</div>
+      ) : observations.length === 0 ? (
+        <div className="text-center text-muted-foreground py-12">No observations yet</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {observationsWithNames.map((obs) => (
+            <ObservationCard
+              key={obs.id}
+              teacherName={obs.teacherName}
+              teacherInitials={obs.teacherInitials}
+              date={new Date(obs.date)}
+              categories={[]} // Categories not yet implemented
+              score={obs.totalScore}
+              maxScore={obs.totalMaxScore}
+              onView={() => setSelectedObservation(obs.id)}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
