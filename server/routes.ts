@@ -84,11 +84,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware - Referenced from blueprint:javascript_log_in_with_replit
   await setupAuth(app);
 
-  // School management routes (Creator only)
-  app.get("/api/schools", isAuthenticated, await requireCreator(), async (req, res) => {
+  // School management routes
+  // Get schools (Creator sees all, Admin sees their schools)
+  app.get("/api/schools", isAuthenticated, async (req: any, res) => {
     try {
-      const schools = await storage.getAllSchools();
-      res.json(schools);
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Creators can see all schools
+      if (user.global_role === "Creator") {
+        const schools = await storage.getAllSchools();
+        return res.json(schools);
+      }
+
+      // Admins can see schools they manage
+      const userMemberships = await storage.getMembershipsByUser(user.id);
+      const isAdmin = userMemberships.some(m => m.role === "Admin");
+      
+      if (!isAdmin) {
+        return res.status(403).json({ message: "Forbidden: Only Admins or Creators can view schools" });
+      }
+
+      // Get schools where user is Admin
+      const adminSchoolIds = userMemberships
+        .filter(m => m.role === "Admin")
+        .map(m => m.schoolId);
+      
+      const allSchools = await storage.getAllSchools();
+      const adminSchools = allSchools.filter(s => adminSchoolIds.includes(s.id));
+      
+      res.json(adminSchools);
     } catch (error) {
       console.error("Error fetching schools:", error);
       res.status(500).json({ message: "Failed to fetch schools" });
@@ -283,6 +311,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting membership:", error);
       res.status(500).json({ message: "Failed to delete membership" });
+    }
+  });
+
+  // Get memberships for a specific user (Admin/Creator only)
+  app.get("/api/users/:userId/memberships", isAuthenticated, async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      const user = req.user;
+      
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Only Admin or Creator can view user memberships
+      if (user.global_role !== "Creator") {
+        // Check if user has Admin role in any school
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const isAdmin = userMemberships.some(m => m.role === "Admin");
+        if (!isAdmin) {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can view user memberships" });
+        }
+      }
+
+      const memberships = await storage.getMembershipsByUser(userId);
+      res.json(memberships);
+    } catch (error) {
+      console.error("Error fetching user memberships:", error);
+      res.status(500).json({ message: "Failed to fetch user memberships" });
     }
   });
 
