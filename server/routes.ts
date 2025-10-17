@@ -498,14 +498,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(observations);
       }
 
-      // Get teacher profile to check role
-      const teacher = await storage.getTeacherByUserId(user.id);
+      // Verify the user has membership in the requested school
+      const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
       
-      if (!teacher) {
-        return res.status(401).json({ message: "No teacher profile found" });
+      if (!membership) {
+        return res.status(403).json({ 
+          message: "Forbidden: You do not have access to this school's observations" 
+        });
       }
 
-      const role = teacher.role || "Teacher";
+      const role = membership.role || "Teacher";
 
       // Leaders and Admins can see all observations in their school
       if (role === "Leader" || role === "Admin") {
@@ -514,6 +516,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Teachers can only see their own observations
+      // Get teacher profile to find their teacher ID
+      const teacher = await storage.getTeacherByUserId(user.id);
+      
+      if (!teacher) {
+        return res.status(401).json({ message: "No teacher profile found" });
+      }
+
       const observations = await storage.getObservationsByTeacher(teacher.id);
       res.json(observations);
     } catch (error) {
