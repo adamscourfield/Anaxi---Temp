@@ -96,12 +96,12 @@ export default function ManageTeachers() {
     mutationFn: async (teachers: any[]) => {
       return await apiRequest("POST", "/api/users/teachers/import-csv", { teachers });
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/teachers"] });
       setImportResults(data);
       toast({
         title: "Import complete",
-        description: `Successfully imported ${data.success.length} teachers. ${data.errors.length} errors.`,
+        description: `Successfully imported ${data.success?.length || 0} teachers. ${data.errors?.length || 0} errors.`,
       });
     },
     onError: (error: any) => {
