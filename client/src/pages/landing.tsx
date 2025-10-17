@@ -6,9 +6,7 @@ import { AuthForm } from "@/components/auth-form";
 import { useAuth } from "@/hooks/use-auth";
 import { Eye, Users, MessageSquare, TrendingUp, CheckCircle, ArrowRight } from "lucide-react";
 import anaxiLogo from "@assets/7_1760131494886.png";
-import iphoneMockup from "@assets/stock_images/modern_iphone_mockup_c4899914.jpg";
-import macbookMockup from "@assets/stock_images/macbook_pro_laptop_m_c6078745.jpg";
-import dashboardWidget from "@assets/Screenshot 2025-10-13 at 16.17.26_1760368668464.png";
+import teacherFeedbackImage from "@assets/stock_images/professional_teacher_553038f1.jpg";
 
 export default function Landing() {
   const [showAuthDialog, setShowAuthDialog] = useState(false);
@@ -97,47 +95,21 @@ export default function Landing() {
               </div>
             </div>
 
-            {/* Right column - Device mockups */}
+            {/* Right column - Teacher feedback image */}
             <div className="relative lg:h-[600px] flex items-center justify-center">
-              {/* MacBook mockup */}
-              <div className="relative z-10 transform -rotate-2 hover:rotate-0 transition-transform duration-500">
-                <div className="relative">
-                  <img 
-                    src={macbookMockup} 
-                    alt="MacBook Pro" 
-                    className="w-full max-w-2xl drop-shadow-2xl"
-                  />
-                  {/* Dashboard overlay on MacBook screen */}
-                  <div className="absolute top-[8%] left-[13%] right-[13%] bottom-[32%] bg-gradient-to-br from-primary/5 to-background rounded-sm overflow-hidden">
-                    <div className="w-full h-full bg-background/50 backdrop-blur-sm flex items-center justify-center">
-                      <img 
-                        src={dashboardWidget} 
-                        alt="Dashboard" 
-                        className="w-1/2 object-contain"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* iPhone mockup */}
-              <div className="absolute bottom-0 right-0 lg:right-12 z-20 transform rotate-6 hover:rotate-3 transition-transform duration-500">
-                <div className="relative w-48 lg:w-56">
-                  <img 
-                    src={iphoneMockup} 
-                    alt="iPhone" 
-                    className="w-full drop-shadow-2xl"
-                  />
-                  {/* Dashboard overlay on iPhone screen */}
-                  <div className="absolute top-[6%] left-[9%] right-[9%] bottom-[6%] bg-gradient-to-br from-primary/10 to-background rounded-[2rem] overflow-hidden">
-                    <div className="w-full h-full bg-background/50 backdrop-blur-sm" />
-                  </div>
-                </div>
+              <div className="relative rounded-2xl overflow-hidden shadow-2xl">
+                <img 
+                  src={teacherFeedbackImage} 
+                  alt="Teachers collaborating and providing feedback" 
+                  className="w-full h-full object-cover"
+                />
+                {/* Subtle overlay */}
+                <div className="absolute inset-0 bg-gradient-to-tr from-primary/10 to-transparent" />
               </div>
 
               {/* Decorative elements */}
-              <div className="absolute top-1/4 left-0 w-72 h-72 bg-primary/10 rounded-full blur-3xl -z-10" />
-              <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10" />
+              <div className="absolute top-1/4 -left-12 w-72 h-72 bg-primary/10 rounded-full blur-3xl -z-10" />
+              <div className="absolute bottom-1/4 -right-12 w-96 h-96 bg-primary/5 rounded-full blur-3xl -z-10" />
             </div>
           </div>
         </div>
