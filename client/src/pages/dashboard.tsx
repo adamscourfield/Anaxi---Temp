@@ -11,61 +11,64 @@ import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { useSchool } from "@/hooks/use-school";
+
+interface DashboardStats {
+  totalObservations: number;
+  activeTeachers: number;
+  avgScore: number;
+  improvement: number;
+}
 
 export default function Dashboard() {
   const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<"day" | "teacher" | "category" | null>(null);
   const [filterValue, setFilterValue] = useState<string | null>(null);
+  const { currentSchoolId } = useSchool();
+
+  // Fetch dashboard stats from API
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
+    queryKey: ["/api/dashboard/stats", currentSchoolId],
+    enabled: !!currentSchoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/dashboard/stats?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch stats");
+      return response.json();
+    },
+  });
+
+  // Fetch recent observations from API
+  const { data: observations = [], isLoading: observationsLoading } = useQuery({
+    queryKey: ["/api/observations", currentSchoolId],
+    enabled: !!currentSchoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/observations?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch observations");
+      return response.json();
+    },
+  });
+
+  // Get 3 most recent observations for the overview
+  const recentObservations = observations
+    .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 3);
   
-  const observationTrend = [
-    { label: "Mon", value: 3 },
-    { label: "Tue", value: 5 },
-    { label: "Wed", value: 4 },
-    { label: "Thu", value: 6 },
-    { label: "Fri", value: 4 },
-  ];
-
-  const topPerformers = [
-    { label: "Sarah Mitchell", value: 4.8, maxValue: 5 },
-    { label: "Emily Rodriguez", value: 4.6, maxValue: 5 },
-    { label: "James Chen", value: 4.3, maxValue: 5 },
-    { label: "Lisa Anderson", value: 4.2, maxValue: 5 },
-  ];
-
-  const categoryPerformance = [
-    { name: "Entrance and Do Now", avgScore: 5.2, maxScore: 7, trend: "up" as const, trendValue: 12 },
-    { name: "Direct Instruction", avgScore: 3.1, maxScore: 4, trend: "stable" as const, trendValue: 0 },
-    { name: "Checking for Understanding", avgScore: 2.8, maxScore: 4, trend: "down" as const, trendValue: 5 },
-    { name: "Application", avgScore: 3.5, maxScore: 4, trend: "up" as const, trendValue: 8 },
-    { name: "Exit Routine", avgScore: 4.1, maxScore: 5, trend: "up" as const, trendValue: 15 },
-  ];
-
-  const recentObservations = [
-    {
-      teacherName: "Sarah Mitchell",
-      teacherInitials: "SM",
-      date: new Date(2025, 9, 8),
-      categories: ["Entrance and Do Now", "Direct Instruction", "Pace and Presence"],
-      score: 18,
-      maxScore: 20,
+  // Fetch analytics data from API
+  const { data: analytics, isLoading: analyticsLoading } = useQuery({
+    queryKey: ["/api/dashboard/analytics", currentSchoolId],
+    enabled: !!currentSchoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/dashboard/analytics?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch analytics");
+      return response.json();
     },
-    {
-      teacherName: "James Chen",
-      teacherInitials: "JC",
-      date: new Date(2025, 9, 5),
-      categories: ["Behaviour Routines", "Academic Talk"],
-      score: 12,
-      maxScore: 15,
-    },
-    {
-      teacherName: "Emily Rodriguez",
-      teacherInitials: "ER",
-      date: new Date(2025, 9, 3),
-      categories: ["Application", "Exit Routine"],
-      score: 9,
-      maxScore: 10,
-    },
-  ];
+  });
+
+  const observationTrend = analytics?.observationTrend || [];
+  const topPerformers = analytics?.topPerformers || [];
+  const categoryPerformance = analytics?.categoryPerformance || [];
+
 
   const teachingGroups = [
     {
@@ -109,137 +112,9 @@ export default function Dashboard() {
     },
   ];
 
-  const allObservations = [
-    {
-      id: "obs1",
-      teacherId: "t1",
-      teacherName: "Sarah Mitchell",
-      teacherInitials: "SM",
-      observerName: "John Smith",
-      date: new Date(2025, 9, 8),
-      lessonTopic: "Advanced Grammar: Subjunctive Mood",
-      classInfo: "Year 11 English",
-      categories: [
-        {
-          name: "Entrance and Do Now",
-          score: 6,
-          maxScore: 7,
-          habits: [
-            { text: "Students enter quietly", observed: true },
-            { text: "Do Now is visible on board", observed: true },
-            { text: "Students begin work within 2 minutes", observed: true },
-            { text: "Teacher circulates during Do Now", observed: false },
-          ],
-        },
-        {
-          name: "Direct Instruction",
-          score: 3,
-          maxScore: 4,
-          habits: [
-            { text: "Clear learning objectives stated", observed: true },
-            { text: "Content is chunked appropriately", observed: true },
-            { text: "Examples and non-examples provided", observed: true },
-            { text: "Visual aids support instruction", observed: false },
-          ],
-        },
-      ],
-      qualitativeFeedback: "Excellent lesson with strong student engagement. Consider adding more visual supports for visual learners.",
-      totalScore: 18,
-      totalMaxScore: 20,
-    },
-    {
-      id: "obs2",
-      teacherId: "t1",
-      teacherName: "Sarah Mitchell",
-      teacherInitials: "SM",
-      observerName: "Jane Doe",
-      date: new Date(2025, 9, 3),
-      lessonTopic: "Poetry Analysis: Metaphor and Simile",
-      classInfo: "Year 10 English",
-      categories: [
-        {
-          name: "Application",
-          score: 4,
-          maxScore: 4,
-          habits: [
-            { text: "Students practice independently", observed: true },
-            { text: "Application tasks match learning objectives", observed: true },
-            { text: "Differentiation is evident", observed: true },
-            { text: "Students receive timely feedback", observed: true },
-          ],
-        },
-      ],
-      qualitativeFeedback: "Great application of concepts through creative tasks.",
-      totalScore: 15,
-      totalMaxScore: 17,
-    },
-    {
-      id: "obs3",
-      teacherId: "t6",
-      teacherName: "James Chen",
-      teacherInitials: "JC",
-      observerName: "Mary Johnson",
-      date: new Date(2025, 9, 5),
-      lessonTopic: "Quadratic Equations",
-      classInfo: "Year 9 Math",
-      categories: [
-        {
-          name: "Behaviour Routines",
-          score: 3,
-          maxScore: 4,
-          habits: [
-            { text: "Clear expectations set", observed: true },
-            { text: "Consistent consequences applied", observed: true },
-            { text: "Positive reinforcement used", observed: true },
-            { text: "Redirections are brief and respectful", observed: false },
-          ],
-        },
-      ],
-      qualitativeFeedback: "Solid classroom management with room for more positive reinforcement.",
-      totalScore: 12,
-      totalMaxScore: 15,
-    },
-    {
-      id: "obs4",
-      teacherId: "t10",
-      teacherName: "Emily Rodriguez",
-      teacherInitials: "ER",
-      observerName: "David Lee",
-      date: new Date(2025, 9, 3),
-      lessonTopic: "Chemical Reactions Lab",
-      classInfo: "Year 10 Science",
-      categories: [
-        {
-          name: "Application",
-          score: 4,
-          maxScore: 4,
-          habits: [
-            { text: "Lab safety procedures followed", observed: true },
-            { text: "Students engage with materials", observed: true },
-            { text: "Scientific method applied", observed: true },
-            { text: "Data collection is accurate", observed: true },
-          ],
-        },
-        {
-          name: "Exit Routine",
-          score: 5,
-          maxScore: 6,
-          habits: [
-            { text: "Summary of learning completed", observed: true },
-            { text: "Exit ticket administered", observed: true },
-            { text: "Homework clearly explained", observed: true },
-            { text: "Dismissal is organized", observed: false },
-          ],
-        },
-      ],
-      qualitativeFeedback: "Excellent hands-on learning experience with strong student engagement.",
-      totalScore: 9,
-      totalMaxScore: 10,
-    },
-  ];
-
+  // Get selected observation details
   const selectedObservation = selectedObservationId
-    ? allObservations.find(obs => obs.id === selectedObservationId) || null
+    ? observations.find((obs: any) => obs.id === selectedObservationId) || null
     : null;
 
   // Convert day name to a filter function
@@ -254,12 +129,12 @@ export default function Dashboard() {
 
     switch (filterType) {
       case "day":
-        return allObservations.filter(obs => getDayOfWeek(obs.date) === filterValue);
+        return observations.filter((obs: any) => getDayOfWeek(new Date(obs.date)) === filterValue);
       case "teacher":
-        return allObservations.filter(obs => obs.teacherName === filterValue);
+        return observations.filter((obs: any) => obs.teacher?.name === filterValue);
       case "category":
-        return allObservations.filter(obs => 
-          obs.categories.some(cat => cat.name === filterValue)
+        return observations.filter((obs: any) => 
+          obs.categories?.some((cat: any) => cat.categoryName === filterValue)
         );
       default:
         return [];
@@ -330,21 +205,21 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard
           title="Total Observations"
-          value="24"
+          value={statsLoading ? "..." : stats?.totalObservations?.toString() || "0"}
           icon={Eye}
           description="This month"
           color="warning"
         />
         <StatCard
           title="Active Teachers"
-          value="18"
+          value={statsLoading ? "..." : stats?.activeTeachers?.toString() || "0"}
           icon={Users}
           description="In your school"
           color="primary"
         />
         <StatCard
           title="Avg. Score"
-          value="4.2"
+          value={statsLoading ? "..." : stats?.avgScore?.toString() || "0"}
           icon={ClipboardCheck}
           description="Out of 5"
           color="amber"
@@ -352,7 +227,11 @@ export default function Dashboard() {
         />
         <StatCard
           title="Improvement"
-          value="+12%"
+          value={statsLoading ? "..." : (() => {
+            const improvement = stats?.improvement ?? 0;
+            const sign = improvement > 0 ? '+' : '';
+            return `${sign}${improvement}%`;
+          })()}
           icon={TrendingUp}
           description="vs. last month"
           color="warning"
@@ -376,21 +255,28 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {recentObservations.map((obs, idx) => (
-                <ObservationCard
-                  key={idx}
-                  {...obs}
-                  onView={() => {
-                    const fullObs = allObservations.find(o => 
-                      o.teacherName === obs.teacherName && 
-                      o.date.getTime() === obs.date.getTime()
-                    );
-                    if (fullObs) {
-                      setSelectedObservationId(fullObs.id);
-                    }
-                  }}
-                />
-              ))}
+              {observationsLoading ? (
+                <div className="col-span-3 text-center text-muted-foreground py-12">
+                  Loading observations...
+                </div>
+              ) : recentObservations.length === 0 ? (
+                <div className="col-span-3 text-center text-muted-foreground py-12">
+                  No observations yet. Create your first observation to get started.
+                </div>
+              ) : (
+                recentObservations.map((obs: any) => (
+                  <ObservationCard
+                    key={obs.id}
+                    teacherName={obs.teacher?.name || "Unknown Teacher"}
+                    teacherInitials={obs.teacher?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || "??"}
+                    date={new Date(obs.date)}
+                    categories={obs.categories?.map((c: any) => c.categoryName) || []}
+                    score={obs.totalScore}
+                    maxScore={obs.totalMaxScore}
+                    onView={() => setSelectedObservationId(obs.id)}
+                  />
+                ))
+              )}
             </div>
           </div>
         </TabsContent>
@@ -422,12 +308,12 @@ export default function Dashboard() {
         isOpen={filterType !== null && filterValue !== null}
         onClose={closeFilteredPanel}
         title={getFilterPanelTitle()}
-        observations={filteredObservations.map(obs => ({
+        observations={filteredObservations.map((obs: any) => ({
           id: obs.id,
-          teacherName: obs.teacherName,
-          teacherInitials: obs.teacherInitials,
-          date: obs.date,
-          categories: obs.categories.map(cat => cat.name),
+          teacherName: obs.teacher?.name || "Unknown Teacher",
+          teacherInitials: obs.teacher?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || "??",
+          date: new Date(obs.date),
+          categories: obs.categories?.map((cat: any) => cat.categoryName) || [],
           score: obs.totalScore,
           maxScore: obs.totalMaxScore,
         }))}

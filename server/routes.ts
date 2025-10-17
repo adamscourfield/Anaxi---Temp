@@ -506,6 +506,186 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dashboard analytics endpoint
+  app.get("/api/dashboard/analytics", isAuthenticated, async (req: any, res) => {
+    try {
+      const schoolId = req.query.schoolId as string;
+      const user = req.user;
+      
+      if (!schoolId) {
+        return res.status(400).json({ message: "schoolId parameter is required" });
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Verify user has access to this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+
+      // Get all observations for this school
+      const schoolObservations = await storage.getObservationsBySchool(schoolId);
+
+      // Calculate observation trend by day of week (last 7 days)
+      const now = new Date();
+      const last7Days = [];
+      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date(now);
+        date.setDate(date.getDate() - i);
+        const dayName = dayNames[date.getDay()];
+        const count = schoolObservations.filter(obs => {
+          const obsDate = new Date(obs.date);
+          return obsDate.toDateString() === date.toDateString();
+        }).length;
+        
+        last7Days.push({ label: dayName, value: count });
+      }
+
+      // Calculate top performers (teachers with highest avg scores)
+      const teacherScores: Record<string, { totalScore: number; totalMaxScore: number; count: number; name: string }> = {};
+      
+      for (const obs of schoolObservations) {
+        if (!teacherScores[obs.teacherId]) {
+          teacherScores[obs.teacherId] = {
+            totalScore: 0,
+            totalMaxScore: 0,
+            count: 0,
+            name: obs.teacher?.name || "Unknown"
+          };
+        }
+        teacherScores[obs.teacherId].totalScore += obs.totalScore;
+        teacherScores[obs.teacherId].totalMaxScore += obs.totalMaxScore;
+        teacherScores[obs.teacherId].count += 1;
+      }
+
+      const topPerformers = Object.entries(teacherScores)
+        .map(([teacherId, data]) => ({
+          label: data.name,
+          value: (data.totalScore / data.totalMaxScore) * 5,
+          maxValue: 5
+        }))
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 5);
+
+      // Calculate category performance (avg scores by category)
+      const categoryScores: Record<string, { totalScore: number; totalMaxScore: number; count: number }> = {};
+      
+      for (const obs of schoolObservations) {
+        for (const cat of obs.categories || []) {
+          if (!categoryScores[cat.categoryName]) {
+            categoryScores[cat.categoryName] = {
+              totalScore: 0,
+              totalMaxScore: 0,
+              count: 0
+            };
+          }
+          categoryScores[cat.categoryName].totalScore += cat.score;
+          categoryScores[cat.categoryName].totalMaxScore += cat.maxScore;
+          categoryScores[cat.categoryName].count += 1;
+        }
+      }
+
+      const categoryPerformance = Object.entries(categoryScores).map(([name, data]) => ({
+        name,
+        avgScore: data.totalScore / data.count,
+        maxScore: data.totalMaxScore / data.count,
+        trend: "stable" as const,
+        trendValue: 0
+      }));
+
+      res.json({
+        observationTrend: last7Days,
+        topPerformers,
+        categoryPerformance
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard analytics:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard analytics" });
+    }
+  });
+
+  // Dashboard stats endpoint
+  app.get("/api/dashboard/stats", isAuthenticated, async (req: any, res) => {
+    try {
+      const schoolId = req.query.schoolId as string;
+      const user = req.user;
+      
+      if (!schoolId) {
+        return res.status(400).json({ message: "schoolId parameter is required" });
+      }
+
+      if (!user) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      // Verify user has access to this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+
+      // Get all observations for this school
+      const schoolObservations = await storage.getObservationsBySchool(schoolId);
+
+      // Calculate stats
+      const totalObservations = schoolObservations.length;
+      
+      // Get unique teachers from observations
+      const uniqueTeacherIds = new Set(schoolObservations.map(obs => obs.teacherId));
+      const activeTeachers = uniqueTeacherIds.size;
+
+      // Calculate average score
+      const avgScore = totalObservations > 0
+        ? (schoolObservations.reduce((sum, obs) => sum + obs.totalScore, 0) / 
+           schoolObservations.reduce((sum, obs) => sum + obs.totalMaxScore, 0)) * 5
+        : 0;
+
+      // Calculate improvement (compare this month to last month)
+      const now = new Date();
+      const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+      const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+      const thisMonthObs = schoolObservations.filter(obs => new Date(obs.date) >= thisMonthStart);
+      const lastMonthObs = schoolObservations.filter(obs => {
+        const obsDate = new Date(obs.date);
+        return obsDate >= lastMonthStart && obsDate < thisMonthStart;
+      });
+
+      const thisMonthAvg = thisMonthObs.length > 0
+        ? (thisMonthObs.reduce((sum, obs) => sum + obs.totalScore, 0) / 
+           thisMonthObs.reduce((sum, obs) => sum + obs.totalMaxScore, 0)) * 5
+        : 0;
+
+      const lastMonthAvg = lastMonthObs.length > 0
+        ? (lastMonthObs.reduce((sum, obs) => sum + obs.totalScore, 0) / 
+           lastMonthObs.reduce((sum, obs) => sum + obs.totalMaxScore, 0)) * 5
+        : 0;
+
+      const improvement = lastMonthAvg > 0
+        ? ((thisMonthAvg - lastMonthAvg) / lastMonthAvg) * 100
+        : 0;
+
+      res.json({
+        totalObservations: thisMonthObs.length,
+        activeTeachers,
+        avgScore: parseFloat(avgScore.toFixed(1)),
+        improvement: parseFloat(improvement.toFixed(0)),
+      });
+    } catch (error) {
+      console.error("Error fetching dashboard stats:", error);
+      res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
   // Observation routes with role-based filtering
   app.get("/api/observations", isAuthenticated, async (req: any, res) => {
     try {
