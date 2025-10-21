@@ -71,8 +71,8 @@ Created unified App Management page consolidating management sections:
 - Single "App Management" link in sidebar (replaced separate Manage Rubric, Manage Teachers, and Manage Schools links)
 - Tabbed interface with three sections: Rubrics, Teachers, and Schools
 - URL hash-based navigation for direct tab access (#rubrics, #teachers, #schools)
-- Cleaner sidebar navigation with Settings icon
-- Schools management now accessible only through App Management tabs, not in sidebar menu
+- Cleaner sidebar navigation - removed standalone "Manage Schools" menu item
+- All management features (Rubrics, Teachers, Schools) now accessed through App Management tabs only
 
 **Implementation Details**:
 - Management pages support `isEmbedded` prop to remove their padding when shown in tabs
