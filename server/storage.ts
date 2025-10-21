@@ -48,7 +48,7 @@ export interface IStorage {
   createConversation(conversation: InsertConversation): Promise<Conversation>;
   
   // Meetings
-  getMeetingsBySchool(schoolId: string): Promise<Meeting[]>;
+  getMeetingsBySchool(schoolId: string, membershipId?: string): Promise<Meeting[]>;
   getMeeting(id: string): Promise<Meeting | undefined>;
   createMeeting(meeting: InsertMeeting): Promise<Meeting>;
   updateMeeting(id: string, updates: Partial<Meeting>): Promise<Meeting | undefined>;
@@ -355,7 +355,7 @@ export class MemStorage implements IStorage {
   }
   
   // Meetings - Not implemented in MemStorage (use DbStorage)
-  async getMeetingsBySchool(schoolId: string): Promise<Meeting[]> {
+  async getMeetingsBySchool(schoolId: string, membershipId?: string): Promise<Meeting[]> {
     throw new Error("Meetings not implemented in MemStorage");
   }
 

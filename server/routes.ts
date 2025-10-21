@@ -842,17 +842,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "School ID is required" });
       }
       
-      // Verify user has access to this school
+      // Verify user has access to this school and get their membership
+      let userMembershipId: string | undefined;
+      
       if (user.global_role !== "Creator") {
         const userMemberships = await storage.getMembershipsByUser(user.id);
-        const hasAccess = userMemberships.some(m => m.schoolId === schoolId);
+        const membership = userMemberships.find(m => m.schoolId === schoolId);
         
-        if (!hasAccess) {
+        if (!membership) {
           return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
         }
+        
+        userMembershipId = membership.id;
       }
       
-      const meetings = await storage.getMeetingsBySchool(schoolId);
+      // Pass membershipId to filter meetings (undefined for Creators = see all)
+      const meetings = await storage.getMeetingsBySchool(schoolId, userMembershipId);
       res.json(meetings);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch meetings" });

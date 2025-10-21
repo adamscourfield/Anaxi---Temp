@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { 
   type User, 
   type InsertUser, 
@@ -228,7 +228,68 @@ export class DbStorage implements IStorage {
   }
 
   // Meetings
-  async getMeetingsBySchool(schoolId: string): Promise<Meeting[]> {
+  async getMeetingsBySchool(schoolId: string, membershipId?: string): Promise<Meeting[]> {
+    // If membershipId is provided, filter to only meetings where user is an attendee or organizer
+    if (membershipId) {
+      const userMembership = await db
+        .select()
+        .from(schoolMemberships)
+        .where(eq(schoolMemberships.id, membershipId))
+        .limit(1);
+      
+      if (userMembership.length === 0) {
+        return [];
+      }
+
+      const userId = userMembership[0].userId;
+
+      // Get meetings where user is organizer
+      const organizedMeetings = await db
+        .select()
+        .from(meetings)
+        .where(
+          and(
+            eq(meetings.schoolId, schoolId),
+            eq(meetings.organizerId, userId)
+          )
+        )
+        .orderBy(desc(meetings.createdAt));
+
+      // Get meetings where user is an attendee
+      const attendedMeetingIds = await db
+        .select({ meetingId: meetingAttendees.meetingId })
+        .from(meetingAttendees)
+        .where(eq(meetingAttendees.membershipId, membershipId));
+
+      if (attendedMeetingIds.length > 0) {
+        const attendedMeetings = await db
+          .select()
+          .from(meetings)
+          .where(
+            and(
+              eq(meetings.schoolId, schoolId),
+              inArray(
+                meetings.id,
+                attendedMeetingIds.map((a) => a.meetingId)
+              )
+            )
+          )
+          .orderBy(desc(meetings.createdAt));
+
+        // Merge and deduplicate
+        const allMeetings = [...organizedMeetings, ...attendedMeetings];
+        const uniqueMeetings = Array.from(
+          new Map(allMeetings.map((m) => [m.id, m])).values()
+        );
+        return uniqueMeetings.sort(
+          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      }
+
+      return organizedMeetings;
+    }
+
+    // If no membershipId, return all meetings for the school (Creator access)
     return await db
       .select()
       .from(meetings)

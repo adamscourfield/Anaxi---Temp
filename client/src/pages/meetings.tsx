@@ -18,6 +18,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -27,7 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MessageSquare, Plus, Users, CheckSquare, X, Trash2 } from "lucide-react";
+import { MessageSquare, Plus, Users, CheckSquare, X, Trash2, UserPlus, Check } from "lucide-react";
 import { format } from "date-fns";
 
 type FormType = "conversation" | "meeting" | null;
@@ -54,6 +67,7 @@ export default function Meetings() {
   const [formType, setFormType] = useState<FormType>(null);
   const [filterType, setFilterType] = useState<string>("all");
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
+  const [attendeeSearchOpen, setAttendeeSearchOpen] = useState(false);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [newAction, setNewAction] = useState({ description: "", assignedToMembershipId: "", dueDate: "" });
 
@@ -202,6 +216,10 @@ export default function Meetings() {
         ? prev.filter((id) => id !== membershipId)
         : [...prev, membershipId]
     );
+  };
+
+  const removeAttendee = (membershipId: string) => {
+    setSelectedAttendees((prev) => prev.filter((id) => id !== membershipId));
   };
 
   const addActionItem = () => {
@@ -373,35 +391,76 @@ export default function Meetings() {
               {/* Attendees Section */}
               <div className="space-y-4 border-t pt-4">
                 <Label className="text-base font-semibold">Attendees</Label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-48 overflow-y-auto p-2 border rounded-md">
-                  {teachers.map((teacher) => (
-                    <div
-                      key={teacher.id}
-                      className="flex items-center gap-2"
-                      data-testid={`attendee-${teacher.id}`}
+                <Popover open={attendeeSearchOpen} onOpenChange={setAttendeeSearchOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={attendeeSearchOpen}
+                      className="w-full justify-between"
+                      type="button"
+                      data-testid="button-select-attendees"
                     >
-                      <Checkbox
-                        id={`attendee-${teacher.id}`}
-                        checked={selectedAttendees.includes(teacher.id)}
-                        onCheckedChange={() => toggleAttendee(teacher.id)}
-                        data-testid={`checkbox-attendee-${teacher.id}`}
-                      />
-                      <label
-                        htmlFor={`attendee-${teacher.id}`}
-                        className="text-sm cursor-pointer flex-1"
-                      >
-                        {teacher.firstName} {teacher.lastName}
-                        <span className="text-xs text-muted-foreground ml-2">
-                          ({teacher.role})
-                        </span>
-                      </label>
-                    </div>
-                  ))}
-                </div>
+                      <span className="flex items-center gap-2">
+                        <UserPlus className="w-4 h-4" />
+                        {selectedAttendees.length === 0
+                          ? "Select attendees..."
+                          : `${selectedAttendees.length} attendee${selectedAttendees.length > 1 ? "s" : ""} selected`}
+                      </span>
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0" align="start">
+                    <Command>
+                      <CommandInput placeholder="Search teachers..." data-testid="input-search-attendees" />
+                      <CommandList>
+                        <CommandEmpty>No teachers found.</CommandEmpty>
+                        <CommandGroup>
+                          {teachers.map((teacher) => (
+                            <CommandItem
+                              key={teacher.id}
+                              value={`${teacher.firstName} ${teacher.lastName}`}
+                              onSelect={() => toggleAttendee(teacher.id)}
+                              data-testid={`command-item-attendee-${teacher.id}`}
+                            >
+                              <Check
+                                className={`mr-2 h-4 w-4 ${
+                                  selectedAttendees.includes(teacher.id) ? "opacity-100" : "opacity-0"
+                                }`}
+                              />
+                              <div className="flex flex-col">
+                                <span className="text-sm">{teacher.firstName} {teacher.lastName}</span>
+                                <span className="text-xs text-muted-foreground">{teacher.role}</span>
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+
                 {selectedAttendees.length > 0 && (
-                  <p className="text-sm text-muted-foreground">
-                    {selectedAttendees.length} attendee(s) selected
-                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedAttendees.map((membershipId) => {
+                      const teacher = teachers.find((t) => t.id === membershipId);
+                      if (!teacher) return null;
+                      return (
+                        <Badge
+                          key={membershipId}
+                          variant="secondary"
+                          className="gap-1"
+                          data-testid={`badge-attendee-${membershipId}`}
+                        >
+                          {teacher.firstName} {teacher.lastName}
+                          <X
+                            className="w-3 h-3 cursor-pointer hover-elevate"
+                            onClick={() => removeAttendee(membershipId)}
+                            data-testid={`button-remove-attendee-${membershipId}`}
+                          />
+                        </Badge>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
 
