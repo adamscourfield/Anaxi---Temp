@@ -72,7 +72,7 @@ export default function Meetings() {
   const [newAction, setNewAction] = useState({ description: "", assignedToMembershipId: "", dueDate: "" });
 
   const [formData, setFormData] = useState({
-    type: "two_person",
+    type: "Line Management",
     subject: "",
     details: "",
     rating: "",
@@ -126,12 +126,30 @@ export default function Meetings() {
 
   const createMeetingMutation = useMutation({
     mutationFn: async (data: { meeting: typeof formData; attendees: string[]; actions: ActionItem[] }) => {
+      // Build the correct data structure based on form type
+      let meetingPayload;
+      if (formType === "conversation") {
+        // Conversations have: subject, details, rating (no type field)
+        meetingPayload = {
+          subject: data.meeting.subject,
+          details: data.meeting.details,
+          rating: data.meeting.rating,
+          schoolId: currentSchoolId,
+        };
+      } else {
+        // Meetings have: type, subject, details, minutes (no rating field)
+        meetingPayload = {
+          type: data.meeting.type,
+          subject: data.meeting.subject,
+          details: data.meeting.details,
+          minutes: data.meeting.minutes,
+          schoolId: currentSchoolId,
+          organizerId: user?.id,
+        };
+      }
+
       // Create the meeting first
-      const meetingResponse = await apiRequest("POST", "/api/meetings", {
-        ...data.meeting,
-        schoolId: currentSchoolId,
-        organizerId: user?.id,
-      });
+      const meetingResponse = await apiRequest("POST", "/api/meetings", meetingPayload);
 
       const meeting = await meetingResponse.json();
       const meetingId = meeting.id;
@@ -150,8 +168,8 @@ export default function Meetings() {
         );
       }
 
-      // Add action items
-      if (data.actions.length > 0 && currentMembership) {
+      // Add action items (only for meetings, not conversations)
+      if (formType === "meeting" && data.actions.length > 0 && currentMembership) {
         await Promise.all(
           data.actions.map((action) =>
             apiRequest("POST", "/api/meeting-actions", {
@@ -186,7 +204,7 @@ export default function Meetings() {
   });
 
   const resetForm = () => {
-    setFormData({ type: "two_person", subject: "", details: "", rating: "", minutes: "" });
+    setFormData({ type: "Line Management", subject: "", details: "", rating: "", minutes: "" });
     setSelectedAttendees([]);
     setActionItems([]);
     setNewAction({ description: "", assignedToMembershipId: "", dueDate: "" });
@@ -199,6 +217,15 @@ export default function Meetings() {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Validate rating for conversations
+    if (formType === "conversation" && !formData.rating) {
+      toast({
+        title: "Error",
+        description: "Please select a rating for the conversation",
         variant: "destructive",
       });
       return;
@@ -303,27 +330,30 @@ export default function Meetings() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="type">Type</Label>
-                  <Select
-                    value={formData.type}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, type: value })
-                    }
-                  >
-                    <SelectTrigger data-testid="select-type">
-                      <SelectValue placeholder="Select type" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="two_person">Two-Person</SelectItem>
-                      <SelectItem value="group">Group</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {formType === "meeting" && (
                   <div className="space-y-2">
-                    <Label htmlFor="rating">Rating (Optional)</Label>
+                    <Label htmlFor="type">Meeting Type</Label>
+                    <Select
+                      value={formData.type}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, type: value })
+                      }
+                    >
+                      <SelectTrigger data-testid="select-type">
+                        <SelectValue placeholder="Select type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Line Management">Line Management</SelectItem>
+                        <SelectItem value="Department">Department</SelectItem>
+                        <SelectItem value="Leadership">Leadership</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {formType === "conversation" && (
+                  <div className="space-y-2">
+                    <Label htmlFor="rating">Rating</Label>
                     <Select
                       value={formData.rating}
                       onValueChange={(value) =>
@@ -331,7 +361,7 @@ export default function Meetings() {
                       }
                     >
                       <SelectTrigger data-testid="select-rating">
-                        <SelectValue placeholder="None (optional)" />
+                        <SelectValue placeholder="Select rating" />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="Best Practice">Best Practice</SelectItem>
@@ -464,101 +494,103 @@ export default function Meetings() {
                 )}
               </div>
 
-              {/* Action Items Section */}
-              <div className="space-y-4 border-t pt-4">
-                <Label className="text-base font-semibold">Action Items</Label>
-                
-                {actionItems.length > 0 && (
-                  <div className="space-y-2">
-                    {actionItems.map((action, index) => (
-                      <div
-                        key={index}
-                        className="flex items-start gap-2 p-3 border rounded-md bg-muted/30"
-                        data-testid={`action-item-${index}`}
-                      >
-                        <CheckSquare className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium">{action.description}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Assigned to: {getTeacherName(action.assignedToMembershipId)}
-                            {action.dueDate && ` • Due: ${format(new Date(action.dueDate), "MMM d, yyyy")}`}
-                          </p>
-                        </div>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => removeActionItem(index)}
-                          data-testid={`button-remove-action-${index}`}
+              {/* Action Items Section - Only for Meetings */}
+              {formType === "meeting" && (
+                <div className="space-y-4 border-t pt-4">
+                  <Label className="text-base font-semibold">Action Items</Label>
+                  
+                  {actionItems.length > 0 && (
+                    <div className="space-y-2">
+                      {actionItems.map((action, index) => (
+                        <div
+                          key={index}
+                          className="flex items-start gap-2 p-3 border rounded-md bg-muted/30"
+                          data-testid={`action-item-${index}`}
                         >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-3 p-3 border rounded-md">
-                  <div className="space-y-2">
-                    <Label htmlFor="action-description">Description</Label>
-                    <Input
-                      id="action-description"
-                      value={newAction.description}
-                      onChange={(e) =>
-                        setNewAction({ ...newAction, description: e.target.value })
-                      }
-                      placeholder="Action item description"
-                      data-testid="input-action-description"
-                    />
-                  </div>
-
-                  <div className="grid md:grid-cols-2 gap-3">
-                    <div className="space-y-2">
-                      <Label htmlFor="action-assignee">Assign To</Label>
-                      <Select
-                        value={newAction.assignedToMembershipId}
-                        onValueChange={(value) =>
-                          setNewAction({ ...newAction, assignedToMembershipId: value })
-                        }
-                      >
-                        <SelectTrigger data-testid="select-action-assignee">
-                          <SelectValue placeholder="Select teacher" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {teachers.map((teacher) => (
-                            <SelectItem key={teacher.id} value={teacher.id}>
-                              {teacher.firstName} {teacher.lastName}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                          <CheckSquare className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium">{action.description}</p>
+                            <p className="text-xs text-muted-foreground">
+                              Assigned to: {getTeacherName(action.assignedToMembershipId)}
+                              {action.dueDate && ` • Due: ${format(new Date(action.dueDate), "MMM d, yyyy")}`}
+                            </p>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => removeActionItem(index)}
+                            data-testid={`button-remove-action-${index}`}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ))}
                     </div>
+                  )}
 
+                  <div className="space-y-3 p-3 border rounded-md">
                     <div className="space-y-2">
-                      <Label htmlFor="action-due">Due Date (Optional)</Label>
+                      <Label htmlFor="action-description">Description</Label>
                       <Input
-                        id="action-due"
-                        type="date"
-                        value={newAction.dueDate}
+                        id="action-description"
+                        value={newAction.description}
                         onChange={(e) =>
-                          setNewAction({ ...newAction, dueDate: e.target.value })
+                          setNewAction({ ...newAction, description: e.target.value })
                         }
-                        data-testid="input-action-due"
+                        placeholder="Action item description"
+                        data-testid="input-action-description"
                       />
                     </div>
-                  </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={addActionItem}
-                    data-testid="button-add-action"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Action Item
-                  </Button>
+                    <div className="grid md:grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="action-assignee">Assign To</Label>
+                        <Select
+                          value={newAction.assignedToMembershipId}
+                          onValueChange={(value) =>
+                            setNewAction({ ...newAction, assignedToMembershipId: value })
+                          }
+                        >
+                          <SelectTrigger data-testid="select-action-assignee">
+                            <SelectValue placeholder="Select teacher" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {teachers.map((teacher) => (
+                              <SelectItem key={teacher.id} value={teacher.id}>
+                                {teacher.firstName} {teacher.lastName}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label htmlFor="action-due">Due Date (Optional)</Label>
+                        <Input
+                          id="action-due"
+                          type="date"
+                          value={newAction.dueDate}
+                          onChange={(e) =>
+                            setNewAction({ ...newAction, dueDate: e.target.value })
+                          }
+                          data-testid="input-action-due"
+                        />
+                      </div>
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={addActionItem}
+                      data-testid="button-add-action"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Action Item
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               <div className="flex gap-2">
                 <Button
@@ -595,8 +627,9 @@ export default function Meetings() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="two_person">Two-Person</SelectItem>
-                  <SelectItem value="group">Group</SelectItem>
+                  <SelectItem value="Line Management">Line Management</SelectItem>
+                  <SelectItem value="Department">Department</SelectItem>
+                  <SelectItem value="Leadership">Leadership</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -622,7 +655,6 @@ export default function Meetings() {
                     <TableHead>Type</TableHead>
                     <TableHead>Subject</TableHead>
                     <TableHead>Details</TableHead>
-                    <TableHead>Rating</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -633,32 +665,13 @@ export default function Meetings() {
                       </TableCell>
                       <TableCell data-testid={`meeting-type-${meeting.id}`}>
                         <Badge variant="outline" className="gap-1">
-                          {meeting.type === "two_person" ? (
-                            <>
-                              <Users className="w-3 h-3" />
-                              Two-Person
-                            </>
-                          ) : (
-                            <>
-                              <Users className="w-3 h-3" />
-                              Group
-                            </>
-                          )}
+                          <Users className="w-3 h-3" />
+                          {meeting.type}
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium" data-testid={`meeting-subject-${meeting.id}`}>{meeting.subject}</TableCell>
                       <TableCell className="max-w-md truncate" data-testid={`meeting-details-${meeting.id}`}>
                         {meeting.details}
-                      </TableCell>
-                      <TableCell data-testid={`meeting-rating-${meeting.id}`}>
-                        {meeting.rating && (
-                          <Badge
-                            variant="outline"
-                            className={ratingColors[meeting.rating as keyof typeof ratingColors]}
-                          >
-                            {meeting.rating}
-                          </Badge>
-                        )}
                       </TableCell>
                     </TableRow>
                   ))}

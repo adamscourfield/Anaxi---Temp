@@ -167,10 +167,9 @@ export const meetings = pgTable("meetings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   schoolId: varchar("school_id").notNull().references(() => schools.id),
   organizerId: varchar("organizer_id").notNull().references(() => users.id),
-  type: text("type").notNull(), // "two_person" or "group"
+  type: text("type").notNull(), // "Line Management", "Department", or "Leadership"
   subject: text("subject").notNull(),
   details: text("details"),
-  rating: text("rating"), // Optional: "Best Practice", "Neutral", "Concern"
   minutes: text("minutes"), // Rich text meeting minutes
   minutesAuthorId: varchar("minutes_author_id").references(() => users.id),
   scheduledAt: timestamp("scheduled_at"),
