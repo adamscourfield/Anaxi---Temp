@@ -12,15 +12,17 @@ Preferred communication style: Simple, everyday language.
 Separated Meetings and Conversations into distinct workflows with different field requirements:
 
 **Meetings**:
-- Fields: type (Line Management/Department/Leadership), subject, details, attendees, action items
+- Fields: type (Line Management/Department/Leadership), subject, details, attendees (multi-select at top), action items
 - NO rating field, NO minutes field
 - Meeting types changed from "two_person"/"group" to organizational types
 - Simplified to use only "Details" field for all meeting notes
+- Attendees section moved to top of form for better UX
 
 **Conversations**:
-- Fields: subject, details, rating (Best Practice/Neutral/Concern), attendees
-- NO type field, NO action items
-- Conversations never had a type field; action items only reference meetings table
+- Fields: subject, details, rating (Best Practice/Neutral/Concern), single staff member
+- NO type field, NO action items, NO multi-select attendees
+- Conversations use single "Staff Member" dropdown next to rating
+- Single staff member automatically added as attendee
 
 **Implementation Details**:
 - Conditional payload construction in mutation based on formType
@@ -28,6 +30,21 @@ Separated Meetings and Conversations into distinct workflows with different fiel
 - Meetings table displays: Date, Type, Subject, Details (no Rating column)
 - Filter dropdown uses new meeting types only
 - Schema synced with database via `npm run db:push`
+
+### App Management Consolidation
+Created unified App Management page consolidating three management sections:
+
+**New Structure**:
+- Single "App Management" link in sidebar (replaced Manage Rubric, Manage Teachers, Manage Schools)
+- Tabbed interface with three sections: Rubrics, Teachers, Schools
+- URL hash-based navigation for direct tab access
+- Cleaner sidebar navigation with Settings icon
+
+**Benefits**:
+- Reduced sidebar clutter
+- Easier navigation between management tasks
+- Maintained all original functionality
+- Better organization for admin tasks
 
 ## System Architecture
 
