@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Teacher, type InsertTeacher, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation, type Observation, type InsertObservation } from "@shared/schema";
+import { type User, type InsertUser, type Teacher, type InsertTeacher, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -43,9 +43,28 @@ export interface IStorage {
   updateTeachingGroup(id: string, updates: Partial<TeachingGroup>): Promise<TeachingGroup | undefined>;
   deleteTeachingGroup(id: string): Promise<boolean>;
   
-  // Conversations
+  // Conversations (DEPRECATED - use Meetings instead)
   getConversationsBySchool(schoolId: string): Promise<Conversation[]>;
   createConversation(conversation: InsertConversation): Promise<Conversation>;
+  
+  // Meetings
+  getMeetingsBySchool(schoolId: string): Promise<Meeting[]>;
+  getMeeting(id: string): Promise<Meeting | undefined>;
+  createMeeting(meeting: InsertMeeting): Promise<Meeting>;
+  updateMeeting(id: string, updates: Partial<Meeting>): Promise<Meeting | undefined>;
+  deleteMeeting(id: string): Promise<boolean>;
+  
+  // Meeting Attendees
+  getAttendeesByMeeting(meetingId: string): Promise<MeetingAttendee[]>;
+  createMeetingAttendee(attendee: InsertMeetingAttendee): Promise<MeetingAttendee>;
+  deleteMeetingAttendee(id: string): Promise<boolean>;
+  
+  // Meeting Actions
+  getActionsByMeeting(meetingId: string): Promise<MeetingAction[]>;
+  getMeetingAction(id: string): Promise<MeetingAction | undefined>;
+  createMeetingAction(action: InsertMeetingAction): Promise<MeetingAction>;
+  updateMeetingAction(id: string, updates: Partial<MeetingAction>): Promise<MeetingAction | undefined>;
+  deleteMeetingAction(id: string): Promise<boolean>;
   
   // Observations
   getObservationsBySchool(schoolId: string): Promise<Observation[]>;
@@ -333,6 +352,61 @@ export class MemStorage implements IStorage {
     };
     this.conversations.set(id, conversation);
     return conversation;
+  }
+  
+  // Meetings - Not implemented in MemStorage (use DbStorage)
+  async getMeetingsBySchool(schoolId: string): Promise<Meeting[]> {
+    throw new Error("Meetings not implemented in MemStorage");
+  }
+
+  async getMeeting(id: string): Promise<Meeting | undefined> {
+    throw new Error("Meetings not implemented in MemStorage");
+  }
+
+  async createMeeting(meeting: InsertMeeting): Promise<Meeting> {
+    throw new Error("Meetings not implemented in MemStorage");
+  }
+
+  async updateMeeting(id: string, updates: Partial<Meeting>): Promise<Meeting | undefined> {
+    throw new Error("Meetings not implemented in MemStorage");
+  }
+
+  async deleteMeeting(id: string): Promise<boolean> {
+    throw new Error("Meetings not implemented in MemStorage");
+  }
+
+  // Meeting Attendees - Not implemented in MemStorage (use DbStorage)
+  async getAttendeesByMeeting(meetingId: string): Promise<MeetingAttendee[]> {
+    throw new Error("Meeting attendees not implemented in MemStorage");
+  }
+
+  async createMeetingAttendee(attendee: InsertMeetingAttendee): Promise<MeetingAttendee> {
+    throw new Error("Meeting attendees not implemented in MemStorage");
+  }
+
+  async deleteMeetingAttendee(id: string): Promise<boolean> {
+    throw new Error("Meeting attendees not implemented in MemStorage");
+  }
+
+  // Meeting Actions - Not implemented in MemStorage (use DbStorage)
+  async getActionsByMeeting(meetingId: string): Promise<MeetingAction[]> {
+    throw new Error("Meeting actions not implemented in MemStorage");
+  }
+
+  async getMeetingAction(id: string): Promise<MeetingAction | undefined> {
+    throw new Error("Meeting actions not implemented in MemStorage");
+  }
+
+  async createMeetingAction(action: InsertMeetingAction): Promise<MeetingAction> {
+    throw new Error("Meeting actions not implemented in MemStorage");
+  }
+
+  async updateMeetingAction(id: string, updates: Partial<MeetingAction>): Promise<MeetingAction | undefined> {
+    throw new Error("Meeting actions not implemented in MemStorage");
+  }
+
+  async deleteMeetingAction(id: string): Promise<boolean> {
+    throw new Error("Meeting actions not implemented in MemStorage");
   }
   
   // Observations - Not implemented in MemStorage (use DbStorage)

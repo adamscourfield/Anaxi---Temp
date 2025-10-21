@@ -47,8 +47,8 @@ const menuItems = [
     color: "teal",
   },
   {
-    title: "Conversations",
-    url: "/conversations",
+    title: "Meetings",
+    url: "/meetings",
     icon: MessageSquare,
     color: "info",
   },

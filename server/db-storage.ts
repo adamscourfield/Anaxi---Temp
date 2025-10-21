@@ -15,6 +15,12 @@ import {
   type InsertConversation,
   type Observation,
   type InsertObservation,
+  type Meeting,
+  type InsertMeeting,
+  type MeetingAttendee,
+  type InsertMeetingAttendee,
+  type MeetingAction,
+  type InsertMeetingAction,
   users,
   teachers,
   schoolMemberships,
@@ -22,6 +28,9 @@ import {
   teachingGroups,
   conversations,
   observations,
+  meetings,
+  meetingAttendees,
+  meetingActions,
 } from "@shared/schema";
 import { type IStorage } from "./storage";
 
@@ -216,5 +225,89 @@ export class DbStorage implements IStorage {
   async createObservation(insertObservation: InsertObservation): Promise<Observation> {
     const [observation] = await db.insert(observations).values(insertObservation).returning();
     return observation;
+  }
+
+  // Meetings
+  async getMeetingsBySchool(schoolId: string): Promise<Meeting[]> {
+    return await db
+      .select()
+      .from(meetings)
+      .where(eq(meetings.schoolId, schoolId))
+      .orderBy(desc(meetings.createdAt));
+  }
+
+  async getMeeting(id: string): Promise<Meeting | undefined> {
+    const [meeting] = await db.select().from(meetings).where(eq(meetings.id, id));
+    return meeting;
+  }
+
+  async createMeeting(insertMeeting: InsertMeeting): Promise<Meeting> {
+    const [meeting] = await db.insert(meetings).values(insertMeeting).returning();
+    return meeting;
+  }
+
+  async updateMeeting(id: string, updates: Partial<Meeting>): Promise<Meeting | undefined> {
+    const [meeting] = await db
+      .update(meetings)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(meetings.id, id))
+      .returning();
+    return meeting;
+  }
+
+  async deleteMeeting(id: string): Promise<boolean> {
+    const result = await db.delete(meetings).where(eq(meetings.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Meeting Attendees
+  async getAttendeesByMeeting(meetingId: string): Promise<MeetingAttendee[]> {
+    return await db
+      .select()
+      .from(meetingAttendees)
+      .where(eq(meetingAttendees.meetingId, meetingId));
+  }
+
+  async createMeetingAttendee(insertAttendee: InsertMeetingAttendee): Promise<MeetingAttendee> {
+    const [attendee] = await db.insert(meetingAttendees).values(insertAttendee).returning();
+    return attendee;
+  }
+
+  async deleteMeetingAttendee(id: string): Promise<boolean> {
+    const result = await db.delete(meetingAttendees).where(eq(meetingAttendees.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Meeting Actions
+  async getActionsByMeeting(meetingId: string): Promise<MeetingAction[]> {
+    return await db
+      .select()
+      .from(meetingActions)
+      .where(eq(meetingActions.meetingId, meetingId))
+      .orderBy(desc(meetingActions.createdAt));
+  }
+
+  async getMeetingAction(id: string): Promise<MeetingAction | undefined> {
+    const [action] = await db.select().from(meetingActions).where(eq(meetingActions.id, id));
+    return action;
+  }
+
+  async createMeetingAction(insertAction: InsertMeetingAction): Promise<MeetingAction> {
+    const [action] = await db.insert(meetingActions).values(insertAction).returning();
+    return action;
+  }
+
+  async updateMeetingAction(id: string, updates: Partial<MeetingAction>): Promise<MeetingAction | undefined> {
+    const [action] = await db
+      .update(meetingActions)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(meetingActions.id, id))
+      .returning();
+    return action;
+  }
+
+  async deleteMeetingAction(id: string): Promise<boolean> {
+    const result = await db.delete(meetingActions).where(eq(meetingActions.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
   }
 }

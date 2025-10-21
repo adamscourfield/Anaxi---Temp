@@ -147,6 +147,7 @@ export const insertObservationHabitSchema = createInsertSchema(observationHabits
 export type InsertObservationHabit = z.infer<typeof insertObservationHabitSchema>;
 export type ObservationHabit = typeof observationHabits.$inferSelect;
 
+// DEPRECATED: Legacy conversations table - will be replaced by meetings
 export const conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   schoolId: varchar("school_id").notNull().references(() => schools.id),
@@ -160,3 +161,57 @@ export const conversations = pgTable("conversations", {
 export const insertConversationSchema = createInsertSchema(conversations).omit({ id: true, createdAt: true });
 export type InsertConversation = z.infer<typeof insertConversationSchema>;
 export type Conversation = typeof conversations.$inferSelect;
+
+// Meetings - replaces conversations with support for multi-person meetings
+export const meetings = pgTable("meetings", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  schoolId: varchar("school_id").notNull().references(() => schools.id),
+  organizerId: varchar("organizer_id").notNull().references(() => users.id),
+  type: text("type").notNull(), // "two_person" or "group"
+  subject: text("subject").notNull(),
+  details: text("details"),
+  rating: text("rating"), // Optional: "Best Practice", "Neutral", "Concern"
+  minutes: text("minutes"), // Rich text meeting minutes
+  minutesAuthorId: varchar("minutes_author_id").references(() => users.id),
+  scheduledAt: timestamp("scheduled_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertMeetingSchema = createInsertSchema(meetings).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertMeeting = z.infer<typeof insertMeetingSchema>;
+export type Meeting = typeof meetings.$inferSelect;
+
+// Meeting attendees - links users to meetings
+export const meetingAttendees = pgTable("meeting_attendees", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meetingId: varchar("meeting_id").notNull().references(() => meetings.id),
+  membershipId: varchar("membership_id").notNull().references(() => schoolMemberships.id),
+  attendeeRole: text("attendee_role"), // Optional: "Presenter", "Observer", "Participant"
+  attendanceStatus: text("attendance_status").notNull().default("pending"), // "pending", "accepted", "declined", "attended"
+  isRequired: boolean("is_required").notNull().default(true),
+  joinedAt: timestamp("joined_at"),
+});
+
+export const insertMeetingAttendeeSchema = createInsertSchema(meetingAttendees).omit({ id: true });
+export type InsertMeetingAttendee = z.infer<typeof insertMeetingAttendeeSchema>;
+export type MeetingAttendee = typeof meetingAttendees.$inferSelect;
+
+// Meeting actions - tasks assigned during meetings
+export const meetingActions = pgTable("meeting_actions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  meetingId: varchar("meeting_id").notNull().references(() => meetings.id),
+  assignedToMembershipId: varchar("assigned_to_membership_id").notNull().references(() => schoolMemberships.id),
+  createdByMembershipId: varchar("created_by_membership_id").notNull().references(() => schoolMemberships.id),
+  description: text("description").notNull(),
+  status: text("status").notNull().default("open"), // "open", "in_progress", "done"
+  dueDate: timestamp("due_date"),
+  completedAt: timestamp("completed_at"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertMeetingActionSchema = createInsertSchema(meetingActions).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertMeetingAction = z.infer<typeof insertMeetingActionSchema>;
+export type MeetingAction = typeof meetingActions.$inferSelect;

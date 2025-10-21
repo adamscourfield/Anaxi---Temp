@@ -18,7 +18,7 @@ import ManageRubrics from "@/pages/manage-rubrics";
 import ManageTeachers from "@/pages/manage-teachers";
 import ManageSchools from "@/pages/manage-schools";
 import TeachingGroupDetails from "@/pages/teaching-group-details";
-import Conversations from "@/pages/conversations";
+import Meetings from "@/pages/meetings";
 import Profile from "@/pages/profile";
 import Landing from "@/pages/landing";
 
@@ -31,7 +31,7 @@ function Router() {
       <Route path="/rubrics" component={ManageRubrics} />
       <Route path="/teachers" component={ManageTeachers} />
       <Route path="/schools" component={ManageSchools} />
-      <Route path="/conversations" component={Conversations} />
+      <Route path="/meetings" component={Meetings} />
       <Route path="/profile" component={Profile} />
       <Route path="/teaching-groups/:id" component={TeachingGroupDetails} />
     </Switch>

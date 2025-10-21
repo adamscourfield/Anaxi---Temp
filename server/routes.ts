@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { DbStorage } from "./db-storage";
-import { insertTeacherSchema, insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertConversationSchema } from "@shared/schema";
+import { insertTeacherSchema, insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema } from "@shared/schema";
 import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -829,6 +829,353 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid conversation data", errors: error.errors });
       }
       res.status(500).json({ message: "Failed to create conversation" });
+    }
+  });
+
+  // Meetings routes
+  app.get("/api/meetings", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const schoolId = req.query.schoolId as string;
+      
+      if (!schoolId) {
+        return res.status(400).json({ message: "School ID is required" });
+      }
+      
+      // Verify user has access to this school
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+      
+      const meetings = await storage.getMeetingsBySchool(schoolId);
+      res.json(meetings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch meetings" });
+    }
+  });
+
+  app.get("/api/meetings/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      const meeting = await storage.getMeeting(id);
+      
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      // Verify user has access to the meeting's school
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === meeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      res.json(meeting);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch meeting" });
+    }
+  });
+
+  app.post("/api/meetings", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const validated = insertMeetingSchema.parse(req.body);
+      
+      // Verify user has access to the school they're creating a meeting for
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === validated.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+      
+      const meeting = await storage.createMeeting(validated);
+      res.status(201).json(meeting);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid meeting data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create meeting" });
+    }
+  });
+
+  app.patch("/api/meetings/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      const updates = req.body;
+      
+      // First, get the meeting to verify access
+      const existingMeeting = await storage.getMeeting(id);
+      if (!existingMeeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      // Verify user has access to the meeting's school
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === existingMeeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      const meeting = await storage.updateMeeting(id, updates);
+      res.json(meeting);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update meeting" });
+    }
+  });
+
+  app.delete("/api/meetings/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      
+      // First, get the meeting to verify access
+      const existingMeeting = await storage.getMeeting(id);
+      if (!existingMeeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      // Verify user has access to the meeting's school
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === existingMeeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      const deleted = await storage.deleteMeeting(id);
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete meeting" });
+    }
+  });
+
+  // Meeting attendees routes
+  app.get("/api/meetings/:id/attendees", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      
+      // Verify user has access to the meeting's school
+      const meeting = await storage.getMeeting(id);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === meeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      const attendees = await storage.getAttendeesByMeeting(id);
+      res.json(attendees);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch attendees" });
+    }
+  });
+
+  app.post("/api/meetings/:id/attendees", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      
+      // Verify user has access to the meeting's school
+      const meeting = await storage.getMeeting(id);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === meeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      const validated = insertMeetingAttendeeSchema.parse({ ...req.body, meetingId: id });
+      const attendee = await storage.createMeetingAttendee(validated);
+      res.status(201).json(attendee);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid attendee data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to add attendee" });
+    }
+  });
+
+  app.delete("/api/meetings/:id/attendees/:attendeeId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id, attendeeId } = req.params;
+      
+      // Verify user has access to the meeting's school
+      const meeting = await storage.getMeeting(id);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === meeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      const deleted = await storage.deleteMeetingAttendee(attendeeId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Attendee not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to remove attendee" });
+    }
+  });
+
+  // Meeting actions routes
+  app.get("/api/meetings/:id/actions", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      
+      // Verify user has access to the meeting's school
+      const meeting = await storage.getMeeting(id);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === meeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      const actions = await storage.getActionsByMeeting(id);
+      res.json(actions);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch actions" });
+    }
+  });
+
+  app.post("/api/meetings/:id/actions", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      
+      // Verify user has access to the meeting's school
+      const meeting = await storage.getMeeting(id);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === meeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      const validated = insertMeetingActionSchema.parse({ ...req.body, meetingId: id });
+      const action = await storage.createMeetingAction(validated);
+      res.status(201).json(action);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid action data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create action" });
+    }
+  });
+
+  app.patch("/api/meetings/:id/actions/:actionId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id, actionId } = req.params;
+      const updates = req.body;
+      
+      // Verify user has access to the meeting's school
+      const meeting = await storage.getMeeting(id);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === meeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      const action = await storage.updateMeetingAction(actionId, updates);
+      if (!action) {
+        return res.status(404).json({ message: "Action not found" });
+      }
+      
+      res.json(action);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update action" });
+    }
+  });
+
+  app.delete("/api/meetings/:id/actions/:actionId", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id, actionId } = req.params;
+      
+      // Verify user has access to the meeting's school
+      const meeting = await storage.getMeeting(id);
+      if (!meeting) {
+        return res.status(404).json({ message: "Meeting not found" });
+      }
+      
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === meeting.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      const deleted = await storage.deleteMeetingAction(actionId);
+      if (!deleted) {
+        return res.status(404).json({ message: "Action not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete action" });
     }
   });
 
