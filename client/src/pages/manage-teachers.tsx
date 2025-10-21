@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import type { User, School, SchoolMembership } from "@shared/schema";
+import { CsvColumnMapper } from "@/components/csv-column-mapper";
 
 export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { user: currentUser, isCreator, isLoading: authLoading } = useAuth();
@@ -40,8 +41,9 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   
   // CSV import state
   const [isImportOpen, setIsImportOpen] = useState(false);
-  const [csvData, setCsvData] = useState("");
+  const [csvData, setCsvData] = useState<{ headers: string[]; rows: string[][]; mappings: Record<string, string> } | null>(null);
   const [importResults, setImportResults] = useState<any>(null);
+  const [isImportValid, setIsImportValid] = useState(false);
   
   // School assignment state
   const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
@@ -235,31 +237,48 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   };
 
   const handleImportCsv = () => {
-    try {
-      const lines = csvData.trim().split("\n");
-      if (lines.length < 2) {
-        toast({
-          title: "Error",
-          description: "CSV must have at least a header row and one data row",
-          variant: "destructive",
-        });
-        return;
-      }
+    if (!csvData) {
+      toast({
+        title: "Error",
+        description: "No CSV data loaded",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      const headers = lines[0].split(",").map(h => h.trim());
+    try {
+      const { rows, mappings } = csvData;
       const teachersData = [];
 
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map(v => v.trim());
+      for (const row of rows) {
         const teacher: any = {};
         
-        headers.forEach((header, index) => {
-          if (header === "schoolIds") {
-            teacher[header] = values[index] ? values[index].split(";").map(s => s.trim()) : [];
-          } else {
-            teacher[header] = values[index] || "";
+        // Map each field using the user's column mappings
+        Object.keys(mappings).forEach(fieldKey => {
+          const csvHeader = mappings[fieldKey];
+          const headerIndex = csvData.headers.indexOf(csvHeader);
+          if (headerIndex !== -1) {
+            teacher[fieldKey] = row[headerIndex];
           }
         });
+
+        // Convert school names to school IDs
+        if (teacher.schoolNames) {
+          const schoolNamesList = teacher.schoolNames.split(";").map((s: string) => s.trim());
+          const matchedSchoolIds: string[] = [];
+          
+          schoolNamesList.forEach((schoolName: string) => {
+            const school = schools.find(s => 
+              s.name.toLowerCase() === schoolName.toLowerCase()
+            );
+            if (school) {
+              matchedSchoolIds.push(school.id);
+            }
+          });
+          
+          teacher.schoolIds = matchedSchoolIds.join(";");
+          delete teacher.schoolNames;
+        }
 
         teachersData.push(teacher);
       }
@@ -268,7 +287,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to parse CSV data",
+        description: "Failed to process CSV data",
         variant: "destructive",
       });
     }
@@ -367,7 +386,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className={`flex gap-2 ${isEmbedded ? "ml-auto" : ""}`}>
           <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-import-csv">
@@ -375,49 +394,25 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                 Import CSV
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Import Teachers from CSV</DialogTitle>
                 <DialogDescription>
-                  Paste CSV data with teacher information below
+                  Upload a CSV file and map columns to teacher fields
                 </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
-                <Alert>
-                  <AlertDescription>
-                    <div className="space-y-2 text-sm">
-                      <div>
-                        <strong>Required CSV Format:</strong>
-                      </div>
-                      <div className="font-mono text-xs bg-muted/50 p-2 rounded">
-                        email,password,first_name,last_name,schoolIds
-                      </div>
-                      <div className="mt-2">
-                        <strong>Example:</strong>
-                      </div>
-                      <div className="font-mono text-xs bg-muted/50 p-2 rounded">
-                        john@school.com,Pass123,John,Doe,school-id-1;school-id-2
-                        <br />
-                        sarah@school.com,Pass456,Sarah,Smith,school-id-1
-                      </div>
-                      <div className="mt-2 text-muted-foreground">
-                        <strong>Note:</strong> For multiple schools, separate school IDs with semicolons (;)
-                      </div>
-                    </div>
-                  </AlertDescription>
-                </Alert>
-                <div>
-                  <Label htmlFor="csv-data">CSV Data</Label>
-                  <Textarea
-                    id="csv-data"
-                    data-testid="textarea-csv-data"
-                    value={csvData}
-                    onChange={(e) => setCsvData(e.target.value)}
-                    placeholder="email,password,first_name,last_name,schoolIds&#10;john@example.com,password123,John,Doe,school-id-1;school-id-2"
-                    rows={10}
-                    className="font-mono text-sm"
-                  />
-                </div>
+              <div className="py-4">
+                <CsvColumnMapper
+                  onFileLoad={setCsvData}
+                  onValidationChange={setIsImportValid}
+                  requiredFields={[
+                    { key: "email", label: "Email Address", required: true },
+                    { key: "password", label: "Password", required: true },
+                    { key: "first_name", label: "First Name", required: true },
+                    { key: "last_name", label: "Last Name", required: true },
+                    { key: "schoolNames", label: "School Names (semicolon-separated)", required: false },
+                  ]}
+                />
                 {importResults && (
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Import Results:</p>
@@ -440,8 +435,9 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                   variant="outline"
                   onClick={() => {
                     setIsImportOpen(false);
-                    setCsvData("");
+                    setCsvData(null);
                     setImportResults(null);
+                    setIsImportValid(false);
                   }}
                   data-testid="button-cancel-import"
                 >
@@ -449,10 +445,10 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                 </Button>
                 <Button
                   onClick={handleImportCsv}
-                  disabled={importCsvMutation.isPending}
+                  disabled={importCsvMutation.isPending || !isImportValid}
                   data-testid="button-submit-import"
                 >
-                  {importCsvMutation.isPending ? "Importing..." : "Import"}
+                  {importCsvMutation.isPending ? "Importing..." : "Import Teachers"}
                 </Button>
               </DialogFooter>
             </DialogContent>
