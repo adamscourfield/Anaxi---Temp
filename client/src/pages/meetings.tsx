@@ -173,10 +173,9 @@ export default function Meetings() {
                     }
                   >
                     <SelectTrigger data-testid="select-rating">
-                      <SelectValue placeholder="Select rating" />
+                      <SelectValue placeholder="None (optional)" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
                       <SelectItem value="Best Practice">Best Practice</SelectItem>
                       <SelectItem value="Neutral">Neutral</SelectItem>
                       <SelectItem value="Concern">Concern</SelectItem>

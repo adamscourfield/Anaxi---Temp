@@ -52,7 +52,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
   });
 
   // Extract schools from memberships or use all schools for Creators
-  const schools = isCreator ? allSchools : memberships.map(m => m.school);
+  const schools = isCreator ? allSchools : memberships.map(m => m.school).filter(Boolean);
   const isLoading = authLoading || (isCreator ? schoolsLoading : membershipsLoading);
 
   // Check if user has no schools after loading completes

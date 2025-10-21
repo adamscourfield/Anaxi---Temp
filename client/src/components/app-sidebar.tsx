@@ -79,7 +79,7 @@ export function AppSidebar() {
   const { user, isCreator } = useAuth();
   const { schools, currentSchoolId } = useSchool();
 
-  const currentSchool = schools.find(s => s.id === currentSchoolId);
+  const currentSchool = schools?.find(s => s.id === currentSchoolId);
 
   // Check if user is Admin in current school
   const { data: currentMembership } = useQuery<SchoolMembership>({
