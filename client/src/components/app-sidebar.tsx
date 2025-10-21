@@ -6,6 +6,7 @@ import {
   History,
   MessageSquare,
   Building2,
+  Settings,
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,16 +54,10 @@ const menuItems = [
     color: "info",
   },
   {
-    title: "Manage Rubric",
-    url: "/rubrics",
-    icon: ClipboardList,
+    title: "App Management",
+    url: "/management",
+    icon: Settings,
     color: "amber",
-  },
-  {
-    title: "Manage Teachers",
-    url: "/teachers",
-    icon: Users,
-    color: "pink",
   },
 ];
 
@@ -71,7 +66,6 @@ const iconColorClasses: Record<string, string> = {
   info: "text-sidebar-foreground",
   teal: "text-sidebar-foreground",
   amber: "text-sidebar-foreground",
-  pink: "text-sidebar-foreground",
 };
 
 export function AppSidebar() {

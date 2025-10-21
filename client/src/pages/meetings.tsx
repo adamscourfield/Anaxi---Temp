@@ -76,6 +76,7 @@ export default function Meetings() {
     subject: "",
     details: "",
     rating: "",
+    staffMemberId: "", // For conversations - single staff member
   });
 
   // Get current user's membership
@@ -152,8 +153,17 @@ export default function Meetings() {
       const meeting = await meetingResponse.json();
       const meetingId = meeting.id;
 
-      // Add attendees
-      if (data.attendees.length > 0) {
+      // Add attendees (for meetings) or single staff member (for conversations)
+      if (formType === "conversation" && data.meeting.staffMemberId) {
+        // For conversations, add the single staff member as an attendee
+        await apiRequest("POST", "/api/meeting-attendees", {
+          meetingId,
+          membershipId: data.meeting.staffMemberId,
+          attendanceStatus: "pending",
+          isRequired: true,
+        });
+      } else if (formType === "meeting" && data.attendees.length > 0) {
+        // For meetings, add all selected attendees
         await Promise.all(
           data.attendees.map((membershipId) =>
             apiRequest("POST", "/api/meeting-attendees", {
@@ -202,7 +212,7 @@ export default function Meetings() {
   });
 
   const resetForm = () => {
-    setFormData({ type: "Line Management", subject: "", details: "", rating: "" });
+    setFormData({ type: "Line Management", subject: "", details: "", rating: "", staffMemberId: "" });
     setSelectedAttendees([]);
     setActionItems([]);
     setNewAction({ description: "", assignedToMembershipId: "", dueDate: "" });
@@ -327,6 +337,84 @@ export default function Meetings() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Attendees Section - Top for Meetings */}
+              {formType === "meeting" && (
+                <div className="space-y-4 border-b pb-4">
+                  <Label className="text-base font-semibold">Attendees</Label>
+                  <Popover open={attendeeSearchOpen} onOpenChange={setAttendeeSearchOpen}>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        aria-expanded={attendeeSearchOpen}
+                        className="w-full justify-between"
+                        type="button"
+                        data-testid="button-select-attendees"
+                      >
+                        <span className="flex items-center gap-2">
+                          <UserPlus className="w-4 h-4" />
+                          {selectedAttendees.length === 0
+                            ? "Select attendees..."
+                            : `${selectedAttendees.length} attendee${selectedAttendees.length > 1 ? "s" : ""} selected`}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-full p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search teachers..." data-testid="input-search-attendees" />
+                        <CommandList>
+                          <CommandEmpty>No teachers found.</CommandEmpty>
+                          <CommandGroup>
+                            {teachers.map((teacher) => (
+                              <CommandItem
+                                key={teacher.id}
+                                value={`${teacher.firstName} ${teacher.lastName}`}
+                                onSelect={() => toggleAttendee(teacher.id)}
+                                data-testid={`command-item-attendee-${teacher.id}`}
+                              >
+                                <Check
+                                  className={`mr-2 h-4 w-4 ${
+                                    selectedAttendees.includes(teacher.id) ? "opacity-100" : "opacity-0"
+                                  }`}
+                                />
+                                <div className="flex flex-col">
+                                  <span className="text-sm">{teacher.firstName} {teacher.lastName}</span>
+                                  <span className="text-xs text-muted-foreground">{teacher.role}</span>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+
+                  {selectedAttendees.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedAttendees.map((membershipId) => {
+                        const teacher = teachers.find((t) => t.id === membershipId);
+                        if (!teacher) return null;
+                        return (
+                          <Badge
+                            key={membershipId}
+                            variant="secondary"
+                            className="gap-1"
+                            data-testid={`badge-attendee-${membershipId}`}
+                          >
+                            {teacher.firstName} {teacher.lastName}
+                            <X
+                              className="w-3 h-3 cursor-pointer hover-elevate"
+                              onClick={() => removeAttendee(membershipId)}
+                              data-testid={`button-remove-attendee-${membershipId}`}
+                            />
+                          </Badge>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid md:grid-cols-2 gap-4">
                 {formType === "meeting" && (
                   <div className="space-y-2">
@@ -350,24 +438,75 @@ export default function Meetings() {
                 )}
 
                 {formType === "conversation" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="rating">Rating</Label>
-                    <Select
-                      value={formData.rating}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, rating: value })
-                      }
-                    >
-                      <SelectTrigger data-testid="select-rating">
-                        <SelectValue placeholder="Select rating" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Best Practice">Best Practice</SelectItem>
-                        <SelectItem value="Neutral">Neutral</SelectItem>
-                        <SelectItem value="Concern">Concern</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="rating">Rating</Label>
+                      <Select
+                        value={formData.rating}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, rating: value })
+                        }
+                      >
+                        <SelectTrigger data-testid="select-rating">
+                          <SelectValue placeholder="Select rating" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Best Practice">Best Practice</SelectItem>
+                          <SelectItem value="Neutral">Neutral</SelectItem>
+                          <SelectItem value="Concern">Concern</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="staffMember">Staff Member</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between"
+                            type="button"
+                            data-testid="button-select-staff-member"
+                          >
+                            <span className="flex items-center gap-2">
+                              <Users className="w-4 h-4" />
+                              {formData.staffMemberId
+                                ? teachers.find((t) => t.id === formData.staffMemberId)?.firstName + " " + teachers.find((t) => t.id === formData.staffMemberId)?.lastName
+                                : "Select staff member..."}
+                            </span>
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search staff..." data-testid="input-search-staff-member" />
+                            <CommandList>
+                              <CommandEmpty>No staff found.</CommandEmpty>
+                              <CommandGroup>
+                                {teachers.map((teacher) => (
+                                  <CommandItem
+                                    key={teacher.id}
+                                    value={`${teacher.firstName} ${teacher.lastName}`}
+                                    onSelect={() => setFormData({ ...formData, staffMemberId: teacher.id })}
+                                    data-testid={`command-item-staff-${teacher.id}`}
+                                  >
+                                    <Check
+                                      className={`mr-2 h-4 w-4 ${
+                                        formData.staffMemberId === teacher.id ? "opacity-100" : "opacity-0"
+                                      }`}
+                                    />
+                                    <div className="flex flex-col">
+                                      <span className="text-sm">{teacher.firstName} {teacher.lastName}</span>
+                                      <span className="text-xs text-muted-foreground">{teacher.role}</span>
+                                    </div>
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -398,82 +537,6 @@ export default function Meetings() {
                   required
                   data-testid="textarea-details"
                 />
-              </div>
-
-              {/* Attendees Section */}
-              <div className="space-y-4 border-t pt-4">
-                <Label className="text-base font-semibold">Attendees</Label>
-                <Popover open={attendeeSearchOpen} onOpenChange={setAttendeeSearchOpen}>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      role="combobox"
-                      aria-expanded={attendeeSearchOpen}
-                      className="w-full justify-between"
-                      type="button"
-                      data-testid="button-select-attendees"
-                    >
-                      <span className="flex items-center gap-2">
-                        <UserPlus className="w-4 h-4" />
-                        {selectedAttendees.length === 0
-                          ? "Select attendees..."
-                          : `${selectedAttendees.length} attendee${selectedAttendees.length > 1 ? "s" : ""} selected`}
-                      </span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-full p-0" align="start">
-                    <Command>
-                      <CommandInput placeholder="Search teachers..." data-testid="input-search-attendees" />
-                      <CommandList>
-                        <CommandEmpty>No teachers found.</CommandEmpty>
-                        <CommandGroup>
-                          {teachers.map((teacher) => (
-                            <CommandItem
-                              key={teacher.id}
-                              value={`${teacher.firstName} ${teacher.lastName}`}
-                              onSelect={() => toggleAttendee(teacher.id)}
-                              data-testid={`command-item-attendee-${teacher.id}`}
-                            >
-                              <Check
-                                className={`mr-2 h-4 w-4 ${
-                                  selectedAttendees.includes(teacher.id) ? "opacity-100" : "opacity-0"
-                                }`}
-                              />
-                              <div className="flex flex-col">
-                                <span className="text-sm">{teacher.firstName} {teacher.lastName}</span>
-                                <span className="text-xs text-muted-foreground">{teacher.role}</span>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-
-                {selectedAttendees.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {selectedAttendees.map((membershipId) => {
-                      const teacher = teachers.find((t) => t.id === membershipId);
-                      if (!teacher) return null;
-                      return (
-                        <Badge
-                          key={membershipId}
-                          variant="secondary"
-                          className="gap-1"
-                          data-testid={`badge-attendee-${membershipId}`}
-                        >
-                          {teacher.firstName} {teacher.lastName}
-                          <X
-                            className="w-3 h-3 cursor-pointer hover-elevate"
-                            onClick={() => removeAttendee(membershipId)}
-                            data-testid={`button-remove-attendee-${membershipId}`}
-                          />
-                        </Badge>
-                      );
-                    })}
-                  </div>
-                )}
               </div>
 
               {/* Action Items Section - Only for Meetings */}

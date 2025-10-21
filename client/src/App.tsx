@@ -17,6 +17,7 @@ import ObservationHistory from "@/pages/observation-history";
 import ManageRubrics from "@/pages/manage-rubrics";
 import ManageTeachers from "@/pages/manage-teachers";
 import ManageSchools from "@/pages/manage-schools";
+import AppManagement from "@/pages/app-management";
 import TeachingGroupDetails from "@/pages/teaching-group-details";
 import Meetings from "@/pages/meetings";
 import Profile from "@/pages/profile";
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/rubrics" component={ManageRubrics} />
       <Route path="/teachers" component={ManageTeachers} />
       <Route path="/schools" component={ManageSchools} />
+      <Route path="/management" component={AppManagement} />
       <Route path="/meetings" component={Meetings} />
       <Route path="/profile" component={Profile} />
       <Route path="/teaching-groups/:id" component={TeachingGroupDetails} />
