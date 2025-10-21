@@ -29,6 +29,9 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useState } from "react";
+import { CsvColumnMapper } from "@/components/csv-column-mapper";
+import { DialogTrigger } from "@radix-ui/react-dialog";
+import { useToast } from "@/hooks/use-toast";
 
 const initialCategories = [
   {
@@ -94,6 +97,12 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     habitIndex: number;
   } | null>(null);
   const [addingToCategoryId, setAddingToCategoryId] = useState<string | null>(null);
+  
+  // CSV import state
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [csvData, setCsvData] = useState<{ headers: string[]; rows: string[][]; mappings: Record<string, string> } | null>(null);
+  const [isImportValid, setIsImportValid] = useState(false);
+  const { toast } = useToast();
 
   const form = useForm<HabitFormValues>({
     resolver: zodResolver(habitFormSchema),
@@ -163,6 +172,60 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     setAddingToCategoryId(null);
     form.reset();
   };
+
+  const handleImportCsv = () => {
+    if (!csvData) {
+      toast({
+        title: "Error",
+        description: "No CSV data loaded",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { rows, mappings } = csvData;
+      const importedCategories: Map<string, string[]> = new Map();
+
+      // Group habits by category
+      for (const row of rows) {
+        const categoryName = row[csvData.headers.indexOf(mappings.categoryName)]?.trim();
+        const habitDescription = row[csvData.headers.indexOf(mappings.habitDescription)]?.trim();
+
+        if (!categoryName || !habitDescription) continue;
+
+        if (!importedCategories.has(categoryName)) {
+          importedCategories.set(categoryName, []);
+        }
+        importedCategories.get(categoryName)!.push(habitDescription);
+      }
+
+      // Convert to category format
+      const newCategories = Array.from(importedCategories.entries()).map(([name, habits], index) => ({
+        id: `imported-${Date.now()}-${index}`,
+        name,
+        habitCount: habits.length,
+        habits,
+      }));
+
+      setCategories([...categories, ...newCategories]);
+      
+      toast({
+        title: "Success",
+        description: `Imported ${newCategories.length} categories with ${rows.length} total habits`,
+      });
+
+      setIsImportOpen(false);
+      setCsvData(null);
+      setIsImportValid(false);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to process CSV data",
+        variant: "destructive",
+      });
+    }
+  };
   return (
     <div className={isEmbedded ? "space-y-6" : "p-6 space-y-8"}>
       <div className="flex items-center justify-between">
@@ -175,10 +238,52 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
           </div>
         )}
         <div className={`flex gap-2 ${isEmbedded ? "ml-auto" : ""}`}>
-          <Button variant="outline" data-testid="button-import-rubric">
-            <Upload className="h-4 w-4 mr-2" />
-            Import CSV
-          </Button>
+          <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" data-testid="button-import-rubric">
+                <Upload className="h-4 w-4 mr-2" />
+                Import CSV
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Import Rubrics from CSV</DialogTitle>
+                <DialogDescription>
+                  Upload a CSV file and map columns to rubric fields
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <CsvColumnMapper
+                  onFileLoad={setCsvData}
+                  onValidationChange={setIsImportValid}
+                  requiredFields={[
+                    { key: "categoryName", label: "Category Name", required: true },
+                    { key: "habitDescription", label: "Habit Description", required: true },
+                  ]}
+                />
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsImportOpen(false);
+                    setCsvData(null);
+                    setIsImportValid(false);
+                  }}
+                  data-testid="button-cancel-import"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleImportCsv}
+                  disabled={!isImportValid}
+                  data-testid="button-submit-import"
+                >
+                  Import Rubrics
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           <Button data-testid="button-add-category">
             <Plus className="h-4 w-4 mr-2" />
             Add Category
