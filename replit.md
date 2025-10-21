@@ -12,9 +12,10 @@ Preferred communication style: Simple, everyday language.
 Separated Meetings and Conversations into distinct workflows with different field requirements:
 
 **Meetings**:
-- Fields: type (Line Management/Department/Leadership), subject, details, minutes, attendees, action items
-- NO rating field
+- Fields: type (Line Management/Department/Leadership), subject, details, attendees, action items
+- NO rating field, NO minutes field
 - Meeting types changed from "two_person"/"group" to organizational types
+- Simplified to use only "Details" field for all meeting notes
 
 **Conversations**:
 - Fields: subject, details, rating (Best Practice/Neutral/Concern), attendees

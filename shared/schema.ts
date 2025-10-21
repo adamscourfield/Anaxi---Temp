@@ -170,8 +170,6 @@ export const meetings = pgTable("meetings", {
   type: text("type").notNull(), // "Line Management", "Department", or "Leadership"
   subject: text("subject").notNull(),
   details: text("details"),
-  minutes: text("minutes"), // Rich text meeting minutes
-  minutesAuthorId: varchar("minutes_author_id").references(() => users.id),
   scheduledAt: timestamp("scheduled_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),

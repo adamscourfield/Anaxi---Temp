@@ -76,7 +76,6 @@ export default function Meetings() {
     subject: "",
     details: "",
     rating: "",
-    minutes: "",
   });
 
   // Get current user's membership
@@ -137,12 +136,11 @@ export default function Meetings() {
           schoolId: currentSchoolId,
         };
       } else {
-        // Meetings have: type, subject, details, minutes (no rating field)
+        // Meetings have: type, subject, details (no rating field, no minutes)
         meetingPayload = {
           type: data.meeting.type,
           subject: data.meeting.subject,
           details: data.meeting.details,
-          minutes: data.meeting.minutes,
           schoolId: currentSchoolId,
           organizerId: user?.id,
         };
@@ -204,7 +202,7 @@ export default function Meetings() {
   });
 
   const resetForm = () => {
-    setFormData({ type: "Line Management", subject: "", details: "", rating: "", minutes: "" });
+    setFormData({ type: "Line Management", subject: "", details: "", rating: "" });
     setSelectedAttendees([]);
     setActionItems([]);
     setNewAction({ description: "", assignedToMembershipId: "", dueDate: "" });
@@ -401,22 +399,6 @@ export default function Meetings() {
                   data-testid="textarea-details"
                 />
               </div>
-
-              {formType === "meeting" && (
-                <div className="space-y-2">
-                  <Label htmlFor="minutes">Minutes (Optional)</Label>
-                  <Textarea
-                    id="minutes"
-                    value={formData.minutes}
-                    onChange={(e) =>
-                      setFormData({ ...formData, minutes: e.target.value })
-                    }
-                    placeholder="Meeting minutes and notes"
-                    rows={4}
-                    data-testid="textarea-minutes"
-                  />
-                </div>
-              )}
 
               {/* Attendees Section */}
               <div className="space-y-4 border-t pt-4">
