@@ -32,13 +32,14 @@ Separated Meetings and Conversations into distinct workflows with different fiel
 - Schema synced with database via `npm run db:push`
 
 ### App Management Consolidation
-Created unified App Management page consolidating three management sections:
+Created unified App Management page consolidating management sections:
 
 **New Structure**:
-- Single "App Management" link in sidebar (replaced Manage Rubric, Manage Teachers, Manage Schools)
-- Tabbed interface with three sections: Rubrics, Teachers, Schools
+- Single "App Management" link in sidebar (replaced Manage Rubric and Manage Teachers)
+- Tabbed interface with two sections: Rubrics and Teachers
 - URL hash-based navigation for direct tab access
 - Cleaner sidebar navigation with Settings icon
+- Manage Schools removed from menu
 
 **Benefits**:
 - Reduced sidebar clutter
