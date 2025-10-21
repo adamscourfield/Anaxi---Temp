@@ -16,6 +16,13 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import type { User, School, SchoolMembership } from "@shared/schema";
 import { CsvColumnMapper } from "@/components/csv-column-mapper";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { user: currentUser, isCreator, isLoading: authLoading } = useAuth();
@@ -38,6 +45,8 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editRole, setEditRole] = useState<string>("Teacher");
+  const [editingMemberships, setEditingMemberships] = useState<SchoolMembership[]>([]);
   
   // CSV import state
   const [isImportOpen, setIsImportOpen] = useState(false);
@@ -190,6 +199,25 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     },
   });
 
+  // Update membership role mutation
+  const updateMembershipRoleMutation = useMutation({
+    mutationFn: async (data: { membershipId: string; role: string }) => {
+      return await apiRequest("PATCH", `/api/memberships/${data.membershipId}`, {
+        role: data.role,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update role",
+        variant: "destructive",
+      });
+    },
+  });
+
   const resetAddForm = () => {
     setNewTeacherEmail("");
     setNewTeacherPassword("");
@@ -217,23 +245,68 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     });
   };
 
-  const handleEditTeacher = (teacher: User) => {
+  const handleEditTeacher = async (teacher: User) => {
     setEditingTeacher(teacher);
     setEditFirstName(teacher.first_name || "");
     setEditLastName(teacher.last_name || "");
     setEditEmail(teacher.email);
+    
+    // Fetch teacher's memberships to get current role
+    try {
+      const memberships = await queryClient.fetchQuery<SchoolMembership[]>({
+        queryKey: ["/api/users", teacher.id, "memberships"],
+        queryFn: async () => {
+          const response = await fetch(`/api/users/${teacher.id}/memberships`);
+          if (!response.ok) return [];
+          return response.json();
+        },
+      });
+      setEditingMemberships(memberships);
+      // Set the role from the first membership (or default to Teacher)
+      setEditRole(memberships.length > 0 ? memberships[0].role : "Teacher");
+    } catch (error) {
+      console.error("Failed to fetch memberships:", error);
+      setEditingMemberships([]);
+      setEditRole("Teacher");
+    }
+    
     setIsEditOpen(true);
   };
 
-  const handleUpdateTeacher = () => {
+  const handleUpdateTeacher = async () => {
     if (!editingTeacher) return;
 
-    updateTeacherMutation.mutate({
-      id: editingTeacher.id,
-      first_name: editFirstName,
-      last_name: editLastName,
-      email: editEmail,
-    });
+    try {
+      // Update teacher basic info
+      await updateTeacherMutation.mutateAsync({
+        id: editingTeacher.id,
+        first_name: editFirstName,
+        last_name: editLastName,
+        email: editEmail,
+      });
+
+      // Update role for all memberships
+      const roleUpdatePromises = editingMemberships.map(membership =>
+        updateMembershipRoleMutation.mutateAsync({
+          membershipId: membership.id,
+          role: editRole,
+        })
+      );
+      
+      await Promise.all(roleUpdatePromises);
+
+      setIsEditOpen(false);
+      setEditingTeacher(null);
+      setEditingMemberships([]);
+      
+      toast({
+        title: "Teacher updated",
+        description: "The teacher information and role have been updated successfully.",
+      });
+    } catch (error: any) {
+      // Error toasts are handled by individual mutations
+      console.error("Error updating teacher:", error);
+    }
   };
 
   const handleImportCsv = () => {
@@ -724,6 +797,22 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                 onChange={(e) => setEditEmail(e.target.value)}
                 placeholder="teacher@school.edu"
               />
+            </div>
+            <div>
+              <Label htmlFor="edit-role">Role</Label>
+              <Select value={editRole} onValueChange={setEditRole}>
+                <SelectTrigger id="edit-role" data-testid="select-edit-role">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Teacher">Teacher</SelectItem>
+                  <SelectItem value="Leader">Leader</SelectItem>
+                  <SelectItem value="Admin">Admin</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-sm text-muted-foreground mt-1">
+                Role will be updated for all schools this teacher is assigned to
+              </p>
             </div>
           </div>
           <DialogFooter>

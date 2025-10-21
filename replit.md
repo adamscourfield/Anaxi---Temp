@@ -8,6 +8,22 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 21, 2025)
 
+### Teacher Role Editing
+Added ability to edit teacher roles in App Management:
+
+**Edit Teacher Dialog**:
+- New "Role" select field in the edit teacher dialog
+- Options: Teacher, Leader, Admin
+- Role changes apply to all schools the teacher is assigned to
+- Uses `/api/memberships/:id` PATCH endpoint to update roles
+- Fetches current role from teacher's school memberships
+
+**Implementation Details**:
+- Edit dialog now fetches teacher's memberships when opened
+- Displays current role (from first membership)
+- Updates all school memberships with the selected role
+- Shows helpful message that role will be updated across all schools
+
 ### CSV Import Enhancement
 Enhanced CSV import functionality for both Teachers and Rubrics:
 
