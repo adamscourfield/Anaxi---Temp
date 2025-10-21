@@ -16,7 +16,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import type { User, School, SchoolMembership } from "@shared/schema";
 
-export default function ManageTeachers() {
+export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { user: currentUser, isCreator, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   
@@ -356,14 +356,16 @@ export default function ManageTeachers() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-7xl">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Manage Teachers</h1>
-          <p className="text-muted-foreground mt-1">
-            Search, edit, and manage teacher accounts
-          </p>
-        </div>
+    <div className={isEmbedded ? "space-y-6" : "container mx-auto p-6 max-w-7xl"}>
+      <div className={`flex items-center justify-between ${isEmbedded ? "" : "mb-6"}`}>
+        {!isEmbedded && (
+          <div>
+            <h1 className="text-3xl font-bold">Manage Teachers</h1>
+            <p className="text-muted-foreground mt-1">
+              Search, edit, and manage teacher accounts
+            </p>
+          </div>
+        )}
 
         <div className="flex gap-2">
           <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>

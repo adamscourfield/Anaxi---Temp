@@ -86,7 +86,7 @@ const habitFormSchema = z.object({
 
 type HabitFormValues = z.infer<typeof habitFormSchema>;
 
-export default function ManageRubrics() {
+export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const [categories, setCategories] = useState(initialCategories);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<{
@@ -164,15 +164,17 @@ export default function ManageRubrics() {
     form.reset();
   };
   return (
-    <div className="p-6 space-y-8">
+    <div className={isEmbedded ? "space-y-6" : "p-6 space-y-8"}>
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Manage Rubrics</h1>
-          <p className="text-muted-foreground mt-1">
-            Configure observation criteria for your school
-          </p>
-        </div>
-        <div className="flex gap-2">
+        {!isEmbedded && (
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Manage Rubrics</h1>
+            <p className="text-muted-foreground mt-1">
+              Configure observation criteria for your school
+            </p>
+          </div>
+        )}
+        <div className={`flex gap-2 ${isEmbedded ? "ml-auto" : ""}`}>
           <Button variant="outline" data-testid="button-import-rubric">
             <Upload className="h-4 w-4 mr-2" />
             Import CSV

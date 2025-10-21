@@ -11,7 +11,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
 import type { School } from "@shared/schema";
 
-export default function ManageSchools() {
+export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { user, isCreator, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -161,14 +161,16 @@ export default function ManageSchools() {
   }
 
   return (
-    <div className="container mx-auto p-6 max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold">Manage Schools</h1>
-          <p className="text-muted-foreground mt-1">
-            Create and manage schools across the platform
-          </p>
-        </div>
+    <div className={isEmbedded ? "space-y-6" : "container mx-auto p-6 max-w-6xl"}>
+      <div className={`flex items-center justify-between ${isEmbedded ? "" : "mb-6"}`}>
+        {!isEmbedded && (
+          <div>
+            <h1 className="text-3xl font-bold">Manage Schools</h1>
+            <p className="text-muted-foreground mt-1">
+              Create and manage schools across the platform
+            </p>
+          </div>
+        )}
 
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>

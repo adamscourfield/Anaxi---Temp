@@ -35,14 +35,19 @@ Separated Meetings and Conversations into distinct workflows with different fiel
 Created unified App Management page consolidating management sections:
 
 **New Structure**:
-- Single "App Management" link in sidebar (replaced Manage Rubric and Manage Teachers)
-- Tabbed interface with two sections: Rubrics and Teachers
-- URL hash-based navigation for direct tab access
+- Single "App Management" link in sidebar (replaced separate Manage Rubric, Manage Teachers, and Manage Schools links)
+- Tabbed interface with three sections: Rubrics, Teachers, and Schools
+- URL hash-based navigation for direct tab access (#rubrics, #teachers, #schools)
 - Cleaner sidebar navigation with Settings icon
-- Manage Schools removed from menu
+- Schools management now accessible only through App Management tabs, not in sidebar menu
+
+**Implementation Details**:
+- Management pages support `isEmbedded` prop to remove their padding when shown in tabs
+- Proper alignment maintained between page headers and tab content
+- All management pages maintain standalone functionality when accessed directly
 
 **Benefits**:
-- Reduced sidebar clutter
+- Reduced sidebar clutter (3 links consolidated into 1)
 - Easier navigation between management tasks
 - Maintained all original functionality
 - Better organization for admin tasks
