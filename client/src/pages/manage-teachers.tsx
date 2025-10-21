@@ -249,6 +249,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     try {
       const { rows, mappings } = csvData;
       const teachersData = [];
+      const allWarnings: string[] = [];
 
       for (const row of rows) {
         const teacher: any = {};
@@ -266,6 +267,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
         if (teacher.schoolNames) {
           const schoolNamesList = teacher.schoolNames.split(";").map((s: string) => s.trim());
           const matchedSchoolIds: string[] = [];
+          const unmatchedSchools: string[] = [];
           
           schoolNamesList.forEach((schoolName: string) => {
             const school = schools.find(s => 
@@ -273,17 +275,34 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
             );
             if (school) {
               matchedSchoolIds.push(school.id);
+            } else if (schoolName) {
+              unmatchedSchools.push(schoolName);
             }
           });
           
-          teacher.schoolIds = matchedSchoolIds.join(";");
+          // Keep as array for backend
+          teacher.schoolIds = matchedSchoolIds;
           delete teacher.schoolNames;
+          
+          // Track unmatched schools for reporting
+          if (unmatchedSchools.length > 0) {
+            allWarnings.push(`${teacher.email}: Unmatched schools - ${unmatchedSchools.join(", ")}`);
+          }
         }
 
         teachersData.push(teacher);
       }
 
-      importCsvMutation.mutate(teachersData);
+      // Add warnings to the mutation for display
+      importCsvMutation.mutate(teachersData, {
+        onSuccess: (data) => {
+          const resultsWithWarnings = {
+            ...data,
+            warnings: allWarnings.length > 0 ? allWarnings : undefined,
+          };
+          setImportResults(resultsWithWarnings);
+        },
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -423,6 +442,16 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                         <ul className="list-disc list-inside">
                           {importResults.errors.map((err: any, idx: number) => (
                             <li key={idx}>{err.email}: {err.error}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {importResults.warnings?.length > 0 && (
+                      <div className="text-sm text-amber-600">
+                        <p>⚠ {importResults.warnings.length} warnings:</p>
+                        <ul className="list-disc list-inside">
+                          {importResults.warnings.map((warn: any, idx: number) => (
+                            <li key={idx}>{warn}</li>
                           ))}
                         </ul>
                       </div>
