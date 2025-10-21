@@ -8,6 +8,39 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 21, 2025)
 
+### CSV Import Enhancement
+Enhanced CSV import functionality for both Teachers and Rubrics:
+
+**CSV Column Mapper Component**:
+- New reusable component at `client/src/components/csv-column-mapper.tsx`
+- Allows users to upload CSV files via file input
+- Provides interactive column mapping interface
+- Shows preview of first 3 rows
+- Auto-maps columns with matching names
+- Validates that all required fields are mapped before import
+
+**Teacher CSV Import**:
+- File upload instead of paste-only interface
+- Flexible column mapping (users select which CSV column maps to each field)
+- School name matching: accepts school names (semicolon-separated) instead of requiring school IDs
+- Automatically matches school names to school IDs (case-insensitive)
+- Displays warnings for unmatched school names
+- Required fields: email, password, first_name, last_name
+- Optional field: schoolNames (semicolon-separated list)
+- schoolIds array correctly passed to backend for proper school assignment
+
+**Rubric CSV Import**:
+- File upload with column mapping interface
+- Groups multiple habits under the same category name
+- Required fields: categoryName, habitDescription
+- Imports new categories and habits into rubric system
+- Shows success toast with count of imported categories and habits
+
+**UI Improvements**:
+- Import CSV and Add Teacher buttons now visible in embedded App Management view
+- Larger dialog sizes (max-w-4xl) for CSV import to accommodate mapper interface
+- Import buttons disabled until all required fields are mapped
+
 ### Meetings & Conversations Refactor
 Separated Meetings and Conversations into distinct workflows with different field requirements:
 
