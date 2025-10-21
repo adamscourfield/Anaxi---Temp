@@ -6,6 +6,28 @@ Anaxi is a professional teacher observation and development platform for schools
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 21, 2025)
+
+### Meetings & Conversations Refactor
+Separated Meetings and Conversations into distinct workflows with different field requirements:
+
+**Meetings**:
+- Fields: type (Line Management/Department/Leadership), subject, details, minutes, attendees, action items
+- NO rating field
+- Meeting types changed from "two_person"/"group" to organizational types
+
+**Conversations**:
+- Fields: subject, details, rating (Best Practice/Neutral/Concern), attendees
+- NO type field, NO action items
+- Conversations never had a type field; action items only reference meetings table
+
+**Implementation Details**:
+- Conditional payload construction in mutation based on formType
+- Client-side validation ensures rating selection for conversations
+- Meetings table displays: Date, Type, Subject, Details (no Rating column)
+- Filter dropdown uses new meeting types only
+- Schema synced with database via `npm run db:push`
+
 ## System Architecture
 
 ### Frontend
