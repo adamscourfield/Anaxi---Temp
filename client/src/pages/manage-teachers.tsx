@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -376,10 +377,33 @@ export default function ManageTeachers() {
               <DialogHeader>
                 <DialogTitle>Import Teachers from CSV</DialogTitle>
                 <DialogDescription>
-                  Upload a CSV file with teacher information. Required columns: email, password, first_name, last_name, schoolIds (semicolon-separated)
+                  Paste CSV data with teacher information below
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
+                <Alert>
+                  <AlertDescription>
+                    <div className="space-y-2 text-sm">
+                      <div>
+                        <strong>Required CSV Format:</strong>
+                      </div>
+                      <div className="font-mono text-xs bg-muted/50 p-2 rounded">
+                        email,password,first_name,last_name,schoolIds
+                      </div>
+                      <div className="mt-2">
+                        <strong>Example:</strong>
+                      </div>
+                      <div className="font-mono text-xs bg-muted/50 p-2 rounded">
+                        john@school.com,Pass123,John,Doe,school-id-1;school-id-2
+                        <br />
+                        sarah@school.com,Pass456,Sarah,Smith,school-id-1
+                      </div>
+                      <div className="mt-2 text-muted-foreground">
+                        <strong>Note:</strong> For multiple schools, separate school IDs with semicolons (;)
+                      </div>
+                    </div>
+                  </AlertDescription>
+                </Alert>
                 <div>
                   <Label htmlFor="csv-data">CSV Data</Label>
                   <Textarea
