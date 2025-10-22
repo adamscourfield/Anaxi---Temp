@@ -145,7 +145,19 @@ export async function setupAuth(app: Express) {
   });
 
   // Logout route
-  app.post("/api/auth/logout", (req, res) => {
+  app.post("/api/auth/logout", async (req, res) => {
+    const stytchSessionToken = (req.session as any).stytchSessionToken;
+    
+    // Revoke Stytch session if it exists
+    if (stytchSessionToken) {
+      try {
+        await stytchAuth.revokeSession(stytchSessionToken);
+      } catch (error) {
+        console.error("[AUTH] Failed to revoke Stytch session:", error);
+        // Continue with logout even if Stytch revocation fails
+      }
+    }
+    
     req.session.destroy((err) => {
       if (err) {
         console.error("[AUTH] Logout error:", err);
@@ -189,9 +201,22 @@ export async function setupAuth(app: Express) {
 // Middleware to protect routes
 export const isAuthenticated: RequestHandler = async (req, res, next) => {
   const userId = (req.session as any).userId;
+  const stytchSessionToken = (req.session as any).stytchSessionToken;
 
   if (!userId) {
     return res.status(401).json({ message: "Unauthorized" });
+  }
+
+  // If user has a Stytch session, validate it
+  if (stytchSessionToken) {
+    try {
+      await stytchAuth.authenticateSession(stytchSessionToken);
+    } catch (error) {
+      console.error("[AUTH] Stytch session validation failed:", error);
+      // Stytch session is invalid/expired - destroy local session
+      req.session.destroy(() => {});
+      return res.status(401).json({ message: "Session expired. Please log in again." });
+    }
   }
 
   const user = await storage.getUser(userId);

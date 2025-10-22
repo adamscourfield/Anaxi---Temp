@@ -72,9 +72,22 @@ export interface EmailService {
   }): Promise<void>;
 }
 
+// Helper to safely send emails without throwing errors
+async function safeSendEmail<T>(
+  emailOperation: () => Promise<T>,
+  context: string
+): Promise<void> {
+  try {
+    await emailOperation();
+  } catch (error) {
+    console.error(`[EMAIL] ${context} failed:`, error);
+    // Never throw - email failures should not break core functionality
+  }
+}
+
 export const emailService: EmailService = {
   async sendObservationNotification({ to, teacherName, observerName, observationDate, observationId }) {
-    try {
+    await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
       const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
 
@@ -98,14 +111,11 @@ export const emailService: EmailService = {
           </div>
         `,
       });
-    } catch (error) {
-      console.error('[EMAIL] Failed to send observation notification:', error);
-      throw error;
-    }
+    }, 'Observation notification');
   },
 
   async sendFeedbackNotification({ to, teacherName, observerName, observationId }) {
-    try {
+    await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
       const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
 
@@ -129,14 +139,11 @@ export const emailService: EmailService = {
           </div>
         `,
       });
-    } catch (error) {
-      console.error('[EMAIL] Failed to send feedback notification:', error);
-      throw error;
-    }
+    }, 'Feedback notification');
   },
 
   async sendMeetingInvitation({ to, organizerName, meetingType, meetingSubject, meetingDate, meetingId }) {
-    try {
+    await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
       const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
 
@@ -163,14 +170,11 @@ export const emailService: EmailService = {
           </div>
         `,
       });
-    } catch (error) {
-      console.error('[EMAIL] Failed to send meeting invitation:', error);
-      throw error;
-    }
+    }, 'Meeting invitation');
   },
 
   async sendConversationNotification({ to, staffMemberName, conversationSubject, rating, conversationId }) {
-    try {
+    await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
       const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
 
@@ -205,9 +209,6 @@ export const emailService: EmailService = {
           </div>
         `,
       });
-    } catch (error) {
-      console.error('[EMAIL] Failed to send conversation notification:', error);
-      throw error;
-    }
+    }, 'Conversation notification');
   },
 };

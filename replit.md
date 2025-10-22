@@ -6,6 +6,51 @@ Anaxi is a professional teacher observation and development platform for schools
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 22, 2025)
+
+### Stytch Magic Link Authentication
+Replaced password-based authentication with Stytch magic link authentication:
+
+**Features**:
+- Passwordless login via email magic links
+- Stytch service module (`server/stytch.ts`) handles magic link operations
+- Session validation on every authenticated request
+- Automatic session revocation on logout
+- Legacy password support maintained for existing users
+
+**Implementation Details**:
+- POST `/api/auth/magic-link` - Sends magic link email
+- GET `/auth/verify` - Verifies magic link token and creates session
+- `isAuthenticated` middleware validates Stytch sessions on each request
+- Database schema updated with `stytch_user_id` field for user tracking
+- Frontend shows email input and confirmation screen
+
+**User Experience**:
+- Simple email-only login form
+- Clear "Check your email" confirmation screen
+- 15-minute magic link expiration
+- Secure session management
+
+### Resend Email Notifications
+Integrated Resend for automated email notifications:
+
+**Email Templates**:
+- **Conversations**: Notifies staff member when conversation is recorded
+- **Meetings**: Sends invitations to all attendees when meeting is created
+- **Observations**: (Ready for future implementation)
+- **Feedback**: (Ready for future implementation)
+
+**Implementation Details**:
+- Email service (`server/email.ts`) with professional HTML templates
+- Fire-and-forget email sending - failures don't break core functionality
+- All emails include direct links to relevant content
+- Automated sender configuration via Replit Resend connector
+
+**Error Handling**:
+- Email failures logged but never throw errors
+- Core API operations succeed even if email fails
+- Resilient design ensures platform reliability
+
 ## Recent Changes (October 21, 2025)
 
 ### Teacher Role Editing
