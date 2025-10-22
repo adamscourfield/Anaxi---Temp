@@ -84,9 +84,7 @@ async function safeSendEmail<T>(
   context: string
 ): Promise<void> {
   try {
-    console.log(`[EMAIL] Attempting to send: ${context}`);
-    const result = await emailOperation();
-    console.log(`[EMAIL] Successfully sent: ${context}`, result);
+    await emailOperation();
   } catch (error) {
     console.error(`[EMAIL] ${context} failed:`, error);
     // Never throw - email failures should not break core functionality
@@ -97,7 +95,9 @@ export const emailService: EmailService = {
   async sendObservationNotification({ to, teacherName, observerName, observationDate, observationId }) {
     await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
-      const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      const appUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
 
       await client.emails.send({
         from: fromEmail,
@@ -125,7 +125,9 @@ export const emailService: EmailService = {
   async sendFeedbackNotification({ to, teacherName, observerName, observationId }) {
     await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
-      const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      const appUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
 
       await client.emails.send({
         from: fromEmail,
@@ -153,7 +155,9 @@ export const emailService: EmailService = {
   async sendMeetingInvitation({ to, organizerName, meetingType, meetingSubject, meetingDate, meetingId }) {
     await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
-      const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      const appUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
 
       await client.emails.send({
         from: fromEmail,
@@ -184,7 +188,9 @@ export const emailService: EmailService = {
   async sendConversationNotification({ to, staffMemberName, conversationSubject, rating, conversationId }) {
     await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
-      const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      const appUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
 
       const ratingColors: Record<string, string> = {
         'Best Practice': '#10b981',
@@ -223,7 +229,9 @@ export const emailService: EmailService = {
   async sendPasswordResetEmail({ to, userName, resetToken }) {
     await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
-      const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+      const appUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
 
       await client.emails.send({
         from: fromEmail,
