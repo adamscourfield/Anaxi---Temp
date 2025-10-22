@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { CategorySelector } from "@/components/category-selector";
 import { HabitChecklist } from "@/components/habit-checklist";
 import { Button } from "@/components/ui/button";
@@ -15,165 +16,75 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import { Link } from "wouter";
+import { useSchool } from "@/hooks/use-school";
+import { useAuth } from "@/hooks/use-auth";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import type { Teacher, Category, Habit } from "@shared/schema";
 
-const categories = [
-  {
-    id: "1",
-    name: "Entrance and Do Now",
-    habitCount: 7,
-    habits: [
-      {
-        id: "h1",
-        text: "Do Now on board or distributed.",
-        description:
-          'Ensure your "Do Now" task is already displayed or handed out before students arrive.',
-      },
-      {
-        id: "h2",
-        text: "Uniforms checked and corrected silently.",
-        description:
-          "Quietly scan each pupil's uniform as they enter and use discreet gestures.",
-      },
-      {
-        id: "h3",
-        text: "Teacher positioned at threshold, greeting each pupil.",
-        description:
-          "Make sure you stand at the classroom door and personally welcome every student.",
-      },
-      {
-        id: "h4",
-        text: "Countdown used.",
-        description:
-          'Start a clear countdown (e.g., "20…19…18…") as soon as everyone is in.',
-      },
-      {
-        id: "h5",
-        text: "Students working within 20 seconds.",
-        description:
-          "Check that all pupils are writing or answering by twenty seconds into the task.",
-      },
-      {
-        id: "h6",
-        text: "Exercise books handed out by designated students.",
-        description:
-          "Confirm that your two pre-assigned book-handlers distribute exercise books quickly.",
-      },
-      {
-        id: "h7",
-        text: "All students seated silently within 5 seconds.",
-        description:
-          "Enforce a rapid transition into silence, with every pupil seated and focused.",
-      },
-    ],
-  },
-  {
-    id: "2",
-    name: "Direct Instruction",
-    habitCount: 4,
-    habits: [
-      {
-        id: "h8",
-        text: "One clear strategy of instruction is being used.",
-        description:
-          'Choose and stick to a single modelling approach (e.g., "Stop and Jot" or "Live Model").',
-      },
-      {
-        id: "h9",
-        text: "Pupils are actively participating (jotting, repeating, constructing).",
-        description:
-          "Check that every student is engaged—writing their notes, repeating key phrases.",
-      },
-      {
-        id: "h10",
-        text: "Modelling is visible and structured.",
-        description:
-          'Display each step of your thinking clearly on the board, using a consistent framework.',
-      },
-      {
-        id: "h11",
-        text: "Teacher checks for accuracy and understanding throughout.",
-        description:
-          "Cold-call different students regularly to confirm they've grasped each point.",
-      },
-    ],
-  },
-  {
-    id: "3",
-    name: "Checking for Understanding",
-    habitCount: 4,
-    habits: [
-      {
-        id: "h12",
-        text: "At least one strategy in use.",
-        description:
-          "Embed a check (e.g., mini-whiteboards, turn-and-talk or exit tickets) at least once every five minutes.",
-      },
-      {
-        id: "h13",
-        text: "Follow-up questions deepen thinking.",
-        description:
-          'After an initial answer, ask "Why?" or "Can you explain your reasoning?"',
-      },
-      {
-        id: "h14",
-        text: "Misconceptions are addressed instantly.",
-        description:
-          "As soon as you spot an error, pause the class briefly to correct the misunderstanding.",
-      },
-      {
-        id: "h15",
-        text: "Every pupil is participating (no opt out).",
-        description:
-          "Ensure you select reluctant or quieter students explicitly—no one should be able to sit out.",
-      },
-    ],
-  },
-  {
-    id: "4",
-    name: "Behaviour Routines and Sanctions",
-    habitCount: 5,
-    habits: [
-      {
-        id: "h16",
-        text: "Warnings delivered calmly and clearly.",
-        description:
-          "Use a steady, authoritative tone to give each warning—avoid raising your voice.",
-      },
-      {
-        id: "h17",
-        text: "Praise-to-warning ratio of 4:1 observed.",
-        description:
-          "Aim to catch and praise at least four positive behaviours for every correction you issue.",
-      },
-      {
-        id: "h18",
-        text: "Teacher maintains calm authority throughout.",
-        description:
-          "Remain composed and confident—even under challenge—to reinforce your status.",
-      },
-      {
-        id: "h19",
-        text: "No negotiation of consequences or arguing.",
-        description:
-          "Stick to the agreed system: once a warning is given, do not engage in debate.",
-      },
-      {
-        id: "h20",
-        text: "Pupils consistently corrected and re-engaged.",
-        description:
-          "Use silent cues or brief verbal reminders to bring any off-task student swiftly back on track.",
-      },
-    ],
-  },
-];
+interface CategoryWithHabits extends Category {
+  habits: Habit[];
+}
 
 export default function ConductObservation() {
-  const [teacher, setTeacher] = useState("");
+  const { currentSchoolId } = useSchool();
+  const { user } = useAuth();
+  const { toast } = useToast();
+
+  const [teacherId, setTeacherId] = useState("");
   const [lessonTopic, setLessonTopic] = useState("");
   const [classGroup, setClassGroup] = useState("");
   const [qualitativeFeedback, setQualitativeFeedback] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [checkedHabits, setCheckedHabits] = useState<string[]>([]);
+
+  // Fetch teachers for the current school
+  const { data: teachers = [], isLoading: teachersLoading } = useQuery<Teacher[]>({
+    queryKey: ["/api/teachers", currentSchoolId],
+    enabled: !!currentSchoolId,
+  });
+
+  // Fetch rubric and categories for the current school
+  const { data: rubrics = [] } = useQuery<any[]>({
+    queryKey: ["/api/rubrics", currentSchoolId],
+    enabled: !!currentSchoolId,
+  });
+
+  const rubricId = rubrics[0]?.id;
+
+  // Fetch categories for the rubric
+  const { data: categoriesData = [], isLoading: categoriesLoading } = useQuery<CategoryWithHabits[]>({
+    queryKey: ["/api/categories", rubricId],
+    enabled: !!rubricId,
+  });
+
+  const createObservationMutation = useMutation({
+    mutationFn: async (data: any) => {
+      return await apiRequest("POST", "/api/observations", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Observation saved",
+        description: "The teacher will receive an email notification.",
+      });
+      // Reset form
+      setTeacherId("");
+      setLessonTopic("");
+      setClassGroup("");
+      setQualitativeFeedback("");
+      setSelectedCategories([]);
+      setCheckedHabits([]);
+      // Invalidate observations cache
+      queryClient.invalidateQueries({ queryKey: ["/api/observations"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error saving observation",
+        description: error.message || "Failed to save observation",
+        variant: "destructive",
+      });
+    },
+  });
 
   const toggleCategory = (categoryId: string) => {
     setSelectedCategories((prev) =>
@@ -191,7 +102,7 @@ export default function ConductObservation() {
     );
   };
 
-  const selectedCategoryData = categories.filter((c) =>
+  const selectedCategoryData = categoriesData.filter((c) =>
     selectedCategories.includes(c.id)
   );
 
@@ -202,16 +113,52 @@ export default function ConductObservation() {
   );
 
   const handleSubmit = () => {
-    console.log("Submit observation:", {
-      teacher,
-      lessonTopic,
-      classGroup,
-      qualitativeFeedback,
-      categories: selectedCategories,
-      habits: checkedHabits,
-      score: `${totalScore}/${totalMaxScore}`,
+    if (!teacherId) {
+      toast({
+        title: "Please select a teacher",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!rubricId) {
+      toast({
+        title: "No rubric found",
+        description: "Please create a rubric first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (selectedCategories.length === 0) {
+      toast({
+        title: "Please select at least one category",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    createObservationMutation.mutate({
+      teacherId,
+      // observerId is set by backend from authenticated user
+      schoolId: currentSchoolId,
+      rubricId,
+      date: new Date().toISOString(),
+      lessonTopic: lessonTopic || null,
+      classInfo: classGroup || null,
+      qualitativeFeedback: qualitativeFeedback || null,
+      totalScore,
+      totalMaxScore,
     });
   };
+
+  if (!currentSchoolId) {
+    return (
+      <div className="p-6">
+        <p className="text-muted-foreground">Please select a school first.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-8">
@@ -247,15 +194,16 @@ export default function ConductObservation() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
               <Label htmlFor="teacher">Teacher to observe</Label>
-              <Select value={teacher} onValueChange={setTeacher}>
+              <Select value={teacherId} onValueChange={setTeacherId} disabled={teachersLoading}>
                 <SelectTrigger id="teacher" data-testid="select-teacher">
-                  <SelectValue placeholder="Select a teacher" />
+                  <SelectValue placeholder={teachersLoading ? "Loading..." : "Select a teacher"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="sarah">Sarah Mitchell</SelectItem>
-                  <SelectItem value="james">James Chen</SelectItem>
-                  <SelectItem value="emily">Emily Rodriguez</SelectItem>
-                  <SelectItem value="michael">Michael Thompson</SelectItem>
+                  {teachers.map((teacher) => (
+                    <SelectItem key={teacher.id} value={teacher.id}>
+                      {teacher.name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -294,33 +242,51 @@ export default function ConductObservation() {
         </CardContent>
       </Card>
 
-      <div>
-        <h2 className="text-xl font-semibold mb-4">Select Categories to Observe</h2>
-        <CategorySelector
-          categories={categories}
-          selectedCategories={selectedCategories}
-          onToggleCategory={toggleCategory}
-        />
-      </div>
-
-      {selectedCategoryData.length > 0 && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-semibold">Mark Observed Habits</h2>
-            <Button onClick={handleSubmit} data-testid="button-save-observation">
-              <Save className="h-4 w-4 mr-2" />
-              Save Observation
-            </Button>
-          </div>
-          {selectedCategoryData.map((category) => (
-            <HabitChecklist
-              key={category.id}
-              category={category}
-              checkedHabits={checkedHabits}
-              onToggleHabit={toggleHabit}
+      {categoriesLoading ? (
+        <p className="text-muted-foreground">Loading rubric...</p>
+      ) : categoriesData.length === 0 ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-muted-foreground">
+              No rubric found for this school. Please create a rubric first.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Select Categories to Observe</h2>
+            <CategorySelector
+              categories={categoriesData.map(c => ({ ...c, habitCount: c.habits.length }))}
+              selectedCategories={selectedCategories}
+              onToggleCategory={toggleCategory}
             />
-          ))}
-        </div>
+          </div>
+
+          {selectedCategoryData.length > 0 && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-semibold">Mark Observed Habits</h2>
+                <Button 
+                  onClick={handleSubmit} 
+                  disabled={createObservationMutation.isPending}
+                  data-testid="button-save-observation"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {createObservationMutation.isPending ? "Saving..." : "Save Observation"}
+                </Button>
+              </div>
+              {selectedCategoryData.map((category) => (
+                <HabitChecklist
+                  key={category.id}
+                  category={category}
+                  checkedHabits={checkedHabits}
+                  onToggleHabit={toggleHabit}
+                />
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

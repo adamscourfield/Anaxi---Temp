@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { DbStorage } from "./db-storage";
-import { insertTeacherSchema, insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema } from "@shared/schema";
+import { insertTeacherSchema, insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertObservationSchema } from "@shared/schema";
 import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -1493,6 +1493,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching observations:", error);
       res.status(500).json({ message: "Failed to fetch observations" });
+    }
+  });
+
+  app.post("/api/observations", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      
+      // Remove observerId from body and set it from authenticated user
+      const { observerId: _, ...bodyWithoutObserver } = req.body;
+      const validated = insertObservationSchema.parse({
+        ...bodyWithoutObserver,
+        observerId: user.id, // Set observer to authenticated user
+      });
+      
+      // Verify user has access to the school
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const hasAccess = userMemberships.some(m => m.schoolId === validated.schoolId);
+        
+        if (!hasAccess) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+      
+      const observation = await storage.createObservation(validated);
+      
+      // Send email notification to the teacher being observed (fire-and-forget)
+      void (async () => {
+        try {
+          const teacher = await storage.getTeacher(validated.teacherId);
+          const observer = await storage.getUser(validated.observerId);
+          
+          if (teacher?.email && observer) {
+            const teacherName = teacher.name;
+            const observerName = `${observer.first_name || ''} ${observer.last_name || ''}`.trim() || observer.email;
+            const observationDate = new Date(validated.date).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+            
+            await emailService.sendObservationNotification({
+              to: teacher.email,
+              teacherName,
+              observerName,
+              observationDate,
+              observationId: observation.id,
+            });
+          }
+        } catch (error) {
+          // Email errors are logged in emailService.safeSendEmail
+        }
+      })();
+      
+      res.status(201).json(observation);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid observation data", errors: error.errors });
+      }
+      console.error("Error creating observation:", error);
+      res.status(500).json({ message: "Failed to create observation" });
     }
   });
 
