@@ -22,6 +22,8 @@ import TeachingGroupDetails from "@/pages/teaching-group-details";
 import Meetings from "@/pages/meetings";
 import Profile from "@/pages/profile";
 import Landing from "@/pages/landing";
+import ForgotPassword from "@/pages/forgot-password";
+import ResetPassword from "@/pages/reset-password";
 
 function Router() {
   return (
@@ -52,6 +54,18 @@ function AppContent() {
       <div className="flex items-center justify-center h-screen">
         <div className="text-lg">Loading...</div>
       </div>
+    );
+  }
+
+  // Allow access to forgot-password and reset-password pages without login
+  const currentPath = window.location.pathname;
+  if (!user && (currentPath === "/forgot-password" || currentPath === "/reset-password")) {
+    return (
+      <Switch>
+        <Route path="/forgot-password" component={ForgotPassword} />
+        <Route path="/reset-password" component={ResetPassword} />
+        <Route path="/" component={Landing} />
+      </Switch>
     );
   }
 

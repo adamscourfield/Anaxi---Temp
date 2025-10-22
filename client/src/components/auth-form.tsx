@@ -3,85 +3,49 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, ArrowRight, CheckCircle2 } from "lucide-react";
+import { Mail, Lock, ArrowRight } from "lucide-react";
 
-const magicLinkSchema = z.object({
+const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
+  password: z.string().min(1, "Password is required"),
 });
 
-type MagicLinkFormData = z.infer<typeof magicLinkSchema>;
+type LoginFormData = z.infer<typeof loginSchema>;
 
 export function AuthForm() {
   const { toast } = useToast();
-  const [emailSent, setEmailSent] = useState(false);
-  const [sentEmail, setSentEmail] = useState("");
+  const [, navigate] = useLocation();
 
-  const { register, handleSubmit, formState: { errors } } = useForm<MagicLinkFormData>({
-    resolver: zodResolver(magicLinkSchema),
+  const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
   });
 
-  const magicLinkMutation = useMutation({
-    mutationFn: async (data: MagicLinkFormData) => {
-      const response = await apiRequest("POST", "/api/auth/magic-link", data);
+  const loginMutation = useMutation({
+    mutationFn: async (data: LoginFormData) => {
+      const response = await apiRequest("POST", "/api/auth/login", data);
       return await response.json();
     },
-    onSuccess: (_, variables) => {
-      setEmailSent(true);
-      setSentEmail(variables.email);
-      toast({
-        title: "Magic link sent!",
-        description: "Check your email to log in.",
-      });
+    onSuccess: () => {
+      window.location.href = "/";
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to send magic link",
+        title: "Login failed",
         description: error.message,
         variant: "destructive",
       });
     },
   });
 
-  const onSubmit = async (data: MagicLinkFormData) => {
-    await magicLinkMutation.mutateAsync(data);
+  const onSubmit = async (data: LoginFormData) => {
+    await loginMutation.mutateAsync(data);
   };
-
-  if (emailSent) {
-    return (
-      <div className="space-y-4 text-center py-8">
-        <div className="flex justify-center">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-            <CheckCircle2 className="w-8 h-8 text-primary" />
-          </div>
-        </div>
-        <div className="space-y-2">
-          <h2 className="text-2xl font-semibold">Check your email</h2>
-          <p className="text-muted-foreground">
-            We've sent a magic link to <span className="font-medium text-foreground">{sentEmail}</span>
-          </p>
-          <p className="text-sm text-muted-foreground pt-2">
-            Click the link in the email to log in. The link will expire in 15 minutes.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => {
-            setEmailSent(false);
-            setSentEmail("");
-          }}
-          className="mt-6"
-          data-testid="button-try-another-email"
-        >
-          Try another email
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -95,7 +59,7 @@ export function AuthForm() {
             placeholder="teacher@school.edu"
             className="pl-10"
             {...register("email")}
-            disabled={magicLinkMutation.isPending}
+            disabled={loginMutation.isPending}
             data-testid="input-email"
           />
         </div>
@@ -104,25 +68,50 @@ export function AuthForm() {
         )}
       </div>
 
+      <div className="space-y-2">
+        <Label htmlFor="password" className="text-base">Password</Label>
+        <div className="relative">
+          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            id="password"
+            type="password"
+            placeholder="Enter your password"
+            className="pl-10"
+            {...register("password")}
+            disabled={loginMutation.isPending}
+            data-testid="input-password"
+          />
+        </div>
+        {errors.password && (
+          <p className="text-sm text-destructive">{errors.password.message}</p>
+        )}
+      </div>
+
+      <div className="flex justify-end">
+        <a 
+          href="/forgot-password"
+          className="text-sm text-primary hover:underline"
+          data-testid="link-forgot-password"
+        >
+          Forgot password?
+        </a>
+      </div>
+
       <Button
         type="submit"
         className="w-full"
-        disabled={magicLinkMutation.isPending}
-        data-testid="button-submit"
+        disabled={loginMutation.isPending}
+        data-testid="button-login"
       >
-        {magicLinkMutation.isPending ? (
-          "Sending..."
+        {loginMutation.isPending ? (
+          "Logging in..."
         ) : (
           <>
-            Send magic link
+            Log in
             <ArrowRight className="ml-2 w-4 h-4" />
           </>
         )}
       </Button>
-
-      <p className="text-xs text-center text-muted-foreground pt-2">
-        We'll email you a secure link to log in without a password
-      </p>
     </form>
   );
 }

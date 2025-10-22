@@ -70,6 +70,12 @@ export interface EmailService {
     rating: string;
     conversationId: string;
   }): Promise<void>;
+
+  sendPasswordResetEmail(params: {
+    to: string;
+    userName: string;
+    resetToken: string;
+  }): Promise<void>;
 }
 
 // Helper to safely send emails without throwing errors
@@ -210,5 +216,36 @@ export const emailService: EmailService = {
         `,
       });
     }, 'Conversation notification');
+  },
+
+  async sendPasswordResetEmail({ to, userName, resetToken }) {
+    await safeSendEmail(async () => {
+      const { client, fromEmail } = await getUncachableResendClient();
+      const appUrl = process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000';
+
+      await client.emails.send({
+        from: fromEmail,
+        to,
+        subject: 'Reset Your Password - Anaxi',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Password Reset Request</h2>
+            <p>Hi ${userName},</p>
+            <p>We received a request to reset your password for your Anaxi account.</p>
+            <p>Click the button below to reset your password. This link will expire in 1 hour.</p>
+            <a href="${appUrl}/reset-password?token=${resetToken}" 
+               style="display: inline-block; padding: 12px 24px; background-color: #FF6B6B; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
+              Reset Password
+            </a>
+            <p style="color: #666; font-size: 14px;">
+              If you didn't request this password reset, you can safely ignore this email. Your password will remain unchanged.
+            </p>
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+              This is an automated message from Anaxi, your professional teacher observation platform.
+            </p>
+          </div>
+        `,
+      });
+    }, 'Password reset email');
   },
 };

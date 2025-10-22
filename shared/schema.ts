@@ -14,16 +14,18 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table with Stytch authentication
+// User storage table with email/password authentication
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  stytch_user_id: varchar("stytch_user_id").unique(), // Stytch user ID for magic link auth
+  stytch_user_id: varchar("stytch_user_id").unique(), // Legacy: Stytch user ID (deprecated)
   email: varchar("email").unique().notNull(),
-  password_hash: varchar("password_hash"), // Optional: legacy password auth (can be removed later)
+  password_hash: varchar("password_hash"), // Password hash for email/password auth (nullable for migration compatibility)
   first_name: varchar("first_name"),
   last_name: varchar("last_name"),
   profile_image_url: varchar("profile_image_url"),
   global_role: text("global_role"), // "Creator" for platform admins, null for regular users
+  reset_token: varchar("reset_token"), // Password reset token
+  reset_token_expires: timestamp("reset_token_expires"), // Password reset token expiration
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
 });

@@ -3,8 +3,10 @@ import session from "express-session";
 import connectPg from "connect-pg-simple";
 import type { Express, RequestHandler } from "express";
 import { z } from "zod";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { stytchAuth } from "./stytch";
+import { emailService } from "./email";
 
 const SALT_ROUNDS = 10;
 
@@ -112,7 +114,7 @@ export async function setupAuth(app: Express) {
     }
   });
 
-  // Legacy password login route (keep for existing users)
+  // Password login route
   app.post("/api/auth/login", async (req, res) => {
     try {
       const data = loginSchema.parse(req.body);
@@ -120,6 +122,11 @@ export async function setupAuth(app: Express) {
       // Find user
       const user = await storage.getUserByEmail(data.email);
       if (!user) {
+        return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Check if user has a password
+      if (!user.password_hash) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
 
@@ -141,6 +148,92 @@ export async function setupAuth(app: Express) {
       }
       console.error("[AUTH] Login error:", error);
       res.status(500).json({ message: "Failed to login" });
+    }
+  });
+
+  // Forgot password route - send reset email
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { email } = z.object({ email: z.string().email() }).parse(req.body);
+
+      // Find user
+      const user = await storage.getUserByEmail(email);
+      
+      // Always return success even if user doesn't exist (security best practice)
+      if (!user) {
+        return res.json({ message: "If an account exists with this email, you will receive a password reset link." });
+      }
+
+      // Generate reset token
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
+
+      // Save reset token to database
+      await storage.updateUser(user.id, {
+        reset_token: resetToken,
+        reset_token_expires: resetTokenExpires,
+      });
+
+      // Send password reset email (fire-and-forget)
+      void (async () => {
+        try {
+          await emailService.sendPasswordResetEmail({
+            to: user.email,
+            userName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'there',
+            resetToken,
+          });
+        } catch (error) {
+          console.error('[EMAIL] Failed to send password reset email:', error);
+        }
+      })();
+
+      res.json({ message: "If an account exists with this email, you will receive a password reset link." });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid email address" });
+      }
+      console.error("[AUTH] Forgot password error:", error);
+      res.status(500).json({ message: "Failed to process password reset request" });
+    }
+  });
+
+  // Reset password route - confirm with token
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { token, password } = z.object({
+        token: z.string(),
+        password: z.string().min(8),
+      }).parse(req.body);
+
+      // Find user by reset token
+      const user = await storage.getUserByResetToken(token);
+      
+      if (!user || !user.reset_token_expires) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Check if token is expired
+      if (new Date() > user.reset_token_expires) {
+        return res.status(400).json({ message: "Invalid or expired reset token" });
+      }
+
+      // Hash new password
+      const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
+
+      // Update user password and clear reset token
+      await storage.updateUser(user.id, {
+        password_hash,
+        reset_token: null,
+        reset_token_expires: null,
+      });
+
+      res.json({ message: "Password reset successfully. You can now log in with your new password." });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      console.error("[AUTH] Reset password error:", error);
+      res.status(500).json({ message: "Failed to reset password" });
     }
   });
 
