@@ -3,7 +3,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,6 +44,10 @@ export default function ResetPassword() {
       return await response.json();
     },
     onSuccess: () => {
+      // Clear authentication state to ensure clean login
+      queryClient.setQueryData(['/api/auth/user'], null);
+      queryClient.clear();
+      
       toast({
         title: "Password reset successful",
         description: "You can now log in with your new password.",
