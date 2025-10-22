@@ -37,7 +37,7 @@ Integrated Resend for automated email notifications:
 **Email Templates**:
 - **Conversations**: Notifies staff member when conversation is recorded
 - **Meetings**: Sends invitations to all attendees when meeting is created
-- **Observations**: (Ready for future implementation)
+- **Observations**: Notifies teacher when observation is created
 - **Feedback**: (Ready for future implementation)
 
 **Implementation Details**:
@@ -50,6 +50,28 @@ Integrated Resend for automated email notifications:
 - Email failures logged but never throw errors
 - Core API operations succeed even if email fails
 - Resilient design ensures platform reliability
+
+### Observation Creation
+Implemented observation creation workflow with email notifications:
+
+**Backend Features**:
+- POST `/api/observations` endpoint for creating observations
+- Observer ID derived server-side from authenticated user (prevents impersonation)
+- Access control: users can only create observations for schools they belong to
+- Fire-and-forget email notification to teacher being observed
+- Email includes observer name, teacher name, observation date, and link to observation
+
+**Frontend Integration**:
+- Updated conduct observation page to fetch real data (teachers, rubrics, categories, habits)
+- Integrated with backend using TanStack Query for data fetching and mutations
+- Proper form validation and error handling
+- Success/error toast notifications
+- Form resets after successful submission
+
+**Security**:
+- Critical fix: observerId no longer accepted from client payload
+- Backend sets observerId from req.user.id to prevent observer impersonation
+- School membership validation ensures users can only observe teachers in their schools
 
 ## Recent Changes (October 21, 2025)
 
