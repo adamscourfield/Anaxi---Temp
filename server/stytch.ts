@@ -49,6 +49,9 @@ export const stytchAuth: StytchAuthService = {
     const baseUrl = getBaseUrl();
     const verifyUrl = `${baseUrl}/auth/verify`;
     
+    console.log('[STYTCH] Attempting to send magic link with URL:', verifyUrl);
+    console.log('[STYTCH] REPLIT_DEV_DOMAIN:', process.env.REPLIT_DEV_DOMAIN);
+    
     const response = await stytchClient.magicLinks.email.loginOrCreate({
       email,
       login_magic_link_url: verifyUrl,
