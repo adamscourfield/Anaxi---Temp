@@ -57,14 +57,13 @@ function AppContent() {
     );
   }
 
-  // Allow access to forgot-password and reset-password pages without login
+  // Allow access to forgot-password and reset-password pages regardless of login state
   const currentPath = window.location.pathname;
-  if (!user && (currentPath === "/forgot-password" || currentPath === "/reset-password")) {
+  if (currentPath === "/forgot-password" || currentPath === "/reset-password") {
     return (
       <Switch>
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
-        <Route path="/" component={Landing} />
       </Switch>
     );
   }
