@@ -8,28 +8,37 @@ Preferred communication style: Simple, everyday language.
 
 ## Recent Changes (October 22, 2025)
 
-### Stytch Magic Link Authentication
-Replaced password-based authentication with Stytch magic link authentication:
+### Password Reset Implementation
+Implemented secure password reset functionality with email notifications:
 
 **Features**:
-- Passwordless login via email magic links
-- Stytch service module (`server/stytch.ts`) handles magic link operations
-- Session validation on every authenticated request
-- Automatic session revocation on logout
-- Legacy password support maintained for existing users
+- Email/password authentication with password reset capability
+- Secure token generation using crypto.randomBytes (32 bytes)
+- 1-hour token expiration for security
+- Fire-and-forget email delivery pattern
+- Generic error messages for security (same response whether email exists or not)
 
 **Implementation Details**:
-- POST `/api/auth/magic-link` - Sends magic link email
-- GET `/auth/verify` - Verifies magic link token and creates session
-- `isAuthenticated` middleware validates Stytch sessions on each request
-- Database schema updated with `stytch_user_id` field for user tracking
-- Frontend shows email input and confirmation screen
+- POST `/api/auth/forgot-password` - Generates reset token, sends email with reset link
+- POST `/api/auth/reset-password` - Validates token, updates password, clears token
+- Database schema includes `reset_token` and `reset_token_expires` fields
+- `password_hash` is nullable for backward compatibility with legacy accounts
+- Email service (`server/email.ts`) includes professional password reset template
+- Frontend pages: `/forgot-password` and `/reset-password` with public access
 
 **User Experience**:
-- Simple email-only login form
-- Clear "Check your email" confirmation screen
-- 15-minute magic link expiration
-- Secure session management
+- "Forgot password?" link on login page
+- Email input form for password reset request
+- Password reset form with new password and confirm password fields
+- Clear confirmation messages and automatic redirect to login
+- Minimum 8 character password requirement
+
+**Security Features**:
+- Reset tokens expire after 1 hour
+- Tokens cleared immediately after use
+- Bcrypt password hashing (10 salt rounds)
+- Generic error messages prevent user enumeration
+- Server-side token validation
 
 ### Resend Email Notifications
 Integrated Resend for automated email notifications:
