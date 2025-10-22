@@ -84,7 +84,9 @@ async function safeSendEmail<T>(
   context: string
 ): Promise<void> {
   try {
-    await emailOperation();
+    console.log(`[EMAIL] Attempting to send: ${context}`);
+    const result = await emailOperation();
+    console.log(`[EMAIL] Successfully sent: ${context}`, result);
   } catch (error) {
     console.error(`[EMAIL] ${context} failed:`, error);
     // Never throw - email failures should not break core functionality

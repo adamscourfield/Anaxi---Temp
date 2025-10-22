@@ -175,15 +175,18 @@ export async function setupAuth(app: Express) {
       });
 
       // Send password reset email (fire-and-forget)
+      console.log('[AUTH] Starting password reset email send...');
       void (async () => {
         try {
+          console.log('[AUTH] Calling emailService.sendPasswordResetEmail');
           await emailService.sendPasswordResetEmail({
             to: user.email,
             userName: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'there',
             resetToken,
           });
+          console.log('[AUTH] Email service call completed');
         } catch (error) {
-          console.error('[EMAIL] Failed to send password reset email:', error);
+          console.error('[AUTH] Failed to send password reset email:', error);
         }
       })();
 
