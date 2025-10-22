@@ -14,11 +14,12 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table with email/password authentication
+// User storage table with Stytch authentication
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  stytch_user_id: varchar("stytch_user_id").unique(), // Stytch user ID for magic link auth
   email: varchar("email").unique().notNull(),
-  password_hash: varchar("password_hash").notNull(),
+  password_hash: varchar("password_hash"), // Optional: legacy password auth (can be removed later)
   first_name: varchar("first_name"),
   last_name: varchar("last_name"),
   profile_image_url: varchar("profile_image_url"),
