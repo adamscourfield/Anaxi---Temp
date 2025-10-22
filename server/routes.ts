@@ -827,20 +827,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const conversation = await storage.createConversation(validated);
       
       // Send email notification to the staff member (fire and forget - errors handled internally)
-      const staffMember = await storage.getMembership(validated.staffMemberId);
-      const staffUser = await storage.getUser(staffMember.userId);
-      
-      if (staffUser?.email) {
-        const staffName = `${staffUser.first_name || ''} ${staffUser.last_name || ''}`.trim() || staffUser.email;
-        
-        emailService.sendConversationNotification({
-          to: staffUser.email,
-          staffMemberName: staffName,
-          conversationSubject: validated.subject,
-          rating: validated.rating,
-          conversationId: conversation.id,
-        }).catch(() => {}); // Fire and forget
-      }
+      void (async () => {
+        try {
+          const staffMember = await storage.getMembership(validated.staffMemberId);
+          const staffUser = await storage.getUser(staffMember.userId);
+          
+          if (staffUser?.email) {
+            const staffName = `${staffUser.first_name || ''} ${staffUser.last_name || ''}`.trim() || staffUser.email;
+            
+            await emailService.sendConversationNotification({
+              to: staffUser.email,
+              staffMemberName: staffName,
+              conversationSubject: validated.subject,
+              rating: validated.rating,
+              conversationId: conversation.id,
+            });
+          }
+        } catch (error) {
+          // Email errors are logged in emailService.safeSendEmail
+        }
+      })();
       
       res.status(201).json(conversation);
     } catch (error) {
@@ -927,35 +933,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const meeting = await storage.createMeeting(validated);
       
       // Send email notifications to attendees (fire and forget - errors handled internally)
-      if (validated.attendeeIds && validated.attendeeIds.length > 0) {
-        const attendeeEmails: string[] = [];
-        for (const membershipId of validated.attendeeIds) {
-          const membership = await storage.getMembership(membershipId);
-          const attendeeUser = await storage.getUser(membership.userId);
-          if (attendeeUser?.email) {
-            attendeeEmails.push(attendeeUser.email);
+      void (async () => {
+        try {
+          if (validated.attendeeIds && validated.attendeeIds.length > 0) {
+            const attendeeEmails: string[] = [];
+            for (const membershipId of validated.attendeeIds) {
+              const membership = await storage.getMembership(membershipId);
+              const attendeeUser = await storage.getUser(membership.userId);
+              if (attendeeUser?.email) {
+                attendeeEmails.push(attendeeUser.email);
+              }
+            }
+            
+            if (attendeeEmails.length > 0) {
+              const organizerName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'A colleague';
+              const meetingDate = new Date(validated.meetingDate).toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              });
+              
+              await emailService.sendMeetingInvitation({
+                to: attendeeEmails,
+                organizerName,
+                meetingType: validated.type,
+                meetingSubject: validated.subject,
+                meetingDate,
+                meetingId: meeting.id,
+              });
+            }
           }
+        } catch (error) {
+          // Email errors are logged in emailService.safeSendEmail
         }
-        
-        if (attendeeEmails.length > 0) {
-          const organizerName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'A colleague';
-          const meetingDate = new Date(validated.meetingDate).toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          });
-          
-          emailService.sendMeetingInvitation({
-            to: attendeeEmails,
-            organizerName,
-            meetingType: validated.type,
-            meetingSubject: validated.subject,
-            meetingDate,
-            meetingId: meeting.id,
-          }).catch(() => {}); // Fire and forget
-        }
-      }
+      })();
       
       res.status(201).json(meeting);
     } catch (error) {

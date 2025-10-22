@@ -27,12 +27,32 @@ export interface StytchAuthService {
   revokeSession(sessionToken: string): Promise<void>;
 }
 
+// Helper to get the correct base URL for magic links
+function getBaseUrl(): string {
+  const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+  
+  if (replitDomain) {
+    // Ensure REPLIT_DEV_DOMAIN uses https (Stytch requires it)
+    return replitDomain.startsWith('http://') 
+      ? replitDomain.replace('http://', 'https://')
+      : replitDomain.startsWith('https://')
+        ? replitDomain
+        : `https://${replitDomain}`;
+  }
+  
+  // For local development, use http
+  return 'http://localhost:5000';
+}
+
 export const stytchAuth: StytchAuthService = {
   async sendMagicLink(email: string) {
+    const baseUrl = getBaseUrl();
+    const verifyUrl = `${baseUrl}/auth/verify`;
+    
     const response = await stytchClient.magicLinks.email.loginOrCreate({
       email,
-      login_magic_link_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/auth/verify`,
-      signup_magic_link_url: `${process.env.REPLIT_DEV_DOMAIN || 'http://localhost:5000'}/auth/verify`,
+      login_magic_link_url: verifyUrl,
+      signup_magic_link_url: verifyUrl,
     });
 
     return {
