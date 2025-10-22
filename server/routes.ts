@@ -7,6 +7,7 @@ import { z } from "zod";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
 import { setupAuth, isAuthenticated, hashPassword } from "./auth";
+import { emailService } from "./email";
 
 const storage = new DbStorage();
 
@@ -821,8 +822,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/conversations", isAuthenticated, async (req, res) => {
     try {
+      const user = req.user!;
       const validated = insertConversationSchema.parse(req.body);
       const conversation = await storage.createConversation(validated);
+      
+      // Send email notification to the staff member
+      try {
+        const staffMember = await storage.getMembership(validated.staffMemberId);
+        const staffUser = await storage.getUser(staffMember.userId);
+        
+        if (staffUser?.email) {
+          const staffName = `${staffUser.first_name || ''} ${staffUser.last_name || ''}`.trim() || staffUser.email;
+          
+          await emailService.sendConversationNotification({
+            to: staffUser.email,
+            staffMemberName: staffName,
+            conversationSubject: validated.subject,
+            rating: validated.rating,
+            conversationId: conversation.id,
+          });
+        }
+      } catch (emailError) {
+        console.error('[CONVERSATION] Failed to send email notification:', emailError);
+        // Don't fail the request if email fails
+      }
+      
       res.status(201).json(conversation);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -906,6 +930,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const meeting = await storage.createMeeting(validated);
+      
+      // Send email notifications to attendees
+      if (validated.attendeeIds && validated.attendeeIds.length > 0) {
+        try {
+          const attendeeEmails: string[] = [];
+          for (const membershipId of validated.attendeeIds) {
+            const membership = await storage.getMembership(membershipId);
+            const attendeeUser = await storage.getUser(membership.userId);
+            if (attendeeUser?.email) {
+              attendeeEmails.push(attendeeUser.email);
+            }
+          }
+          
+          if (attendeeEmails.length > 0) {
+            const organizerName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email || 'A colleague';
+            const meetingDate = new Date(validated.meetingDate).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+            
+            await emailService.sendMeetingInvitation({
+              to: attendeeEmails,
+              organizerName,
+              meetingType: validated.type,
+              meetingSubject: validated.subject,
+              meetingDate,
+              meetingId: meeting.id,
+            });
+          }
+        } catch (emailError) {
+          console.error('[MEETING] Failed to send email notifications:', emailError);
+          // Don't fail the request if email fails
+        }
+      }
+      
       res.status(201).json(meeting);
     } catch (error) {
       if (error instanceof z.ZodError) {
