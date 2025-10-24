@@ -16,7 +16,7 @@ type Role = "Teacher" | "Leader" | "Admin";
 type GlobalRole = "Creator";
 
 // Middleware to require Creator global role
-async function requireCreator() {
+function requireCreator() {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       const user = (req as any).user;
@@ -40,7 +40,7 @@ async function requireCreator() {
   };
 }
 
-async function requireRole(allowedRoles: Role[]) {
+function requireRole(allowedRoles: Role[]) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
       // Get user from authenticated session (set by isAuthenticated middleware)
@@ -131,7 +131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/schools", isAuthenticated, await requireCreator(), async (req, res) => {
+  app.post("/api/schools", isAuthenticated, requireCreator(), async (req, res) => {
     try {
       const validated = insertSchoolSchema.parse(req.body);
       const school = await storage.createSchool(validated);
@@ -145,7 +145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/schools/:id", isAuthenticated, await requireCreator(), async (req, res) => {
+  app.patch("/api/schools/:id", isAuthenticated, requireCreator(), async (req, res) => {
     try {
       const { id } = req.params;
       const school = await storage.updateSchool(id, req.body);
@@ -159,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/schools/:id", isAuthenticated, await requireCreator(), async (req, res) => {
+  app.delete("/api/schools/:id", isAuthenticated, requireCreator(), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteSchool(id);
@@ -381,8 +381,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      const includeArchived = req.query.includeArchived === "true";
+      
+      // Only Creators can view archived users
+      if (includeArchived && user.global_role !== "Creator") {
+        return res.status(403).json({ message: "Forbidden: Only Creators can view archived users" });
+      }
+
       const users = await storage.getAllUsers();
-      res.json(users);
+      // Filter out archived users unless specifically requested by Creator
+      const filteredUsers = includeArchived ? users : users.filter(u => !u.archived);
+      res.json(filteredUsers);
     } catch (error) {
       console.error("Error fetching teachers:", error);
       res.status(500).json({ message: "Failed to fetch teachers" });
@@ -640,6 +649,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Archive user (Creator only)
+  app.post("/api/users/:userId/archive", isAuthenticated, requireCreator(), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Update user to archived status
+      const updatedUser = await storage.updateUser(userId, { archived: true });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ message: "User archived successfully", user: updatedUser });
+    } catch (error) {
+      console.error("Error archiving user:", error);
+      res.status(500).json({ message: "Failed to archive user" });
+    }
+  });
+
+  // Unarchive user (Creator only)
+  app.post("/api/users/:userId/unarchive", isAuthenticated, requireCreator(), async (req: any, res) => {
+    try {
+      const { userId } = req.params;
+      
+      // Update user to unarchived status
+      const updatedUser = await storage.updateUser(userId, { archived: false });
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      res.json({ message: "User unarchived successfully", user: updatedUser });
+    } catch (error) {
+      console.error("Error unarchiving user:", error);
+      res.status(500).json({ message: "Failed to unarchive user" });
+    }
+  });
+
   // Teaching Groups routes
   app.get("/api/teaching-groups", isAuthenticated, async (req, res) => {
     const schoolId = req.query.schoolId as string;
@@ -651,7 +698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(groups);
   });
 
-  app.post("/api/teaching-groups", await requireRole(["Admin"]), async (req, res) => {
+  app.post("/api/teaching-groups", requireRole(["Admin"]), async (req, res) => {
     try {
       const validated = insertTeachingGroupSchema.parse(req.body);
       const group = await storage.createTeachingGroup(validated);
@@ -664,7 +711,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/teaching-groups/:id", await requireRole(["Admin"]), async (req, res) => {
+  app.patch("/api/teaching-groups/:id", requireRole(["Admin"]), async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -680,7 +727,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/teaching-groups/:id", await requireRole(["Admin"]), async (req, res) => {
+  app.delete("/api/teaching-groups/:id", requireRole(["Admin"]), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteTeachingGroup(id);

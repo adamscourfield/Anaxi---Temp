@@ -24,6 +24,7 @@ export const users = pgTable("users", {
   last_name: varchar("last_name"),
   profile_image_url: varchar("profile_image_url"),
   global_role: text("global_role"), // "Creator" for platform admins, null for regular users
+  archived: boolean("archived").default(false).notNull(), // Archived users cannot log in or be assigned observations
   reset_token: varchar("reset_token"), // Password reset token
   reset_token_expires: timestamp("reset_token_expires"), // Password reset token expiration
   created_at: timestamp("created_at").defaultNow(),

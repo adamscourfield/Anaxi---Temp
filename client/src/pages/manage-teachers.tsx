@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Upload, Search, Pencil, Users } from "lucide-react";
+import { Plus, Upload, Search, Pencil, Users, Archive, ArchiveRestore } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -59,9 +59,17 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [assignedSchools, setAssignedSchools] = useState<string[]>([]);
 
-  // Fetch all teachers
+  // Fetch all teachers (include archived for Creators)
   const { data: teachers = [], isLoading: teachersLoading } = useQuery<User[]>({
-    queryKey: ["/api/users/teachers"],
+    queryKey: ["/api/users/teachers", isCreator ? "includeArchived" : "activeOnly"],
+    queryFn: async () => {
+      const url = isCreator 
+        ? "/api/users/teachers?includeArchived=true"
+        : "/api/users/teachers";
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Failed to fetch teachers");
+      return response.json();
+    },
     enabled: !authLoading,
   });
 
@@ -213,6 +221,48 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       toast({
         title: "Error",
         description: error.message || "Failed to update role",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Archive user mutation (Creator only)
+  const archiveUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest("POST", `/api/users/${userId}/archive`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/teachers"] });
+      toast({
+        title: "User archived",
+        description: "The user has been archived and can no longer log in or participate in observations.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to archive user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Unarchive user mutation (Creator only)
+  const unarchiveUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await apiRequest("POST", `/api/users/${userId}/unarchive`, {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/users/teachers"] });
+      toast({
+        title: "User unarchived",
+        description: "The user has been restored and can now log in and participate in observations.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to unarchive user",
         variant: "destructive",
       });
     },
@@ -705,11 +755,14 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                     : "—";
 
                   return (
-                    <TableRow key={teacher.id} data-testid={`row-teacher-${teacher.id}`}>
+                    <TableRow key={teacher.id} data-testid={`row-teacher-${teacher.id}`} className={teacher.archived ? "opacity-60" : ""}>
                       <TableCell className="font-medium">
                         {displayName}
                         {teacher.global_role === "Creator" && (
                           <Badge variant="default" className="ml-2">Creator</Badge>
+                        )}
+                        {teacher.archived && (
+                          <Badge variant="outline" className="ml-2">Archived</Badge>
                         )}
                       </TableCell>
                       <TableCell>{teacher.email}</TableCell>
@@ -733,6 +786,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                             size="icon"
                             onClick={() => handleEditTeacher(teacher)}
                             data-testid={`button-edit-${teacher.id}`}
+                            disabled={teacher.archived}
                           >
                             <Pencil className="w-4 h-4" />
                           </Button>
@@ -741,9 +795,33 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                             size="icon"
                             onClick={() => handleAssignSchools(teacher)}
                             data-testid={`button-assign-schools-${teacher.id}`}
+                            disabled={teacher.archived}
                           >
                             <Users className="w-4 h-4" />
                           </Button>
+                          {isCreator && (
+                            teacher.archived ? (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => unarchiveUserMutation.mutate(teacher.id)}
+                                data-testid={`button-unarchive-${teacher.id}`}
+                                disabled={unarchiveUserMutation.isPending}
+                              >
+                                <ArchiveRestore className="w-4 h-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => archiveUserMutation.mutate(teacher.id)}
+                                data-testid={`button-archive-${teacher.id}`}
+                                disabled={archiveUserMutation.isPending}
+                              >
+                                <Archive className="w-4 h-4" />
+                              </Button>
+                            )
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>

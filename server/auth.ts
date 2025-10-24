@@ -96,6 +96,11 @@ export async function setupAuth(app: Express) {
         return res.redirect("/?error=no_account");
       }
 
+      // Check if user is archived
+      if (user.archived) {
+        return res.redirect("/?error=account_archived");
+      }
+
       // Update user's Stytch ID if not set
       if (!user.stytch_user_id) {
         await storage.updateUser(user.id, { stytch_user_id: stytchResult.user_id });
@@ -134,6 +139,11 @@ export async function setupAuth(app: Express) {
       const validPassword = await bcrypt.compare(data.password, user.password_hash);
       if (!validPassword) {
         return res.status(401).json({ message: "Invalid credentials" });
+      }
+
+      // Check if user is archived
+      if (user.archived) {
+        return res.status(403).json({ message: "This account has been archived and can no longer log in" });
       }
 
       // Set session
