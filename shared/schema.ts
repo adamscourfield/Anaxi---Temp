@@ -71,21 +71,8 @@ export const insertSchoolMembershipSchema = createInsertSchema(schoolMemberships
 export type InsertSchoolMembership = z.infer<typeof insertSchoolMembershipSchema>;
 export type SchoolMembership = typeof schoolMemberships.$inferSelect;
 
-// DEPRECATED: Legacy teachers table - will be removed after migration to school_memberships
-export const teachers = pgTable("teachers", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id),
-  schoolId: varchar("school_id").notNull().references(() => schools.id),
-  name: text("name").notNull(),
-  email: text("email"),
-  role: text("role").notNull().default("Teacher"),
-  profilePicture: text("profile_picture"),
-  groupId: varchar("group_id").references(() => teachingGroups.id),
-});
-
-export const insertTeacherSchema = createInsertSchema(teachers).omit({ id: true });
-export type InsertTeacher = z.infer<typeof insertTeacherSchema>;
-export type Teacher = typeof teachers.$inferSelect;
+// Teachers are now represented as users with school_memberships
+// The legacy teachers table has been removed - use users + school_memberships instead
 
 export const rubrics = pgTable("rubrics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -122,7 +109,7 @@ export type Habit = typeof habits.$inferSelect;
 
 export const observations = pgTable("observations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  teacherId: varchar("teacher_id").notNull().references(() => teachers.id),
+  teacherId: varchar("teacher_id").notNull().references(() => users.id), // References users (teachers are users)
   observerId: varchar("observer_id").notNull().references(() => users.id),
   schoolId: varchar("school_id").notNull().references(() => schools.id),
   rubricId: varchar("rubric_id").notNull().references(() => rubrics.id),
@@ -154,7 +141,7 @@ export type ObservationHabit = typeof observationHabits.$inferSelect;
 export const conversations = pgTable("conversations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   schoolId: varchar("school_id").notNull().references(() => schools.id),
-  teacherId: varchar("teacher_id").notNull().references(() => teachers.id),
+  teacherId: varchar("teacher_id").notNull().references(() => users.id), // References users (teachers are users)
   subject: text("subject").notNull(),
   details: text("details").notNull(),
   rating: text("rating").notNull(),

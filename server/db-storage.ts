@@ -3,8 +3,6 @@ import { eq, and, desc, inArray } from "drizzle-orm";
 import { 
   type User, 
   type InsertUser, 
-  type Teacher, 
-  type InsertTeacher,
   type SchoolMembership,
   type InsertSchoolMembership,
   type School,
@@ -22,7 +20,6 @@ import {
   type MeetingAction,
   type InsertMeetingAction,
   users,
-  teachers,
   schoolMemberships,
   schools,
   teachingGroups,
@@ -139,36 +136,6 @@ export class DbStorage implements IStorage {
 
   async deleteMembership(id: string): Promise<boolean> {
     const result = await db.delete(schoolMemberships).where(eq(schoolMemberships.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
-  }
-
-  // Teachers (DEPRECATED - use School Memberships instead)
-  async getTeachersBySchool(schoolId: string): Promise<Teacher[]> {
-    return await db.select().from(teachers).where(eq(teachers.schoolId, schoolId));
-  }
-
-  async getTeacher(id: string): Promise<Teacher | undefined> {
-    const [teacher] = await db.select().from(teachers).where(eq(teachers.id, id));
-    return teacher;
-  }
-
-  async getTeacherByUserId(userId: string): Promise<Teacher | undefined> {
-    const [teacher] = await db.select().from(teachers).where(eq(teachers.userId, userId));
-    return teacher;
-  }
-
-  async createTeacher(insertTeacher: InsertTeacher): Promise<Teacher> {
-    const [teacher] = await db.insert(teachers).values(insertTeacher).returning();
-    return teacher;
-  }
-
-  async updateTeacher(id: string, updates: Partial<Teacher>): Promise<Teacher | undefined> {
-    const [teacher] = await db.update(teachers).set(updates).where(eq(teachers.id, id)).returning();
-    return teacher;
-  }
-
-  async deleteTeacher(id: string): Promise<boolean> {
-    const result = await db.delete(teachers).where(eq(teachers.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 

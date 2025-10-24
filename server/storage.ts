@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type Teacher, type InsertTeacher, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction } from "@shared/schema";
+import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -28,14 +28,6 @@ export interface IStorage {
   createMembership(membership: InsertSchoolMembership): Promise<SchoolMembership>;
   updateMembership(id: string, updates: Partial<SchoolMembership>): Promise<SchoolMembership | undefined>;
   deleteMembership(id: string): Promise<boolean>;
-  
-  // Teachers (DEPRECATED - use School Memberships instead)
-  getTeachersBySchool(schoolId: string): Promise<Teacher[]>;
-  getTeacher(id: string): Promise<Teacher | undefined>;
-  getTeacherByUserId(userId: string): Promise<Teacher | undefined>;
-  createTeacher(teacher: InsertTeacher): Promise<Teacher>;
-  updateTeacher(id: string, updates: Partial<Teacher>): Promise<Teacher | undefined>;
-  deleteTeacher(id: string): Promise<boolean>;
   
   // Teaching Groups
   getTeachingGroupsBySchool(schoolId: string): Promise<TeachingGroup[]>;
@@ -76,13 +68,11 @@ export interface IStorage {
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
-  private teachers: Map<string, Teacher>;
   private teachingGroups: Map<string, TeachingGroup>;
   private conversations: Map<string, Conversation>;
 
   constructor() {
     this.users = new Map();
-    this.teachers = new Map();
     this.teachingGroups = new Map();
     this.conversations = new Map();
     
@@ -96,81 +86,24 @@ export class MemStorage implements IStorage {
       id: "group-1",
       schoolId,
       name: "English Department",
-      groupLeadId: "teacher-1",
+      groupLeadId: null,
     };
     const mathGroup: TeachingGroup = {
       id: "group-2",
       schoolId,
       name: "Mathematics",
-      groupLeadId: "teacher-2",
+      groupLeadId: null,
     };
     const scienceGroup: TeachingGroup = {
       id: "group-3",
       schoolId,
       name: "Science Team",
-      groupLeadId: "teacher-3",
+      groupLeadId: null,
     };
     
     this.teachingGroups.set(englishGroup.id, englishGroup);
     this.teachingGroups.set(mathGroup.id, mathGroup);
     this.teachingGroups.set(scienceGroup.id, scienceGroup);
-    
-    const teachers: Teacher[] = [
-      {
-        id: "teacher-1",
-        userId: null,
-        schoolId,
-        name: "Sarah Mitchell",
-        email: "s.mitchell@school.edu",
-        role: "Teacher",
-        profilePicture: null,
-        groupId: "group-1",
-      },
-      {
-        id: "teacher-2",
-        userId: null,
-        schoolId,
-        name: "James Chen",
-        email: "j.chen@school.edu",
-        role: "Leader",
-        profilePicture: null,
-        groupId: "group-2",
-      },
-      {
-        id: "teacher-3",
-        userId: null,
-        schoolId,
-        name: "Emily Rodriguez",
-        email: "e.rodriguez@school.edu",
-        role: "Admin",
-        profilePicture: null,
-        groupId: "group-3",
-      },
-      {
-        id: "teacher-4",
-        userId: null,
-        schoolId,
-        name: "Michael Thompson",
-        email: "m.thompson@school.edu",
-        role: "Teacher",
-        profilePicture: null,
-        groupId: "group-1",
-      },
-      {
-        id: "teacher-5",
-        userId: null,
-        schoolId,
-        name: "Lisa Anderson",
-        email: "l.anderson@school.edu",
-        role: "Teacher",
-        profilePicture: null,
-        groupId: null,
-      },
-    ];
-    
-    teachers.forEach(teacher => {
-      this.teachers.set(teacher.id, teacher);
-    });
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -259,49 +192,6 @@ export class MemStorage implements IStorage {
 
   async deleteMembership(id: string): Promise<boolean> {
     throw new Error("School memberships not implemented in MemStorage");
-  }
-
-  // Teachers (DEPRECATED)
-  async getTeachersBySchool(schoolId: string): Promise<Teacher[]> {
-    return Array.from(this.teachers.values()).filter(
-      (teacher) => teacher.schoolId === schoolId,
-    );
-  }
-
-  async getTeacher(id: string): Promise<Teacher | undefined> {
-    return this.teachers.get(id);
-  }
-
-  async getTeacherByUserId(userId: string): Promise<Teacher | undefined> {
-    return Array.from(this.teachers.values()).find(teacher => teacher.userId === userId);
-  }
-
-  async createTeacher(insertTeacher: InsertTeacher): Promise<Teacher> {
-    const id = randomUUID();
-    const teacher: Teacher = { 
-      ...insertTeacher, 
-      id,
-      userId: insertTeacher.userId ?? null,
-      email: insertTeacher.email ?? null,
-      role: insertTeacher.role ?? "Teacher",
-      profilePicture: insertTeacher.profilePicture ?? null,
-      groupId: insertTeacher.groupId ?? null
-    };
-    this.teachers.set(id, teacher);
-    return teacher;
-  }
-
-  async updateTeacher(id: string, updates: Partial<Teacher>): Promise<Teacher | undefined> {
-    const teacher = this.teachers.get(id);
-    if (!teacher) return undefined;
-    
-    const updated = { ...teacher, ...updates };
-    this.teachers.set(id, updated);
-    return updated;
-  }
-
-  async deleteTeacher(id: string): Promise<boolean> {
-    return this.teachers.delete(id);
   }
 
   async getTeachingGroupsBySchool(schoolId: string): Promise<TeachingGroup[]> {

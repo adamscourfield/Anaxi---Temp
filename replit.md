@@ -6,6 +6,39 @@ Anaxi is a professional teacher observation and development platform for schools
 ## User Preferences
 Preferred communication style: Simple, everyday language.
 
+## Recent Changes (October 24, 2025)
+
+### Teachers and Users Consolidation
+Completed architectural consolidation: **teachers are now users** (no separate teachers table):
+
+**Database Changes**:
+- Removed legacy `teachers` table from schema
+- Updated `observations.teacherId` to reference `users.id` (was `teachers.id`)
+- Updated `conversations.teacherId` to reference `users.id` (was `teachers.id`)
+- Dropped `teachers` table from database using `DROP TABLE teachers CASCADE`
+
+**Backend Changes**:
+- Removed all teacher-specific CRUD methods from storage layer (getTeacher, createTeacher, updateTeacher, deleteTeacher, etc.)
+- Removed deprecated `/api/teachers` routes
+- Updated `requireRole()` middleware to check school memberships instead of teacher table
+  - **Critical fix**: Now checks ALL memberships for allowed roles (handles multi-school users correctly)
+- Updated observation routes: `teacherId` now equals `userId` directly
+- Updated email notifications to fetch user data instead of teacher data  
+- Updated profile picture endpoint to update `users.profile_image_url`
+
+**Architecture**:
+- Teachers are users with school memberships
+- Users link to schools via `school_memberships` table with roles (Teacher, Leader, Admin)
+- Role-based access control uses school memberships
+- Multi-school users can have different roles in different schools
+- `requireRole()` searches all memberships for any matching role
+
+**Benefits**:
+- Simplified data model (one table instead of two)
+- Eliminates data duplication
+- Consistent user model across the platform
+- Better support for multi-school teachers
+
 ## Recent Changes (October 22, 2025)
 
 ### Password Reset Implementation

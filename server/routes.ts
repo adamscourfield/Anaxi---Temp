@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { DbStorage } from "./db-storage";
-import { insertTeacherSchema, insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertObservationSchema } from "@shared/schema";
+import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertObservationSchema } from "@shared/schema";
 import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -56,22 +56,29 @@ async function requireRole(allowedRoles: Role[]) {
         return next();
       }
 
-      const teacher = await storage.getTeacherByUserId(user.id);
+      // Get user's school memberships to check role
+      const memberships = await storage.getMembershipsByUser(user.id);
       
-      if (!teacher) {
-        return res.status(401).json({ message: "Unauthorized: No teacher profile found" });
+      if (!memberships || memberships.length === 0) {
+        return res.status(401).json({ message: "Unauthorized: No school memberships found" });
       }
 
-      const userRole = (teacher.role || "Teacher") as Role;
+      // Check if user has required role in ANY of their schools
+      // This correctly handles multi-school users with different roles
+      const matchingMembership = memberships.find(m => {
+        const role = (m.role || "Teacher") as Role;
+        return allowedRoles.includes(role);
+      });
       
-      if (!allowedRoles.includes(userRole)) {
+      if (!matchingMembership) {
+        const userRole = (memberships[0].role || "Teacher") as Role;
         return res.status(403).json({ 
           message: `Forbidden: ${userRole}s are not allowed to perform this action. Required role: ${allowedRoles.join(" or ")}` 
         });
       }
 
       // Attach user info to request for later use
-      (req as any).currentUser = teacher;
+      (req as any).currentMembership = matchingMembership;
       (req as any).authUser = user;
       next();
     } catch (error) {
@@ -630,127 +637,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating school assignments:", error);
       res.status(500).json({ message: "Failed to update school assignments" });
-    }
-  });
-
-  // Teachers routes (DEPRECATED - uses old teachers table)
-  app.get("/api/teachers", isAuthenticated, async (req, res) => {
-    const schoolId = req.query.schoolId as string;
-    if (!schoolId) {
-      return res.status(400).json({ message: "School ID is required" });
-    }
-    
-    const teachers = await storage.getTeachersBySchool(schoolId);
-    res.json(teachers);
-  });
-
-  app.post("/api/teachers", await requireRole(["Admin"]), async (req, res) => {
-    try {
-      const validated = insertTeacherSchema.parse(req.body);
-      const teacher = await storage.createTeacher(validated);
-      res.status(201).json(teacher);
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid teacher data", errors: error.errors });
-      }
-      res.status(500).json({ message: "Failed to create teacher" });
-    }
-  });
-
-  app.patch("/api/teachers/:id", isAuthenticated, async (req: any, res) => {
-    try {
-      const { id } = req.params;
-      const authUser = req.user; // User is set by isAuthenticated middleware
-      
-      if (!authUser) {
-        return res.status(401).json({ message: "Unauthorized: User not found" });
-      }
-
-      const currentTeacher = await storage.getTeacherByUserId(authUser.id);
-      if (!currentTeacher) {
-        return res.status(401).json({ message: "Unauthorized: No teacher profile found" });
-      }
-
-      const userRole = (currentTeacher.role || "Teacher") as Role;
-      
-      // Users can edit their own profile, or Admins can edit anyone
-      if (currentTeacher.id !== id && userRole !== "Admin") {
-        return res.status(403).json({ 
-          message: "Forbidden: You can only edit your own profile" 
-        });
-      }
-      
-      const updates = req.body;
-      
-      // Prevent non-admins from changing their own role
-      if (currentTeacher.id === id && userRole !== "Admin" && updates.role) {
-        return res.status(403).json({ 
-          message: "Forbidden: You cannot change your own role" 
-        });
-      }
-      
-      const updatedTeacher = await storage.updateTeacher(id, updates);
-      if (!updatedTeacher) {
-        return res.status(404).json({ message: "Teacher not found" });
-      }
-      
-      res.json(updatedTeacher);
-    } catch (error) {
-      console.error("Error updating teacher:", error);
-      res.status(500).json({ message: "Failed to update teacher" });
-    }
-  });
-
-  app.delete("/api/teachers/:id", await requireRole(["Admin"]), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const deleted = await storage.deleteTeacher(id);
-      
-      if (!deleted) {
-        return res.status(404).json({ message: "Teacher not found" });
-      }
-      
-      res.status(204).send();
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete teacher" });
-    }
-  });
-
-  // Admin password reset route
-  app.post("/api/teachers/:id/reset-password", await requireRole(["Admin"]), async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { password } = req.body;
-
-      if (!password || typeof password !== 'string' || password.length < 8) {
-        return res.status(400).json({ 
-          message: "Password must be at least 8 characters" 
-        });
-      }
-
-      // Get the teacher to verify they exist
-      const teacher = await storage.getTeacher(id);
-      if (!teacher) {
-        return res.status(404).json({ message: "Teacher not found" });
-      }
-
-      if (!teacher.userId) {
-        return res.status(400).json({ message: "Teacher has no associated user account" });
-      }
-
-      // Hash the new password
-      const password_hash = await hashPassword(password);
-
-      // Update the user's password
-      const updatedUser = await storage.updateUser(teacher.userId, { password_hash });
-      if (!updatedUser) {
-        return res.status(500).json({ message: "Failed to update password" });
-      }
-
-      res.json({ message: "Password reset successfully" });
-    } catch (error) {
-      console.error("Error resetting password:", error);
-      res.status(500).json({ message: "Failed to reset password" });
     }
   });
 
@@ -1481,14 +1367,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Teachers can only see their own observations
-      // Get teacher profile to find their teacher ID
-      const teacher = await storage.getTeacherByUserId(user.id);
-      
-      if (!teacher) {
-        return res.status(401).json({ message: "No teacher profile found" });
-      }
-
-      const observations = await storage.getObservationsByTeacher(teacher.id);
+      // teacherId now references users.id directly
+      const observations = await storage.getObservationsByTeacher(user.id);
       res.json(observations);
     } catch (error) {
       console.error("Error fetching observations:", error);
@@ -1522,11 +1402,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Send email notification to the teacher being observed (fire-and-forget)
       void (async () => {
         try {
-          const teacher = await storage.getTeacher(validated.teacherId);
+          // teacherId now references users.id directly  
+          const teacher = await storage.getUser(validated.teacherId);
           const observer = await storage.getUser(validated.observerId);
           
           if (teacher?.email && observer) {
-            const teacherName = teacher.name;
+            const teacherName = `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || teacher.email;
             const observerName = `${observer.first_name || ''} ${observer.last_name || ''}`.trim() || observer.email;
             const observationDate = new Date(validated.date).toLocaleDateString('en-US', {
               weekday: 'long',
@@ -1643,24 +1524,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       );
 
-      // Get the teacher profile for the authenticated user
-      const teacher = await storage.getTeacherByUserId(userId);
-      if (!teacher) {
-        return res.status(404).json({ error: "Teacher profile not found" });
-      }
-
-      // Update the teacher's profile picture in the database
-      const updatedTeacher = await storage.updateTeacher(teacher.id, {
-        profilePicture: objectPath,
+      // Update the user's profile picture in the database
+      const updatedUser = await storage.updateUser(userId, {
+        profile_image_url: objectPath,
       });
 
-      if (!updatedTeacher) {
-        return res.status(404).json({ error: "Teacher not found" });
+      if (!updatedUser) {
+        return res.status(404).json({ error: "User not found" });
       }
 
       res.status(200).json({
         objectPath: objectPath,
-        teacher: updatedTeacher,
+        user: updatedUser,
       });
     } catch (error) {
       console.error("Error setting profile picture:", error);
