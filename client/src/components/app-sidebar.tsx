@@ -141,7 +141,7 @@ export function AppSidebar() {
               <AvatarFallback>{userInitials}</AvatarFallback>
             </Avatar>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate" data-testid="text-current-user-name">
+              <p className="text-sm font-medium truncate text-[#363b49]" data-testid="text-current-user-name">
                 {userName}
               </p>
               <p className="text-xs text-muted-foreground truncate" data-testid="text-current-user-email">
