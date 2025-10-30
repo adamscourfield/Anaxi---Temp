@@ -106,7 +106,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-3">
           <img src={anaxiLogo} alt="Anaxi Logo" className="h-10 w-10" />
           <div>
-            <h2 className="font-semibold text-base">Anaxi</h2>
+            <h2 className="font-semibold text-base text-[#363b49]">Anaxi</h2>
             <p className="text-xs text-muted-foreground">
               {currentSchool?.name || "Loading..."}
             </p>
