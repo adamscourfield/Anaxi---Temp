@@ -102,7 +102,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
+      <SidebarHeader className="flex flex-col gap-2 p-4 pt-[32px] pb-[32px]">
         <div className="flex items-center gap-3">
           <img src={anaxiLogo} alt="Anaxi Logo" className="h-10 w-10" />
           <div>
