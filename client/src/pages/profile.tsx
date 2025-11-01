@@ -194,7 +194,7 @@ export default function Profile() {
     if (status === "pending") {
       return <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" /> Pending</Badge>;
     } else if (status === "approved_with_pay" || status === "approved_without_pay") {
-      return <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700"><CheckCircle className="w-3 h-3" /> Approved</Badge>;
+      return <Badge variant="default" className="gap-1"><CheckCircle className="w-3 h-3" /> Approved</Badge>;
     } else if (status === "denied") {
       return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> Denied</Badge>;
     }
@@ -204,7 +204,7 @@ export default function Profile() {
   // Helper function to get action status badge
   const getActionStatusBadge = (status: string, completed: boolean) => {
     if (completed) {
-      return <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700"><CheckCircle className="w-3 h-3" /> Done</Badge>;
+      return <Badge variant="default" className="gap-1"><CheckCircle className="w-3 h-3" /> Done</Badge>;
     } else if (status === "in_progress") {
       return <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" /> In Progress</Badge>;
     } else {
@@ -389,7 +389,7 @@ export default function Profile() {
               {leaveRequests.map((request) => (
                 <div
                   key={request.id}
-                  className="flex items-center justify-between p-4 rounded-lg border hover-elevate"
+                  className="flex items-center p-4 rounded-lg border hover-elevate"
                   data-testid={`leave-request-${request.id}`}
                 >
                   <div className="flex-1">
@@ -434,7 +434,7 @@ export default function Profile() {
                     {openActions.map((action) => (
                       <div
                         key={action.id}
-                        className="flex items-start justify-between p-4 rounded-lg border hover-elevate"
+                        className="flex items-start p-4 rounded-lg border hover-elevate"
                         data-testid={`action-${action.id}`}
                       >
                         <div className="flex-1">
@@ -462,7 +462,7 @@ export default function Profile() {
                     {inProgressActions.map((action) => (
                       <div
                         key={action.id}
-                        className="flex items-start justify-between p-4 rounded-lg border hover-elevate"
+                        className="flex items-start p-4 rounded-lg border hover-elevate"
                         data-testid={`action-${action.id}`}
                       >
                         <div className="flex-1">
@@ -490,7 +490,7 @@ export default function Profile() {
                     {completedActions.map((action) => (
                       <div
                         key={action.id}
-                        className="flex items-start justify-between p-4 rounded-lg border hover-elevate opacity-75"
+                        className="flex items-start p-4 rounded-lg border hover-elevate opacity-75"
                         data-testid={`action-${action.id}`}
                       >
                         <div className="flex-1">
