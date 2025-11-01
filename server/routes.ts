@@ -1475,13 +1475,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all leave requests for the school
       let leaveRequests = await storage.getLeaveRequestsBySchool(schoolId);
       
-      // Filter by membership if regular teacher or myRequests is true
+      // Filter by membership if regular user or myRequests is true
       if (userMembership) {
-        const isLeaderOrAdmin = userMembership.role === "Leader" || userMembership.role === "Admin";
+        const canApprove = userMembership.canApproveLeaveRequests;
         
-        // Regular teachers can only see their own requests
-        // Leaders/Admins can see all, but can filter to myRequests
-        if (!isLeaderOrAdmin || myRequests) {
+        // Users without approval permission can only see their own requests
+        // Users with permission can see all, but can filter to myRequests
+        if (!canApprove || myRequests) {
           leaveRequests = leaveRequests.filter(lr => lr.membershipId === userMembership.id);
         }
       } else if (myRequests && user.global_role === "Creator") {
@@ -1528,12 +1528,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
         }
         
-        const isLeaderOrAdmin = userMembership.role === "Leader" || userMembership.role === "Admin";
+        const canApprove = userMembership.canApproveLeaveRequests;
         const isOwnRequest = userMembership.id === leaveRequest.membershipId;
         
-        // Teachers can only see their own requests
-        // Leaders/Admins can see all requests for their school
-        if (!isLeaderOrAdmin && !isOwnRequest) {
+        // Users without approval permission can only see their own requests
+        // Users with permission can see all requests for their school
+        if (!canApprove && !isOwnRequest) {
           return res.status(403).json({ message: "Forbidden: You can only view your own leave requests" });
         }
       }
@@ -1574,10 +1574,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
         }
         
-        // Only Leaders/Admins can approve/deny
-        const isLeaderOrAdmin = userMembership.role === "Leader" || userMembership.role === "Admin";
-        if (!isLeaderOrAdmin) {
-          return res.status(403).json({ message: "Forbidden: Only Leaders and Admins can update leave requests" });
+        // Only users with approve permission can approve/deny
+        if (!userMembership.canApproveLeaveRequests) {
+          return res.status(403).json({ message: "Forbidden: You don't have permission to approve or deny leave requests" });
         }
       }
       
