@@ -218,7 +218,7 @@ export default function Profile() {
   const completedActions = meetingActions.filter(a => a.completed);
 
   return (
-    <div className="p-6 max-w-3xl mx-auto space-y-6">
+    <div className="p-6 space-y-8">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Profile</h1>
         <p className="text-muted-foreground mt-1">

@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useSchool } from "@/hooks/use-school";
 import type { LeaveRequest, SchoolMembership, User, School } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,7 @@ interface ApprovalAction {
 export default function ApproveLeave() {
   const { toast } = useToast();
   const { user, isCreator } = useAuth();
-  const [selectedSchool, setSelectedSchool] = useState<string>("");
+  const { currentSchoolId } = useSchool();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
   const [currentAction, setCurrentAction] = useState<ApprovalAction | null>(null);
@@ -61,35 +62,19 @@ export default function ApproveLeave() {
     },
   });
 
-  // If creator, fetch all schools
-  const { data: allSchools = [] } = useQuery<School[]>({
-    queryKey: ["/api/schools"],
-    enabled: isCreator,
-  });
-
-  // Get available schools based on role
-  const availableSchools = isCreator 
-    ? allSchools 
-    : leaderMemberships.map(m => m.school).filter((s): s is School => !!s);
-
-  // Auto-select first school if none selected
-  if (!selectedSchool && availableSchools.length > 0) {
-    setSelectedSchool(availableSchools[0].id);
-  }
-
-  // Fetch leave requests for selected school
+  // Fetch leave requests for current school
   const { data: leaveRequests = [], isLoading } = useQuery<LeaveRequestWithDetails[]>({
-    queryKey: ["/api/leave-requests", selectedSchool],
-    enabled: !!selectedSchool,
+    queryKey: ["/api/leave-requests", currentSchoolId],
+    enabled: !!currentSchoolId,
     queryFn: async () => {
-      const response = await fetch(`/api/leave-requests?schoolId=${selectedSchool}`);
+      const response = await fetch(`/api/leave-requests?schoolId=${currentSchoolId}`);
       if (!response.ok) throw new Error("Failed to fetch leave requests");
       return response.json();
     },
   });
 
-  // Get current user's membership in selected school from already-fetched memberships
-  const currentMembership = leaderMemberships.find(m => m.schoolId === selectedSchool);
+  // Get current user's membership in current school from already-fetched memberships
+  const currentMembership = leaderMemberships.find(m => m.schoolId === currentSchoolId);
 
   // Approve/deny mutation
   const approveMutation = useMutation({
@@ -101,7 +86,7 @@ export default function ApproveLeave() {
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests", selectedSchool] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests", currentSchoolId] });
       toast({
         title: "Success",
         description: "Leave request updated successfully",
@@ -184,52 +169,39 @@ export default function ApproveLeave() {
     }
   };
 
-  // Check authorization
-  const isAuthorized = isCreator || leaderMemberships.length > 0;
+  // Check authorization - user must have approval permission in current school or be creator
+  const isAuthorized = isCreator || (currentMembership && currentMembership.canApproveLeaveRequests);
 
-  if (!isAuthorized) {
+  if (!currentSchoolId) {
     return (
       <div className="p-6">
         <div className="text-center text-muted-foreground py-12">
-          Access denied. Only Leaders and Administrators can approve leave requests.
+          Please select a school from the dropdown above to view leave requests.
         </div>
       </div>
     );
   }
 
-  if (availableSchools.length === 0) {
+  if (!isAuthorized) {
     return (
       <div className="p-6">
         <div className="text-center text-muted-foreground py-12">
-          No schools available. You need to be assigned as a Leader or Admin in at least one school.
+          Access denied. You do not have permission to approve leave requests for this school.
         </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 space-y-8">
       <div className="space-y-4">
-        <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
-          Leave Request Approvals
-        </h1>
-        
-        <div className="flex flex-col md:flex-row gap-4">
-          <div className="w-full md:w-64">
-            <Label htmlFor="school-select">School</Label>
-            <Select value={selectedSchool} onValueChange={setSelectedSchool}>
-              <SelectTrigger id="school-select" data-testid="select-school">
-                <SelectValue placeholder="Select a school" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableSchools.map((school) => (
-                  <SelectItem key={school.id} value={school.id}>
-                    {school.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
+            Leave Request Approvals
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Review and approve leave requests for your school
+          </p>
         </div>
 
         <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
