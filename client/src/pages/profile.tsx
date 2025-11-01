@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -9,9 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Image as ImageIcon, Upload } from "lucide-react";
+import { User, Mail, Image as ImageIcon, Upload, Calendar, CheckCircle, XCircle, Clock } from "lucide-react";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from "@uppy/core";
+import type { LeaveRequest, MeetingAction } from "@shared/schema";
+import { format } from "date-fns";
 
 export default function Profile() {
   const { user } = useAuth();
@@ -22,6 +24,18 @@ export default function Profile() {
     lastName: "",
     email: "",
     profilePicture: "",
+  });
+
+  // Fetch user's leave requests
+  const { data: leaveRequests = [], isLoading: isLoadingLeave } = useQuery<LeaveRequest[]>({
+    queryKey: ["/api/my-leave-requests"],
+    enabled: !!user,
+  });
+
+  // Fetch user's meeting actions
+  const { data: meetingActions = [], isLoading: isLoadingActions } = useQuery<MeetingAction[]>({
+    queryKey: ["/api/my-actions"],
+    enabled: !!user,
   });
 
   // Sync formData with user when entering edit mode
@@ -175,6 +189,34 @@ export default function Profile() {
     ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
     : user.email?.[0]?.toUpperCase() || "U";
 
+  // Helper function to get leave request status badge
+  const getLeaveStatusBadge = (status: string) => {
+    if (status === "pending") {
+      return <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" /> Pending</Badge>;
+    } else if (status === "approved_with_pay" || status === "approved_without_pay") {
+      return <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700"><CheckCircle className="w-3 h-3" /> Approved</Badge>;
+    } else if (status === "denied") {
+      return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> Denied</Badge>;
+    }
+    return <Badge>{status}</Badge>;
+  };
+
+  // Helper function to get action status badge
+  const getActionStatusBadge = (status: string, completed: boolean) => {
+    if (completed) {
+      return <Badge variant="default" className="gap-1 bg-green-600 hover:bg-green-700"><CheckCircle className="w-3 h-3" /> Done</Badge>;
+    } else if (status === "in_progress") {
+      return <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" /> In Progress</Badge>;
+    } else {
+      return <Badge variant="secondary" className="gap-1">Open</Badge>;
+    }
+  };
+
+  // Group actions by status
+  const openActions = meetingActions.filter(a => !a.completed && a.status === "open");
+  const inProgressActions = meetingActions.filter(a => !a.completed && a.status === "in_progress");
+  const completedActions = meetingActions.filter(a => a.completed);
+
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div>
@@ -324,6 +366,149 @@ export default function Profile() {
                 <Label className="text-muted-foreground">Email Address</Label>
                 <p className="text-base mt-1" data-testid="text-email">{user.email || "Not set"}</p>
               </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Leave Requests Section */}
+      <Card data-testid="card-leave-requests">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="w-5 h-5" />
+            Leave Requests
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingLeave ? (
+            <p className="text-center text-muted-foreground py-8">Loading leave requests...</p>
+          ) : leaveRequests.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No leave requests found</p>
+          ) : (
+            <div className="space-y-3">
+              {leaveRequests.map((request) => (
+                <div
+                  key={request.id}
+                  className="flex items-center justify-between p-4 rounded-lg border hover-elevate"
+                  data-testid={`leave-request-${request.id}`}
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-medium">{request.type}</p>
+                      {getLeaveStatusBadge(request.status)}
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {format(new Date(request.startDate), "MMM d, yyyy")} - {format(new Date(request.endDate), "MMM d, yyyy")}
+                    </p>
+                    {request.reason && (
+                      <p className="text-sm text-muted-foreground mt-1">{request.reason}</p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Meeting Actions Section */}
+      <Card data-testid="card-meeting-actions">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle className="w-5 h-5" />
+            Meeting Actions
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingActions ? (
+            <p className="text-center text-muted-foreground py-8">Loading actions...</p>
+          ) : meetingActions.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No actions assigned to you</p>
+          ) : (
+            <div className="space-y-6">
+              {/* Open Actions */}
+              {openActions.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Open ({openActions.length})</h3>
+                  <div className="space-y-2">
+                    {openActions.map((action) => (
+                      <div
+                        key={action.id}
+                        className="flex items-start justify-between p-4 rounded-lg border hover-elevate"
+                        data-testid={`action-${action.id}`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {getActionStatusBadge(action.status, action.completed)}
+                          </div>
+                          <p className="text-sm font-medium">{action.description}</p>
+                          {action.dueDate && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Due: {format(new Date(action.dueDate), "MMM d, yyyy")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* In Progress Actions */}
+              {inProgressActions.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground">In Progress ({inProgressActions.length})</h3>
+                  <div className="space-y-2">
+                    {inProgressActions.map((action) => (
+                      <div
+                        key={action.id}
+                        className="flex items-start justify-between p-4 rounded-lg border hover-elevate"
+                        data-testid={`action-${action.id}`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {getActionStatusBadge(action.status, action.completed)}
+                          </div>
+                          <p className="text-sm font-medium">{action.description}</p>
+                          {action.dueDate && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Due: {format(new Date(action.dueDate), "MMM d, yyyy")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Completed Actions */}
+              {completedActions.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Completed ({completedActions.length})</h3>
+                  <div className="space-y-2">
+                    {completedActions.map((action) => (
+                      <div
+                        key={action.id}
+                        className="flex items-start justify-between p-4 rounded-lg border hover-elevate opacity-75"
+                        data-testid={`action-${action.id}`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {getActionStatusBadge(action.status, action.completed)}
+                          </div>
+                          <p className="text-sm font-medium line-through">{action.description}</p>
+                          {action.completedAt && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Completed: {format(new Date(action.completedAt), "MMM d, yyyy")}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
