@@ -99,7 +99,6 @@ export default function LeaveRequests() {
   const { toast } = useToast();
   const { user } = useAuth();
   const { currentSchoolId } = useSchool();
-  const [selectedSchoolId, setSelectedSchoolId] = useState<string>("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -137,19 +136,18 @@ export default function LeaveRequests() {
   });
 
   // Get current membership for selected school
-  const currentMembership = memberships.find(m => m.schoolId === (selectedSchoolId || currentSchoolId));
+  const currentMembership = memberships.find(m => m.schoolId === currentSchoolId);
 
-  // Fetch leave requests for the selected school
+  // Fetch leave requests for the current school
   const { data: leaveRequests = [], isLoading: requestsLoading } = useQuery<LeaveRequest[]>({
-    queryKey: ["/api/leave-requests", selectedSchoolId || currentSchoolId],
+    queryKey: ["/api/leave-requests", currentSchoolId],
     queryFn: async () => {
-      const schoolId = selectedSchoolId || currentSchoolId;
-      if (!schoolId) return [];
-      const response = await fetch(`/api/leave-requests?schoolId=${schoolId}`);
+      if (!currentSchoolId) return [];
+      const response = await fetch(`/api/leave-requests?schoolId=${currentSchoolId}`);
       if (!response.ok) throw new Error("Failed to fetch leave requests");
       return response.json();
     },
-    enabled: !!(selectedSchoolId || currentSchoolId),
+    enabled: !!currentSchoolId,
   });
 
   // Filter requests for current user
@@ -205,17 +203,12 @@ export default function LeaveRequests() {
 
     const submitData = {
       ...data,
-      schoolId: selectedSchoolId || currentSchoolId || "",
+      schoolId: currentSchoolId || "",
       membershipId: currentMembership.id,
     };
 
     createRequestMutation.mutate(submitData);
   };
-
-  // Set initial school ID when schools load
-  if (schools.length > 0 && !selectedSchoolId && currentSchoolId) {
-    setSelectedSchoolId(currentSchoolId);
-  }
 
   const requiresAdditionalDetails = watchedType === "medical" || 
     watchedType === "professional_development" || 
@@ -231,28 +224,6 @@ export default function LeaveRequests() {
         <p className="text-muted-foreground mt-1">
           Submit and manage your leave requests
         </p>
-      </div>
-
-      {/* School Selector */}
-      <div className="max-w-md">
-        <Label htmlFor="school-selector">Select School</Label>
-        <Select
-          value={selectedSchoolId || currentSchoolId || ""}
-          onValueChange={setSelectedSchoolId}
-        >
-          <SelectTrigger id="school-selector" data-testid="select-school">
-            <SelectValue placeholder="Select a school" />
-          </SelectTrigger>
-          <SelectContent>
-            {schools
-              .filter(school => memberships.some(m => m.schoolId === school.id))
-              .map(school => (
-                <SelectItem key={school.id} value={school.id} data-testid={`school-option-${school.id}`}>
-                  {school.name}
-                </SelectItem>
-              ))}
-          </SelectContent>
-        </Select>
       </div>
 
       {/* Leave Request Form */}
