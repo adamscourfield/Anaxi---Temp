@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { DbStorage } from "./db-storage";
-import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertObservationSchema } from "@shared/schema";
+import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertDepartmentSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertObservationSchema } from "@shared/schema";
 import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -750,6 +750,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete teaching group" });
+    }
+  });
+
+  // Departments routes
+  app.get("/api/schools/:schoolId/departments", isAuthenticated, async (req, res) => {
+    try {
+      const { schoolId } = req.params;
+      const user = (req as any).user;
+      
+      // Verify user has access to this school
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const membership = userMemberships.find(m => m.schoolId === schoolId);
+        
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+      
+      const departments = await storage.getDepartmentsBySchool(schoolId);
+      res.json(departments);
+    } catch (error) {
+      console.error("Error fetching departments:", error);
+      res.status(500).json({ message: "Failed to fetch departments" });
+    }
+  });
+
+  app.post("/api/schools/:schoolId/departments", isAuthenticated, async (req, res) => {
+    try {
+      const { schoolId } = req.params;
+      const user = (req as any).user;
+      
+      // Verify user is Admin or Creator in this specific school
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const membership = userMemberships.find(m => m.schoolId === schoolId);
+        
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+        
+        if (membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins can create departments" });
+        }
+      }
+      
+      const validated = insertDepartmentSchema.parse({
+        ...req.body,
+        schoolId,
+      });
+      
+      const department = await storage.createDepartment(validated);
+      res.status(201).json(department);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid department data", errors: error.errors });
+      }
+      console.error("Error creating department:", error);
+      res.status(500).json({ message: "Failed to create department" });
+    }
+  });
+
+  app.patch("/api/departments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      
+      // Get the department to verify school access
+      const department = await storage.getDepartment(id);
+      if (!department) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      // Verify user is Admin or Creator in this department's school
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const membership = userMemberships.find(m => m.schoolId === department.schoolId);
+        
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+        
+        if (membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins can update departments" });
+        }
+      }
+      
+      const updates = req.body;
+      const updatedDepartment = await storage.updateDepartment(id, updates);
+      
+      if (!updatedDepartment) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      res.json(updatedDepartment);
+    } catch (error) {
+      console.error("Error updating department:", error);
+      res.status(500).json({ message: "Failed to update department" });
+    }
+  });
+
+  app.delete("/api/departments/:id", isAuthenticated, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const user = (req as any).user;
+      
+      // Get the department to verify school access
+      const department = await storage.getDepartment(id);
+      if (!department) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      // Verify user is Admin or Creator in this department's school
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const membership = userMemberships.find(m => m.schoolId === department.schoolId);
+        
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+        
+        if (membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins can delete departments" });
+        }
+      }
+      
+      const deleted = await storage.deleteDepartment(id);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Department not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting department:", error);
+      res.status(500).json({ message: "Failed to delete department" });
     }
   });
 

@@ -121,6 +121,10 @@ export class MemStorage implements IStorage {
     return Array.from(this.users.values()).find(user => user.email === email);
   }
 
+  async getUserByResetToken(token: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(user => user.reset_token === token);
+  }
+
   async getAllUsers(): Promise<User[]> {
     return Array.from(this.users.values());
   }
@@ -129,12 +133,16 @@ export class MemStorage implements IStorage {
     const id = randomUUID();
     const user: User = { 
       id,
+      stytch_user_id: userData.stytch_user_id ?? null,
       email: userData.email,
-      password_hash: userData.password_hash,
-      first_name: userData.first_name || null,
-      last_name: userData.last_name || null,
-      profile_image_url: userData.profile_image_url || null,
-      global_role: userData.global_role || null,
+      password_hash: userData.password_hash ?? null,
+      first_name: userData.first_name ?? null,
+      last_name: userData.last_name ?? null,
+      profile_image_url: userData.profile_image_url ?? null,
+      global_role: userData.global_role ?? null,
+      archived: userData.archived ?? false,
+      reset_token: userData.reset_token ?? null,
+      reset_token_expires: userData.reset_token_expires ?? null,
       created_at: new Date(),
       updated_at: new Date(),
     };
@@ -233,6 +241,27 @@ export class MemStorage implements IStorage {
 
   async deleteTeachingGroup(id: string): Promise<boolean> {
     return this.teachingGroups.delete(id);
+  }
+
+  // Departments - Not implemented in MemStorage (use DbStorage)
+  async getDepartmentsBySchool(schoolId: string): Promise<Department[]> {
+    throw new Error("Departments not implemented in MemStorage");
+  }
+
+  async getDepartment(id: string): Promise<Department | undefined> {
+    throw new Error("Departments not implemented in MemStorage");
+  }
+
+  async createDepartment(department: InsertDepartment): Promise<Department> {
+    throw new Error("Departments not implemented in MemStorage");
+  }
+
+  async updateDepartment(id: string, updates: Partial<Department>): Promise<Department | undefined> {
+    throw new Error("Departments not implemented in MemStorage");
+  }
+
+  async deleteDepartment(id: string): Promise<boolean> {
+    throw new Error("Departments not implemented in MemStorage");
   }
 
   async getConversationsBySchool(schoolId: string): Promise<Conversation[]> {

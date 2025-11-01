@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Pencil, Trash2 } from "lucide-react";
+import { Plus, Pencil, Trash2, FolderTree } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
-import type { School } from "@shared/schema";
+import type { School, Department } from "@shared/schema";
 
 export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { user, isCreator, isLoading: authLoading } = useAuth();
@@ -21,6 +21,13 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editSchoolName, setEditSchoolName] = useState("");
+  
+  // Department management state
+  const [departmentSchool, setDepartmentSchool] = useState<School | null>(null);
+  const [isDepartmentDialogOpen, setIsDepartmentDialogOpen] = useState(false);
+  const [newDepartmentName, setNewDepartmentName] = useState("");
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
+  const [editDepartmentName, setEditDepartmentName] = useState("");
 
   // Fetch all schools (Creator only)
   const { data: schools = [], isLoading } = useQuery<School[]>({
@@ -96,6 +103,84 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
     },
   });
 
+  // Fetch departments for the selected school
+  const { data: departments = [], isLoading: departmentsLoading } = useQuery<Department[]>({
+    queryKey: ["/api/schools", departmentSchool?.id, "departments"],
+    queryFn: async () => {
+      if (!departmentSchool) return [];
+      const response = await fetch(`/api/schools/${departmentSchool.id}/departments`);
+      if (!response.ok) throw new Error("Failed to fetch departments");
+      return response.json();
+    },
+    enabled: !!departmentSchool,
+  });
+
+  // Create department mutation
+  const createDepartmentMutation = useMutation({
+    mutationFn: async ({ schoolId, name }: { schoolId: string; name: string }) => {
+      return await apiRequest("POST", `/api/schools/${schoolId}/departments`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/schools", departmentSchool?.id, "departments"] });
+      setNewDepartmentName("");
+      toast({
+        title: "Department created",
+        description: "The department has been created successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to create department",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update department mutation
+  const updateDepartmentMutation = useMutation({
+    mutationFn: async ({ id, name }: { id: string; name: string }) => {
+      return await apiRequest("PATCH", `/api/departments/${id}`, { name });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/schools", departmentSchool?.id, "departments"] });
+      setEditingDepartment(null);
+      setEditDepartmentName("");
+      toast({
+        title: "Department updated",
+        description: "The department has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update department",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete department mutation
+  const deleteDepartmentMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return await apiRequest("DELETE", `/api/departments/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/schools", departmentSchool?.id, "departments"] });
+      toast({
+        title: "Department deleted",
+        description: "The department has been deleted successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete department",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleCreateSchool = () => {
     if (!newSchoolName.trim()) {
       toast({
@@ -124,6 +209,52 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
       return;
     }
     updateMutation.mutate({ id: editingSchool.id, name: editSchoolName });
+  };
+
+  const handleOpenDepartments = (school: School) => {
+    setDepartmentSchool(school);
+    setIsDepartmentDialogOpen(true);
+  };
+
+  const handleCreateDepartment = () => {
+    if (!newDepartmentName.trim() || !departmentSchool) {
+      toast({
+        title: "Error",
+        description: "Please enter a department name",
+        variant: "destructive",
+      });
+      return;
+    }
+    createDepartmentMutation.mutate({
+      schoolId: departmentSchool.id,
+      name: newDepartmentName,
+    });
+  };
+
+  const handleStartEditDepartment = (department: Department) => {
+    setEditingDepartment(department);
+    setEditDepartmentName(department.name);
+  };
+
+  const handleUpdateDepartment = () => {
+    if (!editDepartmentName.trim() || !editingDepartment) {
+      toast({
+        title: "Error",
+        description: "Please enter a department name",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateDepartmentMutation.mutate({
+      id: editingDepartment.id,
+      name: editDepartmentName,
+    });
+  };
+
+  const handleDeleteDepartment = (department: Department) => {
+    if (confirm(`Are you sure you want to delete the ${department.name} department?`)) {
+      deleteDepartmentMutation.mutate(department.id);
+    }
   };
 
   // Show loading while auth is resolving
@@ -255,6 +386,17 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
                 </div>
               </div>
             </CardHeader>
+            <CardContent>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => handleOpenDepartments(school)}
+                data-testid={`button-manage-departments-${school.id}`}
+              >
+                <FolderTree className="w-4 h-4 mr-2" />
+                Manage Departments
+              </Button>
+            </CardContent>
           </Card>
         ))}
 
@@ -310,6 +452,144 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
               data-testid="button-submit-edit-school"
             >
               {updateMutation.isPending ? "Updating..." : "Update School"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Department Management Dialog */}
+      <Dialog open={isDepartmentDialogOpen} onOpenChange={(open) => {
+        setIsDepartmentDialogOpen(open);
+        if (!open) {
+          setDepartmentSchool(null);
+          setNewDepartmentName("");
+          setEditingDepartment(null);
+          setEditDepartmentName("");
+        }
+      }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Manage Departments - {departmentSchool?.name}</DialogTitle>
+            <DialogDescription>
+              Add and manage departments for this school
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Add Department Section */}
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Input
+                  placeholder="New department name (e.g., Maths, Science, English)"
+                  value={newDepartmentName}
+                  onChange={(e) => setNewDepartmentName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleCreateDepartment();
+                    }
+                  }}
+                  data-testid="input-new-department-name"
+                />
+              </div>
+              <Button
+                onClick={handleCreateDepartment}
+                disabled={createDepartmentMutation.isPending}
+                data-testid="button-add-department"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {createDepartmentMutation.isPending ? "Adding..." : "Add"}
+              </Button>
+            </div>
+
+            {/* Departments List */}
+            <div className="space-y-2">
+              <Label>Departments</Label>
+              {departmentsLoading ? (
+                <p className="text-sm text-muted-foreground">Loading departments...</p>
+              ) : departments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No departments yet. Add one above.</p>
+              ) : (
+                <div className="space-y-2">
+                  {departments.map((department) => (
+                    <Card key={department.id} className="p-3">
+                      {editingDepartment?.id === department.id ? (
+                        <div className="flex gap-2">
+                          <Input
+                            value={editDepartmentName}
+                            onChange={(e) => setEditDepartmentName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleUpdateDepartment();
+                              }
+                              if (e.key === "Escape") {
+                                setEditingDepartment(null);
+                                setEditDepartmentName("");
+                              }
+                            }}
+                            data-testid={`input-edit-department-${department.id}`}
+                            autoFocus
+                          />
+                          <Button
+                            size="sm"
+                            onClick={handleUpdateDepartment}
+                            disabled={updateDepartmentMutation.isPending}
+                            data-testid={`button-save-department-${department.id}`}
+                          >
+                            Save
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setEditingDepartment(null);
+                              setEditDepartmentName("");
+                            }}
+                            data-testid={`button-cancel-edit-department-${department.id}`}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium" data-testid={`department-name-${department.id}`}>
+                            {department.name}
+                          </span>
+                          <div className="flex gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleStartEditDepartment(department)}
+                              data-testid={`button-edit-department-${department.id}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleDeleteDepartment(department)}
+                              data-testid={`button-delete-department-${department.id}`}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsDepartmentDialogOpen(false)}
+              data-testid="button-close-departments"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
