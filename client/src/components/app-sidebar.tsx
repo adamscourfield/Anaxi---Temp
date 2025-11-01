@@ -65,7 +65,6 @@ const menuItems = [
     url: "/approve-leave",
     icon: CheckSquare,
     color: "info",
-    restrictTo: ["Leader", "Admin"],
   },
   {
     title: "App Management",
@@ -147,9 +146,9 @@ export function AppSidebar() {
       return enabledFeatures.includes("absence_management");
     }
 
-    // Approve Leave requires "absence_management" feature AND Leader/Admin role
+    // Approve Leave requires "absence_management" feature AND canApproveLeaveRequests permission
     if (item.title === "Approve Leave") {
-      return enabledFeatures.includes("absence_management");
+      return enabledFeatures.includes("absence_management") && (currentMembership?.canApproveLeaveRequests || false);
     }
 
     // All other items are visible
