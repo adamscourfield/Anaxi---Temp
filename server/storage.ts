@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction } from "@shared/schema";
+import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -35,6 +35,13 @@ export interface IStorage {
   createTeachingGroup(group: InsertTeachingGroup): Promise<TeachingGroup>;
   updateTeachingGroup(id: string, updates: Partial<TeachingGroup>): Promise<TeachingGroup | undefined>;
   deleteTeachingGroup(id: string): Promise<boolean>;
+  
+  // Departments
+  getDepartmentsBySchool(schoolId: string): Promise<Department[]>;
+  getDepartment(id: string): Promise<Department | undefined>;
+  createDepartment(department: InsertDepartment): Promise<Department>;
+  updateDepartment(id: string, updates: Partial<Department>): Promise<Department | undefined>;
+  deleteDepartment(id: string): Promise<boolean>;
   
   // Conversations (DEPRECATED - use Meetings instead)
   getConversationsBySchool(schoolId: string): Promise<Conversation[]>;

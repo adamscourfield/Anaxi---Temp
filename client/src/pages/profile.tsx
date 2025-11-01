@@ -18,7 +18,8 @@ export default function Profile() {
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
-    name: "",
+    firstName: "",
+    lastName: "",
     email: "",
     profilePicture: "",
   });
@@ -27,9 +28,10 @@ export default function Profile() {
   const handleEdit = () => {
     if (user) {
       setFormData({
-        name: user.name || "",
+        firstName: user.first_name || "",
+        lastName: user.last_name || "",
         email: user.email || "",
-        profilePicture: user.profile_picture || "",
+        profilePicture: user.profile_image_url || "",
       });
     }
     setIsEditing(true);
@@ -91,7 +93,7 @@ export default function Profile() {
   };
 
   const updateProfileMutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
+    mutationFn: async (data: { first_name: string; last_name: string; email: string; profile_image_url: string }) => {
       const response = await apiRequest("PATCH", `/api/users/${user?.id}`, data);
       return response.json();
     },
@@ -125,24 +127,30 @@ export default function Profile() {
       return;
     }
     
-    // Validate name is not empty
-    if (!formData.name.trim()) {
+    // Validate names are not empty
+    if (!formData.firstName.trim() || !formData.lastName.trim()) {
       toast({
         title: "Invalid Name",
-        description: "Name cannot be empty",
+        description: "First and last name cannot be empty",
         variant: "destructive",
       });
       return;
     }
     
-    updateProfileMutation.mutate(formData);
+    updateProfileMutation.mutate({
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      email: formData.email,
+      profile_image_url: formData.profilePicture,
+    });
   };
 
   const handleCancel = () => {
     setFormData({
-      name: user?.name || "",
+      firstName: user?.first_name || "",
+      lastName: user?.last_name || "",
       email: user?.email || "",
-      profilePicture: user?.profile_picture || "",
+      profilePicture: user?.profile_image_url || "",
     });
     setIsEditing(false);
   };
@@ -159,12 +167,13 @@ export default function Profile() {
     );
   }
 
-  const initials = user.name
-    .split(" ")
-    .map((n: string) => n[0])
-    .join("")
-    .toUpperCase()
-    .slice(0, 2);
+  const fullName = user.first_name && user.last_name 
+    ? `${user.first_name} ${user.last_name}` 
+    : user.email || "User";
+
+  const initials = user.first_name && user.last_name
+    ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
+    : user.email?.[0]?.toUpperCase() || "U";
 
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
@@ -193,19 +202,19 @@ export default function Profile() {
         <CardContent className="space-y-6">
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24">
-              {(isEditing ? formData.profilePicture : user.profile_picture) && (
-                <AvatarImage src={(isEditing ? formData.profilePicture : user.profile_picture) || undefined} />
+              {(isEditing ? formData.profilePicture : user.profile_image_url) && (
+                <AvatarImage src={(isEditing ? formData.profilePicture : user.profile_image_url) || undefined} />
               )}
               <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h2 className="text-2xl font-semibold">{user.name}</h2>
+              <h2 className="text-2xl font-semibold">{fullName}</h2>
               <div className="flex items-center gap-2 mt-2">
                 <Badge
                   variant="outline"
                   data-testid="badge-user-role"
                 >
-                  User
+                  {user.global_role === "Creator" ? "Platform Admin" : "User"}
                 </Badge>
               </div>
             </div>
@@ -214,16 +223,30 @@ export default function Profile() {
           {isEditing ? (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="name">
+                <Label htmlFor="firstName">
                   <User className="w-4 h-4 inline mr-2" />
-                  Full Name
+                  First Name
                 </Label>
                 <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Enter your full name"
-                  data-testid="input-name"
+                  id="firstName"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  placeholder="Enter your first name"
+                  data-testid="input-first-name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lastName">
+                  <User className="w-4 h-4 inline mr-2" />
+                  Last Name
+                </Label>
+                <Input
+                  id="lastName"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  placeholder="Enter your last name"
+                  data-testid="input-last-name"
                 />
               </div>
 
@@ -294,7 +317,7 @@ export default function Profile() {
             <div className="space-y-4">
               <div>
                 <Label className="text-muted-foreground">Full Name</Label>
-                <p className="text-base mt-1" data-testid="text-name">{user.name}</p>
+                <p className="text-base mt-1" data-testid="text-name">{fullName}</p>
               </div>
 
               <div>

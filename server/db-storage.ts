@@ -8,7 +8,9 @@ import {
   type School,
   type InsertSchool,
   type TeachingGroup, 
-  type InsertTeachingGroup, 
+  type InsertTeachingGroup,
+  type Department,
+  type InsertDepartment,
   type Conversation, 
   type InsertConversation,
   type Observation,
@@ -23,6 +25,7 @@ import {
   schoolMemberships,
   schools,
   teachingGroups,
+  departments,
   conversations,
   observations,
   meetings,
@@ -160,6 +163,31 @@ export class DbStorage implements IStorage {
 
   async deleteTeachingGroup(id: string): Promise<boolean> {
     const result = await db.delete(teachingGroups).where(eq(teachingGroups.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Departments
+  async getDepartmentsBySchool(schoolId: string): Promise<Department[]> {
+    return await db.select().from(departments).where(eq(departments.schoolId, schoolId));
+  }
+
+  async getDepartment(id: string): Promise<Department | undefined> {
+    const [department] = await db.select().from(departments).where(eq(departments.id, id));
+    return department;
+  }
+
+  async createDepartment(insertDepartment: InsertDepartment): Promise<Department> {
+    const [department] = await db.insert(departments).values(insertDepartment).returning();
+    return department;
+  }
+
+  async updateDepartment(id: string, updates: Partial<Department>): Promise<Department | undefined> {
+    const [department] = await db.update(departments).set(updates).where(eq(departments.id, id)).returning();
+    return department;
+  }
+
+  async deleteDepartment(id: string): Promise<boolean> {
+    const result = await db.delete(departments).where(eq(departments.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 

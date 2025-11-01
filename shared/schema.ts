@@ -72,6 +72,18 @@ export const insertSchoolMembershipSchema = createInsertSchema(schoolMemberships
 export type InsertSchoolMembership = z.infer<typeof insertSchoolMembershipSchema>;
 export type SchoolMembership = typeof schoolMemberships.$inferSelect;
 
+// Departments - for organizing department meetings
+export const departments = pgTable("departments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  schoolId: varchar("school_id").notNull().references(() => schools.id),
+  name: text("name").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertDepartmentSchema = createInsertSchema(departments).omit({ id: true, createdAt: true });
+export type InsertDepartment = z.infer<typeof insertDepartmentSchema>;
+export type Department = typeof departments.$inferSelect;
+
 // Teachers are now represented as users with school_memberships
 // The legacy teachers table has been removed - use users + school_memberships instead
 
@@ -158,7 +170,8 @@ export const meetings = pgTable("meetings", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   schoolId: varchar("school_id").notNull().references(() => schools.id),
   organizerId: varchar("organizer_id").notNull().references(() => users.id),
-  type: text("type").notNull(), // "Line Management", "Department", or "Leadership"
+  type: text("type").notNull(), // "Line Management", "Department Meeting", or "Leadership Meeting"
+  departmentId: varchar("department_id").references(() => departments.id), // Required for Department Meetings
   subject: text("subject").notNull(),
   details: text("details"),
   scheduledAt: timestamp("scheduled_at"),
@@ -193,6 +206,8 @@ export const meetingActions = pgTable("meeting_actions", {
   createdByMembershipId: varchar("created_by_membership_id").notNull().references(() => schoolMemberships.id),
   description: text("description").notNull(),
   status: text("status").notNull().default("open"), // "open", "in_progress", "done"
+  completed: boolean("completed").notNull().default(false), // Simple toggle for completion
+  originalMeetingId: varchar("original_meeting_id").references(() => meetings.id), // Tracks which meeting this action originated from (for carryover)
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),
   notes: text("notes"),
