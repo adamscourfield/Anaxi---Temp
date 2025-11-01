@@ -49,15 +49,15 @@ export default function ApproveLeave() {
   const [currentAction, setCurrentAction] = useState<ApprovalAction | null>(null);
   const [responseNotes, setResponseNotes] = useState("");
 
-  // Fetch user's memberships to find schools where they are Leader/Admin
+  // Fetch user's memberships to find schools where they can approve leave requests
   const { data: leaderMemberships = [] } = useQuery<Array<SchoolMembership & { school?: School }>>({
-    queryKey: ["/api/my-leader-memberships"],
+    queryKey: ["/api/my-approver-memberships"],
     enabled: !!user && !isCreator,
     queryFn: async () => {
       const response = await fetch("/api/my-memberships");
       if (!response.ok) throw new Error("Failed to fetch memberships");
       const memberships = await response.json();
-      return memberships.filter((m: any) => m.role === "Leader" || m.role === "Admin");
+      return memberships.filter((m: any) => m.canApproveLeaveRequests === true);
     },
   });
 

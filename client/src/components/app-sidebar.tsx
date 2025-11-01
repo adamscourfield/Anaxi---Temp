@@ -113,16 +113,10 @@ export function AppSidebar() {
     ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
     : user?.email?.[0]?.toUpperCase() || "?";
 
-  // Filter menu items based on user role and enabled features
+  // Filter menu items based on user permissions and enabled features
   const visibleMenuItems = menuItems.filter(item => {
     // Creators see all menu items regardless of school feature flags
     if (isCreator) return true;
-
-    // Check role restrictions first
-    if (item.restrictTo) {
-      if (!currentMembership) return false;
-      if (!item.restrictTo.includes(currentMembership.role)) return false;
-    }
 
     // Check feature flags for specific menu items
     // When currentSchool is null/loading, hide feature-gated items
