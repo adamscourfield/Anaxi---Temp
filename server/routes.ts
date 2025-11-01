@@ -1,7 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { DbStorage } from "./db-storage";
-import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertDepartmentSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertLeaveRequestSchema, insertObservationSchema } from "@shared/schema";
+import { db } from "./db";
+import { sql, desc } from "drizzle-orm";
+import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertDepartmentSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertLeaveRequestSchema, insertObservationSchema, meetingActions } from "@shared/schema";
 import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -1702,6 +1704,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting leave request:", error);
       res.status(500).json({ message: "Failed to delete leave request" });
+    }
+  });
+
+  // GET /api/my-leave-requests - Get all leave requests for current user across all schools
+  app.get("/api/my-leave-requests", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      
+      // Get all user's memberships
+      const memberships = await storage.getMembershipsByUser(user.id);
+      
+      // Fetch leave requests for each membership
+      const allLeaveRequests = await Promise.all(
+        memberships.map(m => storage.getLeaveRequestsByMembership(m.id))
+      );
+      
+      // Flatten and sort by creation date (most recent first)
+      const leaveRequests = allLeaveRequests
+        .flat()
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
+      res.json(leaveRequests);
+    } catch (error) {
+      console.error("Error fetching user's leave requests:", error);
+      res.status(500).json({ message: "Failed to fetch leave requests" });
+    }
+  });
+
+  // GET /api/my-actions - Get all meeting actions assigned to current user across all schools
+  app.get("/api/my-actions", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      
+      // Get all user's memberships
+      const memberships = await storage.getMembershipsByUser(user.id);
+      const membershipIds = memberships.map(m => m.id);
+      
+      // If user has no memberships, return empty array
+      if (membershipIds.length === 0) {
+        return res.json([]);
+      }
+      
+      // Query database directly for actions assigned to any of the user's memberships
+      const actions = await db
+        .select()
+        .from(meetingActions)
+        .where(sql`${meetingActions.assignedToMembershipId} IN (${sql.join(membershipIds.map(id => sql`${id}`), sql`, `)})`)
+        .orderBy(desc(meetingActions.createdAt));
+      
+      res.json(actions);
+    } catch (error) {
+      console.error("Error fetching user's actions:", error);
+      res.status(500).json({ message: "Failed to fetch actions" });
     }
   });
 
