@@ -4,7 +4,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useSchool } from "@/hooks/use-school";
-import type { Meeting, SchoolMembership, MeetingAttendee, MeetingAction } from "@shared/schema";
+import type { Meeting, SchoolMembership, MeetingAttendee, MeetingAction, Department } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +77,7 @@ export default function Meetings() {
     details: "",
     rating: "",
     staffMemberId: "", // For conversations - single staff member
+    departmentId: "", // For department meetings
   });
 
   // Get current user's membership
@@ -114,6 +115,17 @@ export default function Meetings() {
     },
   });
 
+  // Fetch departments for the current school
+  const { data: departments = [] } = useQuery<Department[]>({
+    queryKey: ["/api/schools", currentSchoolId, "departments"],
+    enabled: !!currentSchoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/schools/${currentSchoolId}/departments`);
+      if (!response.ok) throw new Error("Failed to fetch departments");
+      return response.json();
+    },
+  });
+
   const { data: meetings = [], isLoading: meetingsLoading } = useQuery<Meeting[]>({
     queryKey: ["/api/meetings", currentSchoolId],
     queryFn: async () => {
@@ -144,6 +156,7 @@ export default function Meetings() {
           details: data.meeting.details,
           schoolId: currentSchoolId,
           organizerId: user?.id,
+          departmentId: data.meeting.type === "Department" ? data.meeting.departmentId : null,
         };
       }
 
@@ -212,7 +225,7 @@ export default function Meetings() {
   });
 
   const resetForm = () => {
-    setFormData({ type: "Line Management", subject: "", details: "", rating: "", staffMemberId: "" });
+    setFormData({ type: "Line Management", subject: "", details: "", rating: "", staffMemberId: "", departmentId: "" });
     setSelectedAttendees([]);
     setActionItems([]);
     setNewAction({ description: "", assignedToMembershipId: "", dueDate: "" });
@@ -234,6 +247,15 @@ export default function Meetings() {
       toast({
         title: "Error",
         description: "Please select a rating for the conversation",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Validate department for department meetings
+    if (formType === "meeting" && formData.type === "Department" && !formData.departmentId) {
+      toast({
+        title: "Error",
+        description: "Please select a department for this meeting",
         variant: "destructive",
       });
       return;
@@ -417,24 +439,48 @@ export default function Meetings() {
 
               <div className="grid md:grid-cols-2 gap-4">
                 {formType === "meeting" && (
-                  <div className="space-y-2">
-                    <Label htmlFor="type">Meeting Type</Label>
-                    <Select
-                      value={formData.type}
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, type: value })
-                      }
-                    >
-                      <SelectTrigger data-testid="select-type">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Line Management">Line Management</SelectItem>
-                        <SelectItem value="Department">Department</SelectItem>
-                        <SelectItem value="Leadership">Leadership</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="type">Meeting Type</Label>
+                      <Select
+                        value={formData.type}
+                        onValueChange={(value) =>
+                          setFormData({ ...formData, type: value, departmentId: "" })
+                        }
+                      >
+                        <SelectTrigger data-testid="select-type">
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Line Management">Line Management</SelectItem>
+                          <SelectItem value="Department">Department</SelectItem>
+                          <SelectItem value="Leadership">Leadership</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    {formData.type === "Department" && (
+                      <div className="space-y-2">
+                        <Label htmlFor="department">Department *</Label>
+                        <Select
+                          value={formData.departmentId}
+                          onValueChange={(value) =>
+                            setFormData({ ...formData, departmentId: value })
+                          }
+                        >
+                          <SelectTrigger data-testid="select-department">
+                            <SelectValue placeholder="Select department" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {departments.map((dept) => (
+                              <SelectItem key={dept.id} value={dept.id}>
+                                {dept.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {formType === "conversation" && (
