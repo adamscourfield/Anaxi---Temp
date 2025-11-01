@@ -58,6 +58,8 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [assignedSchools, setAssignedSchools] = useState<string[]>([]);
+  // Map of schoolId -> { membershipId, canApproveLeaveRequests }
+  const [membershipPermissions, setMembershipPermissions] = useState<Record<string, { membershipId: string; canApproveLeaveRequests: boolean }>>({});
 
   // Fetch all teachers (include archived for Creators)
   const { data: teachers = [], isLoading: teachersLoading } = useQuery<User[]>({
@@ -190,9 +192,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/teachers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
-      setIsAssignOpen(false);
-      setSelectedTeacher(null);
-      setAssignedSchools([]);
+      handleCloseAssignDialog();
       toast({
         title: "Schools updated",
         description: "School assignments have been updated successfully.",
@@ -221,6 +221,29 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       toast({
         title: "Error",
         description: error.message || "Failed to update role",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update membership permission mutation
+  const updateMembershipPermissionMutation = useMutation({
+    mutationFn: async (data: { membershipId: string; canApproveLeaveRequests: boolean }) => {
+      return await apiRequest("PATCH", `/api/memberships/${data.membershipId}`, {
+        canApproveLeaveRequests: data.canApproveLeaveRequests,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
+      toast({
+        title: "Permission updated",
+        description: "Leave request approval permission has been updated successfully.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update permission",
         variant: "destructive",
       });
     },
@@ -449,9 +472,20 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       });
       const schoolIds = memberships.map(m => m.schoolId);
       setAssignedSchools(schoolIds);
+      
+      // Populate membership permissions with existing values
+      const permissions: Record<string, { membershipId: string; canApproveLeaveRequests: boolean }> = {};
+      memberships.forEach(m => {
+        permissions[m.schoolId] = {
+          membershipId: m.id,
+          canApproveLeaveRequests: m.canApproveLeaveRequests || false,
+        };
+      });
+      setMembershipPermissions(permissions);
     } catch (error) {
       console.error("Failed to fetch teacher memberships:", error);
       setAssignedSchools([]);
+      setMembershipPermissions({});
     }
     
     setIsAssignOpen(true);
@@ -466,12 +500,41 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     });
   };
 
+  const handleCloseAssignDialog = () => {
+    setIsAssignOpen(false);
+    setSelectedTeacher(null);
+    setAssignedSchools([]);
+    setMembershipPermissions({});
+  };
+
   const toggleSchool = (schoolId: string) => {
     setAssignedSchools(prev =>
       prev.includes(schoolId)
         ? prev.filter(id => id !== schoolId)
         : [...prev, schoolId]
     );
+  };
+
+  const togglePermission = (schoolId: string) => {
+    const permission = membershipPermissions[schoolId];
+    if (!permission) return;
+    
+    const newValue = !permission.canApproveLeaveRequests;
+    
+    // Optimistically update local state
+    setMembershipPermissions(prev => ({
+      ...prev,
+      [schoolId]: {
+        ...prev[schoolId],
+        canApproveLeaveRequests: newValue,
+      },
+    }));
+    
+    // Call mutation to update on backend
+    updateMembershipPermissionMutation.mutate({
+      membershipId: permission.membershipId,
+      canApproveLeaveRequests: newValue,
+    });
   };
 
   const toggleNewTeacherSchool = (schoolId: string) => {
@@ -916,7 +979,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       </Dialog>
 
       {/* School Assignment Dialog */}
-      <Dialog open={isAssignOpen} onOpenChange={setIsAssignOpen}>
+      <Dialog open={isAssignOpen} onOpenChange={(open) => !open && handleCloseAssignDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Schools</DialogTitle>
@@ -927,23 +990,49 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              {schools.map((school) => (
-                <div key={school.id} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`assign-school-${school.id}`}
-                    checked={assignedSchools.includes(school.id)}
-                    onCheckedChange={() => toggleSchool(school.id)}
-                    data-testid={`checkbox-assign-school-${school.id}`}
-                  />
-                  <label
-                    htmlFor={`assign-school-${school.id}`}
-                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                  >
-                    {school.name}
-                  </label>
-                </div>
-              ))}
+            <div className="space-y-3">
+              {schools.map((school) => {
+                const isAssigned = assignedSchools.includes(school.id);
+                const permission = membershipPermissions[school.id];
+                
+                return (
+                  <div key={school.id} className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id={`assign-school-${school.id}`}
+                        checked={isAssigned}
+                        onCheckedChange={() => toggleSchool(school.id)}
+                        data-testid={`checkbox-assign-school-${school.id}`}
+                      />
+                      <label
+                        htmlFor={`assign-school-${school.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                      >
+                        {school.name}
+                      </label>
+                    </div>
+                    
+                    {isAssigned && permission && (
+                      <div className="ml-6 pl-4 border-l-2 border-border">
+                        <div className="flex items-center space-x-2">
+                          <Checkbox
+                            id={`permission-${school.id}`}
+                            checked={permission.canApproveLeaveRequests}
+                            onCheckedChange={() => togglePermission(school.id)}
+                            data-testid={`checkbox-permission-${school.id}`}
+                          />
+                          <label
+                            htmlFor={`permission-${school.id}`}
+                            className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
+                            Can approve leave requests
+                          </label>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
               {schools.length === 0 && (
                 <p className="text-sm text-muted-foreground">No schools available</p>
               )}
@@ -952,11 +1041,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => {
-                setIsAssignOpen(false);
-                setSelectedTeacher(null);
-                setAssignedSchools([]);
-              }}
+              onClick={handleCloseAssignDialog}
               data-testid="button-cancel-assign"
             >
               Cancel

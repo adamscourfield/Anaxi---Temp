@@ -66,6 +66,7 @@ export const schoolMemberships = pgTable("school_memberships", {
   displayName: text("display_name"), // Optional: display name override for this school
   profilePicture: text("profile_picture"), // Optional: profile picture override for this school
   groupId: varchar("group_id").references(() => teachingGroups.id),
+  canApproveLeaveRequests: boolean("can_approve_leave_requests").default(false).notNull(), // Permission to view and approve leave requests
   createdAt: timestamp("created_at").defaultNow(),
 });
 
