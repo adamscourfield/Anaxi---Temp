@@ -8,8 +8,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, ArrowRight } from "lucide-react";
+import { Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -19,8 +18,8 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export function AuthForm() {
-  const { toast } = useToast();
   const [, navigate] = useLocation();
+  const [loginError, setLoginError] = useState<string | null>(null);
 
   const { register, handleSubmit, formState: { errors } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -35,20 +34,27 @@ export function AuthForm() {
       window.location.href = "/";
     },
     onError: (error: Error) => {
-      toast({
-        title: "Login failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      setLoginError(error.message || "Incorrect email or password");
     },
   });
 
   const onSubmit = async (data: LoginFormData) => {
+    setLoginError(null);
     await loginMutation.mutateAsync(data);
   };
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      {loginError && (
+        <div 
+          className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/20 text-destructive"
+          data-testid="error-login"
+        >
+          <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <p className="text-sm">{loginError}</p>
+        </div>
+      )}
+
       <div className="space-y-2">
         <Label htmlFor="email" className="text-base">Email address</Label>
         <div className="relative">

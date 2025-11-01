@@ -14,7 +14,7 @@ import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from "@uppy/core";
 
 export default function Profile() {
-  const { currentUser, setCurrentUser } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,13 +23,13 @@ export default function Profile() {
     profilePicture: "",
   });
 
-  // Sync formData with currentUser when entering edit mode
+  // Sync formData with user when entering edit mode
   const handleEdit = () => {
-    if (currentUser) {
+    if (user) {
       setFormData({
-        name: currentUser.name || "",
-        email: currentUser.email || "",
-        profilePicture: currentUser.profilePicture || "",
+        name: user.name || "",
+        email: user.email || "",
+        profilePicture: user.profile_picture || "",
       });
     }
     setIsEditing(true);
@@ -52,8 +52,7 @@ export default function Profile() {
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/teachers"] });
-      setCurrentUser(data.teacher);
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       setFormData({
         ...formData,
         profilePicture: data.objectPath,
@@ -93,12 +92,11 @@ export default function Profile() {
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiRequest("PATCH", `/api/teachers/${currentUser?.id}`, data);
+      const response = await apiRequest("PATCH", `/api/users/${user?.id}`, data);
       return response.json();
     },
-    onSuccess: (updatedTeacher) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/teachers"] });
-      setCurrentUser(updatedTeacher);
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Success",
         description: "Profile updated successfully",
@@ -142,14 +140,14 @@ export default function Profile() {
 
   const handleCancel = () => {
     setFormData({
-      name: currentUser?.name || "",
-      email: currentUser?.email || "",
-      profilePicture: currentUser?.profilePicture || "",
+      name: user?.name || "",
+      email: user?.email || "",
+      profilePicture: user?.profile_picture || "",
     });
     setIsEditing(false);
   };
 
-  if (!currentUser) {
+  if (!user) {
     return (
       <div className="p-6">
         <Card>
@@ -161,9 +159,9 @@ export default function Profile() {
     );
   }
 
-  const initials = currentUser.name
+  const initials = user.name
     .split(" ")
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
@@ -195,23 +193,19 @@ export default function Profile() {
         <CardContent className="space-y-6">
           <div className="flex items-center gap-6">
             <Avatar className="h-24 w-24">
-              {(isEditing ? formData.profilePicture : currentUser.profilePicture) && (
-                <AvatarImage src={(isEditing ? formData.profilePicture : currentUser.profilePicture) || undefined} />
+              {(isEditing ? formData.profilePicture : user.profile_picture) && (
+                <AvatarImage src={(isEditing ? formData.profilePicture : user.profile_picture) || undefined} />
               )}
               <AvatarFallback className="text-2xl">{initials}</AvatarFallback>
             </Avatar>
             <div className="flex-1">
-              <h2 className="text-2xl font-semibold">{currentUser.name}</h2>
+              <h2 className="text-2xl font-semibold">{user.name}</h2>
               <div className="flex items-center gap-2 mt-2">
                 <Badge
-                  variant={
-                    currentUser.role === "Admin" ? "default" :
-                    currentUser.role === "Leader" ? "secondary" :
-                    "outline"
-                  }
+                  variant="outline"
                   data-testid="badge-user-role"
                 >
-                  {currentUser.role || "Teacher"}
+                  User
                 </Badge>
               </div>
             </div>
@@ -300,17 +294,12 @@ export default function Profile() {
             <div className="space-y-4">
               <div>
                 <Label className="text-muted-foreground">Full Name</Label>
-                <p className="text-base mt-1" data-testid="text-name">{currentUser.name}</p>
+                <p className="text-base mt-1" data-testid="text-name">{user.name}</p>
               </div>
 
               <div>
                 <Label className="text-muted-foreground">Email Address</Label>
-                <p className="text-base mt-1" data-testid="text-email">{currentUser.email || "Not set"}</p>
-              </div>
-
-              <div>
-                <Label className="text-muted-foreground">Role</Label>
-                <p className="text-base mt-1" data-testid="text-role">{currentUser.role || "Teacher"}</p>
+                <p className="text-base mt-1" data-testid="text-email">{user.email || "Not set"}</p>
               </div>
             </div>
           )}

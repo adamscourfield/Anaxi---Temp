@@ -559,16 +559,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Only Admin or Creator can update teachers
-      if (user.global_role !== "Creator") {
+      // Users can update their own profile, or Admin/Creator can update others
+      const isOwnProfile = user.id === userId;
+      if (!isOwnProfile && user.global_role !== "Creator") {
         const userMemberships = await storage.getMembershipsByUser(user.id);
         const isAdmin = userMemberships.some(m => m.role === "Admin");
         if (!isAdmin) {
-          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can update teachers" });
+          return res.status(403).json({ message: "Forbidden: You can only update your own profile" });
         }
       }
 
-      const { first_name, last_name, email } = req.body;
+      const { name, first_name, last_name, email, profilePicture } = req.body;
+
+      // Parse name into first_name and last_name if provided
+      let firstName = first_name;
+      let lastName = last_name;
+      if (name && !first_name && !last_name) {
+        const nameParts = name.trim().split(/\s+/);
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(" ");
+      }
 
       // Check if email is being changed and if it's already in use
       if (email) {
@@ -580,9 +590,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Update user
       const updatedUser = await storage.updateUser(userId, {
-        first_name: first_name !== undefined ? first_name : undefined,
-        last_name: last_name !== undefined ? last_name : undefined,
+        first_name: firstName !== undefined ? firstName : undefined,
+        last_name: lastName !== undefined ? lastName : undefined,
         email: email !== undefined ? email : undefined,
+        profile_picture: profilePicture !== undefined ? profilePicture : undefined,
       });
 
       if (!updatedUser) {
@@ -591,8 +602,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(updatedUser);
     } catch (error) {
-      console.error("Error updating teacher:", error);
-      res.status(500).json({ message: "Failed to update teacher" });
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
     }
   });
 
