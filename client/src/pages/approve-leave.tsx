@@ -88,19 +88,8 @@ export default function ApproveLeave() {
     },
   });
 
-  // Get current user's membership in selected school
-  const { data: currentMembership } = useQuery<SchoolMembership>({
-    queryKey: ["/api/my-membership", selectedSchool],
-    enabled: !!user && !!selectedSchool && !isCreator,
-    queryFn: async () => {
-      const response = await fetch(`/api/schools/${selectedSchool}/memberships`);
-      if (!response.ok) throw new Error("Failed to fetch memberships");
-      const memberships: SchoolMembership[] = await response.json();
-      const myMembership = memberships.find(m => m.userId === user?.id);
-      if (!myMembership) throw new Error("Membership not found");
-      return myMembership;
-    },
-  });
+  // Get current user's membership in selected school from already-fetched memberships
+  const currentMembership = leaderMemberships.find(m => m.schoolId === selectedSchool);
 
   // Approve/deny mutation
   const approveMutation = useMutation({

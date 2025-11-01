@@ -86,21 +86,14 @@ export function AppSidebar() {
   const { user, isCreator } = useAuth();
   const { currentSchool, currentSchoolId } = useSchool();
 
-  // Check if user is Admin in current school
-  const { data: currentMembership } = useQuery<SchoolMembership>({
-    queryKey: ["/api/my-membership-role", currentSchoolId],
-    enabled: !!user && !!currentSchoolId && !isCreator,
-    queryFn: async () => {
-      try {
-        const response = await fetch(`/api/schools/${currentSchoolId}/memberships`);
-        if (!response.ok) return null;
-        const memberships = await response.json();
-        return memberships.find((m: any) => m.userId === user?.id) || null;
-      } catch {
-        return null;
-      }
-    },
+  // Get user's memberships to determine permissions for current school
+  const { data: userMemberships = [] } = useQuery<Array<SchoolMembership & { school?: any }>>({
+    queryKey: ["/api/my-memberships"],
+    enabled: !!user && !isCreator,
   });
+
+  // Find membership for current school
+  const currentMembership = userMemberships.find(m => m.schoolId === currentSchoolId);
 
   const isAdmin = isCreator || currentMembership?.role === "Admin";
   const isLeaderOrAdmin = isCreator || currentMembership?.role === "Leader" || currentMembership?.role === "Admin";
