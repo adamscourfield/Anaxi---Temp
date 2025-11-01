@@ -11,13 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -110,13 +103,24 @@ export default function ApproveLeave() {
   };
 
   const confirmApproval = () => {
-    if (!currentAction || !currentMembership) return;
+    if (!currentAction) return;
+    
+    // For creators, use a special membership ID (or handle differently on backend)
+    // For regular users with approval permission, use their membership ID
+    if (!currentMembership && !isCreator) {
+      toast({
+        title: "Error",
+        description: "Unable to determine approval authority",
+        variant: "destructive",
+      });
+      return;
+    }
     
     approveMutation.mutate({
       id: currentAction.requestId,
       status: currentAction.status,
       responseNotes,
-      approvedBy: currentMembership.id,
+      approvedBy: currentMembership?.id || "creator",
     });
   };
 
