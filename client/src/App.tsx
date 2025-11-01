@@ -20,6 +20,8 @@ import ManageSchools from "@/pages/manage-schools";
 import AppManagement from "@/pages/app-management";
 import TeachingGroupDetails from "@/pages/teaching-group-details";
 import Meetings from "@/pages/meetings";
+import LeaveRequests from "@/pages/leave-requests";
+import ApproveLeave from "@/pages/approve-leave";
 import Profile from "@/pages/profile";
 import Landing from "@/pages/landing";
 import ForgotPassword from "@/pages/forgot-password";
@@ -36,6 +38,8 @@ function Router() {
       <Route path="/schools" component={ManageSchools} />
       <Route path="/management" component={AppManagement} />
       <Route path="/meetings" component={Meetings} />
+      <Route path="/leave-requests" component={LeaveRequests} />
+      <Route path="/approve-leave" component={ApproveLeave} />
       <Route path="/profile" component={Profile} />
       <Route path="/teaching-groups/:id" component={TeachingGroupDetails} />
     </Switch>

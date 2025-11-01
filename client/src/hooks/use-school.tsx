@@ -5,6 +5,7 @@ import { useAuth } from "./use-auth";
 interface School {
   id: string;
   name: string;
+  enabled_features?: string[];
 }
 
 interface SchoolMembership {
@@ -17,6 +18,7 @@ interface SchoolMembership {
 
 interface SchoolContextType {
   currentSchoolId: string | null;
+  currentSchool: School | null;
   schools: School[];
   isLoading: boolean;
   hasNoSchools: boolean;
@@ -54,6 +56,9 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
   // Extract schools from memberships or use all schools for Creators
   const schools = isCreator ? allSchools : memberships.map(m => m.school).filter(Boolean);
   const isLoading = authLoading || (isCreator ? schoolsLoading : membershipsLoading);
+
+  // Get current school object based on currentSchoolId
+  const currentSchool = schools.find(s => s.id === currentSchoolId) || null;
 
   // Check if user has no schools after loading completes
   const hasNoSchools = !authLoading && !isLoading && !!user && schools.length === 0;
@@ -93,6 +98,7 @@ export function SchoolProvider({ children }: { children: ReactNode }) {
     <SchoolContext.Provider
       value={{
         currentSchoolId,
+        currentSchool,
         schools,
         isLoading,
         hasNoSchools,

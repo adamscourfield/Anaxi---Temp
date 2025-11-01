@@ -88,6 +88,65 @@ function requireRole(allowedRoles: Role[]) {
   };
 }
 
+// Middleware to require a specific feature to be enabled for the school
+function requireFeature(featureName: string) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      // Determine schoolId from query params, body, or existing leave request/meeting
+      let schoolId: string | undefined;
+      
+      // Try to get schoolId from query params first
+      schoolId = req.query.schoolId as string;
+      
+      // If not in query, try request body
+      if (!schoolId && req.body && req.body.schoolId) {
+        schoolId = req.body.schoolId;
+      }
+      
+      // If still not found and this is a PATCH/DELETE on an existing resource, get it from the resource
+      if (!schoolId && (req.method === 'PATCH' || req.method === 'DELETE' || req.method === 'GET') && req.params.id) {
+        // For leave requests
+        if (req.path.includes('/leave-requests/')) {
+          const leaveRequest = await storage.getLeaveRequest(req.params.id);
+          if (leaveRequest) {
+            schoolId = leaveRequest.schoolId;
+          }
+        }
+        // For meetings
+        else if (req.path.includes('/meetings/')) {
+          const meeting = await storage.getMeeting(req.params.id);
+          if (meeting) {
+            schoolId = meeting.schoolId;
+          }
+        }
+      }
+      
+      if (!schoolId) {
+        return res.status(400).json({ message: "School ID is required to verify feature access" });
+      }
+      
+      // Get the school to check enabled features
+      const school = await storage.getSchool(schoolId);
+      if (!school) {
+        return res.status(404).json({ message: "School not found" });
+      }
+      
+      // Check if the feature is enabled
+      const enabledFeatures = school.enabled_features || [];
+      if (!enabledFeatures.includes(featureName)) {
+        return res.status(403).json({ 
+          message: `Forbidden: The '${featureName}' feature is not enabled for this school` 
+        });
+      }
+      
+      next();
+    } catch (error) {
+      console.error("Feature check error:", error);
+      res.status(500).json({ message: "Feature check failed" });
+    }
+  };
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware - Referenced from blueprint:javascript_log_in_with_replit
   await setupAuth(app);
@@ -440,6 +499,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Create school memberships if schoolIds provided
+      let primarySchoolName = "Anaxi";
       if (schoolIds && Array.isArray(schoolIds) && schoolIds.length > 0) {
         for (const schoolId of schoolIds) {
           await storage.createMembership({
@@ -448,7 +508,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
             role: role || "Teacher",
           });
         }
+        // Get the first school's name for the welcome email
+        const firstSchool = await storage.getSchool(schoolIds[0]);
+        if (firstSchool) {
+          primarySchoolName = firstSchool.name;
+        }
       }
+
+      // Send welcome email with password setup instructions (fire and forget)
+      void (async () => {
+        try {
+          const userName = `${first_name || ''} ${last_name || ''}`.trim() || email || 'there';
+          
+          await emailService.sendWelcomeEmail({
+            to: email,
+            userName,
+            schoolName: primarySchoolName,
+            temporaryPassword: password, // Send the temporary password they were assigned
+          });
+        } catch (error) {
+          console.error("[EMAIL] Failed to send welcome email:", error);
+        }
+      })();
 
       res.status(201).json(newUser);
     } catch (error) {
@@ -938,7 +1019,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Meetings routes
-  app.get("/api/meetings", isAuthenticated, async (req, res) => {
+  app.get("/api/meetings", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const schoolId = req.query.schoolId as string;
@@ -969,7 +1050,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/meetings/:id", isAuthenticated, async (req, res) => {
+  app.get("/api/meetings/:id", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id } = req.params;
@@ -995,7 +1076,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/meetings", isAuthenticated, async (req, res) => {
+  app.post("/api/meetings", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const validated = insertMeetingSchema.parse(req.body);
@@ -1058,7 +1139,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/meetings/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/meetings/:id", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id } = req.params;
@@ -1087,7 +1168,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/meetings/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/meetings/:id", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id } = req.params;
@@ -1116,7 +1197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Meeting attendees routes
-  app.get("/api/meetings/:id/attendees", isAuthenticated, async (req, res) => {
+  app.get("/api/meetings/:id/attendees", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id } = req.params;
@@ -1143,7 +1224,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/meetings/:id/attendees", isAuthenticated, async (req, res) => {
+  app.post("/api/meetings/:id/attendees", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id } = req.params;
@@ -1174,7 +1255,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/meetings/:id/attendees/:attendeeId", isAuthenticated, async (req, res) => {
+  app.delete("/api/meetings/:id/attendees/:attendeeId", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id, attendeeId } = req.params;
@@ -1206,7 +1287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Meeting actions routes
-  app.get("/api/meetings/:id/actions", isAuthenticated, async (req, res) => {
+  app.get("/api/meetings/:id/actions", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id } = req.params;
@@ -1233,7 +1314,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/meetings/:id/actions", isAuthenticated, async (req, res) => {
+  app.post("/api/meetings/:id/actions", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id } = req.params;
@@ -1264,7 +1345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/meetings/:id/actions/:actionId", isAuthenticated, async (req, res) => {
+  app.patch("/api/meetings/:id/actions/:actionId", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id, actionId } = req.params;
@@ -1296,7 +1377,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/meetings/:id/actions/:actionId", isAuthenticated, async (req, res) => {
+  app.delete("/api/meetings/:id/actions/:actionId", isAuthenticated, requireFeature("meetings"), async (req, res) => {
     try {
       const user = req.user!;
       const { id, actionId } = req.params;
@@ -1329,7 +1410,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Leave Request routes
   // POST /api/leave-requests - Create a new leave request
-  app.post("/api/leave-requests", isAuthenticated, async (req, res) => {
+  app.post("/api/leave-requests", isAuthenticated, requireFeature("absence_management"), async (req, res) => {
     try {
       const user = req.user!;
       const requestData = req.body;
@@ -1369,7 +1450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // GET /api/leave-requests - List leave requests with optional filtering
-  app.get("/api/leave-requests", isAuthenticated, async (req, res) => {
+  app.get("/api/leave-requests", isAuthenticated, requireFeature("absence_management"), async (req, res) => {
     try {
       const user = req.user!;
       const schoolId = req.query.schoolId as string;
@@ -1420,8 +1501,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // GET /api/leave-requests/:id - Get a single leave request with authorization
+  app.get("/api/leave-requests/:id", isAuthenticated, requireFeature("absence_management"), async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      
+      // Get the leave request
+      const leaveRequest = await storage.getLeaveRequest(id);
+      if (!leaveRequest) {
+        return res.status(404).json({ message: "Leave request not found" });
+      }
+      
+      // Get the membership for the leave request to determine the school
+      const requestMembership = await storage.getMembership(leaveRequest.membershipId);
+      if (!requestMembership) {
+        return res.status(404).json({ message: "Membership not found" });
+      }
+      
+      // Verify user has access to the school and proper authorization
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const userMembership = userMemberships.find(m => m.schoolId === requestMembership.schoolId);
+        
+        if (!userMembership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+        
+        const isLeaderOrAdmin = userMembership.role === "Leader" || userMembership.role === "Admin";
+        const isOwnRequest = userMembership.id === leaveRequest.membershipId;
+        
+        // Teachers can only see their own requests
+        // Leaders/Admins can see all requests for their school
+        if (!isLeaderOrAdmin && !isOwnRequest) {
+          return res.status(403).json({ message: "Forbidden: You can only view your own leave requests" });
+        }
+      }
+      
+      res.json(leaveRequest);
+    } catch (error) {
+      console.error("Error fetching leave request:", error);
+      res.status(500).json({ message: "Failed to fetch leave request" });
+    }
+  });
+
   // PATCH /api/leave-requests/:id - Update a leave request
-  app.patch("/api/leave-requests/:id", isAuthenticated, async (req, res) => {
+  app.patch("/api/leave-requests/:id", isAuthenticated, requireFeature("absence_management"), async (req, res) => {
     try {
       const user = req.user!;
       const { id } = req.params;
@@ -1476,6 +1601,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Leave request not found" });
       }
       
+      // Send email notification if status changed to approved/denied (fire and forget)
+      void (async () => {
+        try {
+          if (updates.status && (updates.status.includes("approved") || updates.status === "denied")) {
+            const requestMembershipData = await storage.getMembership(updatedRequest.membershipId);
+            const requestingUser = requestMembershipData ? await storage.getUser(requestMembershipData.userId) : null;
+            
+            if (requestingUser && requestingUser.email) {
+              const approverMembership = updatedRequest.approvedBy ? await storage.getMembership(updatedRequest.approvedBy) : null;
+              const approverUser = approverMembership ? await storage.getUser(approverMembership.userId) : null;
+              const approverName = approverUser 
+                ? `${approverUser.first_name || ''} ${approverUser.last_name || ''}`.trim() || approverUser.email || 'An administrator'
+                : 'An administrator';
+              
+              const teacherName = `${requestingUser.first_name || ''} ${requestingUser.last_name || ''}`.trim() || requestingUser.email || 'there';
+              
+              await emailService.sendLeaveRequestApproval({
+                to: requestingUser.email,
+                teacherName,
+                approverName,
+                leaveType: updatedRequest.type,
+                startDate: new Date(updatedRequest.startDate).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                }),
+                endDate: new Date(updatedRequest.endDate).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                }),
+                status: updatedRequest.status,
+                responseNotes: updatedRequest.responseNotes || undefined,
+              });
+            }
+          }
+        } catch (error) {
+          console.error("[EMAIL] Failed to send leave request approval notification:", error);
+        }
+      })();
+      
       res.json(updatedRequest);
     } catch (error) {
       console.error("Error updating leave request:", error);
@@ -1484,7 +1650,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // DELETE /api/leave-requests/:id - Delete a leave request
-  app.delete("/api/leave-requests/:id", isAuthenticated, async (req, res) => {
+  app.delete("/api/leave-requests/:id", isAuthenticated, requireFeature("absence_management"), async (req, res) => {
     try {
       const user = req.user!;
       const { id } = req.params;

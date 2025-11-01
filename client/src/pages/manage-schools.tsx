@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -21,6 +22,7 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [editSchoolName, setEditSchoolName] = useState("");
+  const [editEnabledFeatures, setEditEnabledFeatures] = useState<string[]>([]);
   
   // Department management state
   const [departmentSchool, setDepartmentSchool] = useState<School | null>(null);
@@ -60,14 +62,15 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
 
   // Update school mutation
   const updateMutation = useMutation({
-    mutationFn: async ({ id, name }: { id: string; name: string }) => {
-      return await apiRequest("PATCH", `/api/schools/${id}`, { name });
+    mutationFn: async ({ id, name, enabled_features }: { id: string; name: string; enabled_features?: string[] }) => {
+      return await apiRequest("PATCH", `/api/schools/${id}`, { name, enabled_features });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schools"] });
       setIsEditOpen(false);
       setEditingSchool(null);
       setEditSchoolName("");
+      setEditEnabledFeatures([]);
       toast({
         title: "School updated",
         description: "The school has been updated successfully.",
@@ -196,6 +199,7 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
   const handleEditSchool = (school: School) => {
     setEditingSchool(school);
     setEditSchoolName(school.name);
+    setEditEnabledFeatures(school.enabled_features || ["observations"]);
     setIsEditOpen(true);
   };
 
@@ -208,7 +212,19 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
       });
       return;
     }
-    updateMutation.mutate({ id: editingSchool.id, name: editSchoolName });
+    updateMutation.mutate({ 
+      id: editingSchool.id, 
+      name: editSchoolName,
+      enabled_features: editEnabledFeatures
+    });
+  };
+
+  const toggleFeature = (feature: string) => {
+    setEditEnabledFeatures(prev => 
+      prev.includes(feature) 
+        ? prev.filter(f => f !== feature)
+        : [...prev, feature]
+    );
   };
 
   const handleOpenDepartments = (school: School) => {
@@ -419,7 +435,7 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
           <DialogHeader>
             <DialogTitle>Edit School</DialogTitle>
             <DialogDescription>
-              Update the school information
+              Update the school information and enabled features
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -433,6 +449,56 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
                 placeholder="Enter school name"
               />
             </div>
+            
+            <div className="space-y-3">
+              <Label>Enabled Features</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="feature-observations"
+                    checked={editEnabledFeatures.includes("observations")}
+                    disabled={true}
+                    data-testid="checkbox-feature-observations"
+                  />
+                  <Label 
+                    htmlFor="feature-observations" 
+                    className="text-sm font-normal cursor-not-allowed opacity-60"
+                  >
+                    Observations (Always enabled)
+                  </Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="feature-meetings"
+                    checked={editEnabledFeatures.includes("meetings")}
+                    onCheckedChange={() => toggleFeature("meetings")}
+                    data-testid="checkbox-feature-meetings"
+                  />
+                  <Label 
+                    htmlFor="feature-meetings" 
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    Meetings
+                  </Label>
+                </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="feature-absence-management"
+                    checked={editEnabledFeatures.includes("absence_management")}
+                    onCheckedChange={() => toggleFeature("absence_management")}
+                    data-testid="checkbox-feature-absence-management"
+                  />
+                  <Label 
+                    htmlFor="feature-absence-management" 
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    Absence Management
+                  </Label>
+                </div>
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button
@@ -441,6 +507,7 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
                 setIsEditOpen(false);
                 setEditingSchool(null);
                 setEditSchoolName("");
+                setEditEnabledFeatures([]);
               }}
               data-testid="button-cancel-edit"
             >

@@ -6,6 +6,8 @@ import {
   History,
   MessageSquare,
   Settings,
+  Calendar,
+  CheckSquare,
 } from "lucide-react";
 import {
   Sidebar,
@@ -53,6 +55,19 @@ const menuItems = [
     color: "info",
   },
   {
+    title: "Leave Requests",
+    url: "/leave-requests",
+    icon: Calendar,
+    color: "teal",
+  },
+  {
+    title: "Approve Leave",
+    url: "/approve-leave",
+    icon: CheckSquare,
+    color: "info",
+    restrictTo: ["Leader", "Admin"],
+  },
+  {
     title: "App Management",
     url: "/management",
     icon: Settings,
@@ -70,9 +85,7 @@ const iconColorClasses: Record<string, string> = {
 export function AppSidebar() {
   const [location] = useLocation();
   const { user, isCreator } = useAuth();
-  const { schools, currentSchoolId } = useSchool();
-
-  const currentSchool = schools?.find(s => s.id === currentSchoolId);
+  const { currentSchool, currentSchoolId } = useSchool();
 
   // Check if user is Admin in current school
   const { data: currentMembership } = useQuery<SchoolMembership>({
@@ -91,6 +104,7 @@ export function AppSidebar() {
   });
 
   const isAdmin = isCreator || currentMembership?.role === "Admin";
+  const isLeaderOrAdmin = isCreator || currentMembership?.role === "Leader" || currentMembership?.role === "Admin";
 
   const userName = user?.first_name && user?.last_name 
     ? `${user.first_name} ${user.last_name}` 
@@ -99,6 +113,48 @@ export function AppSidebar() {
   const userInitials = user?.first_name && user?.last_name
     ? `${user.first_name[0]}${user.last_name[0]}`.toUpperCase()
     : user?.email?.[0]?.toUpperCase() || "?";
+
+  // Filter menu items based on user role and enabled features
+  const visibleMenuItems = menuItems.filter(item => {
+    // Creators see all menu items regardless of school feature flags
+    if (isCreator) return true;
+
+    // Check role restrictions first
+    if (item.restrictTo) {
+      if (!currentMembership) return false;
+      if (!item.restrictTo.includes(currentMembership.role)) return false;
+    }
+
+    // Check feature flags for specific menu items
+    // When currentSchool is null/loading, hide feature-gated items
+    if (!currentSchool) {
+      // Hide feature-specific items when loading
+      if (item.title === "Meetings" || item.title === "Leave Requests" || item.title === "Approve Leave") {
+        return false;
+      }
+      return true;
+    }
+
+    const enabledFeatures = currentSchool.enabled_features || [];
+
+    // Meetings requires "meetings" feature
+    if (item.title === "Meetings") {
+      return enabledFeatures.includes("meetings");
+    }
+
+    // Leave Requests requires "absence_management" feature
+    if (item.title === "Leave Requests") {
+      return enabledFeatures.includes("absence_management");
+    }
+
+    // Approve Leave requires "absence_management" feature AND Leader/Admin role
+    if (item.title === "Approve Leave") {
+      return enabledFeatures.includes("absence_management");
+    }
+
+    // All other items are visible
+    return true;
+  });
 
   return (
     <Sidebar>
@@ -117,7 +173,7 @@ export function AppSidebar() {
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu className="gap-4">
-              {menuItems.map((item) => (
+              {visibleMenuItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={location === item.url}>
                     <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>

@@ -2,6 +2,19 @@ import { Resend } from 'resend';
 
 let connectionSettings: any;
 
+// Helper function to sanitize HTML in user-provided content
+function sanitizeHtml(text: string | undefined): string {
+  if (!text) return '';
+  
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;')
+    .replace(/\//g, '&#x2F;');
+}
+
 async function getCredentials() {
   const hostname = process.env.REPLIT_CONNECTORS_HOSTNAME
   const xReplitToken = process.env.REPL_IDENTITY 
@@ -76,6 +89,24 @@ export interface EmailService {
     userName: string;
     resetToken: string;
   }): Promise<void>;
+
+  sendLeaveRequestApproval(params: {
+    to: string;
+    teacherName: string;
+    approverName: string;
+    leaveType: string;
+    startDate: string;
+    endDate: string;
+    status: string;
+    responseNotes?: string;
+  }): Promise<void>;
+
+  sendWelcomeEmail(params: {
+    to: string;
+    userName: string;
+    schoolName: string;
+    temporaryPassword: string;
+  }): Promise<void>;
 }
 
 // Helper to safely send emails without throwing errors
@@ -102,12 +133,12 @@ export const emailService: EmailService = {
       await client.emails.send({
         from: fromEmail,
         to,
-        subject: `New Observation: ${observerName} observed you`,
+        subject: `New Observation: ${sanitizeHtml(observerName)} observed you`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">New Observation Completed</h2>
-            <p>Hi ${teacherName},</p>
-            <p>${observerName} has completed an observation of your teaching on ${observationDate}.</p>
+            <p>Hi ${sanitizeHtml(teacherName)},</p>
+            <p>${sanitizeHtml(observerName)} has completed an observation of your teaching on ${observationDate}.</p>
             <p>You can view the observation details and feedback by clicking the link below:</p>
             <a href="${appUrl}/observations/${observationId}" 
                style="display: inline-block; padding: 12px 24px; background-color: #FF6B6B; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
@@ -132,12 +163,12 @@ export const emailService: EmailService = {
       await client.emails.send({
         from: fromEmail,
         to,
-        subject: `New Feedback: ${observerName} has provided feedback`,
+        subject: `New Feedback: ${sanitizeHtml(observerName)} has provided feedback`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">New Feedback Available</h2>
-            <p>Hi ${teacherName},</p>
-            <p>${observerName} has provided feedback on your recent observation.</p>
+            <p>Hi ${sanitizeHtml(teacherName)},</p>
+            <p>${sanitizeHtml(observerName)} has provided feedback on your recent observation.</p>
             <p>You can view the detailed feedback by clicking the link below:</p>
             <a href="${appUrl}/observations/${observationId}" 
                style="display: inline-block; padding: 12px 24px; background-color: #FF6B6B; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
@@ -162,13 +193,13 @@ export const emailService: EmailService = {
       await client.emails.send({
         from: fromEmail,
         to,
-        subject: `Meeting Invitation: ${meetingSubject}`,
+        subject: `Meeting Invitation: ${sanitizeHtml(meetingSubject)}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">You've been invited to a meeting</h2>
-            <p>${organizerName} has invited you to a ${meetingType} meeting.</p>
+            <p>${sanitizeHtml(organizerName)} has invited you to a ${meetingType} meeting.</p>
             <div style="background-color: #f5f5f5; padding: 15px; border-radius: 6px; margin: 20px 0;">
-              <p style="margin: 5px 0;"><strong>Subject:</strong> ${meetingSubject}</p>
+              <p style="margin: 5px 0;"><strong>Subject:</strong> ${sanitizeHtml(meetingSubject)}</p>
               <p style="margin: 5px 0;"><strong>Type:</strong> ${meetingType}</p>
               <p style="margin: 5px 0;"><strong>Date:</strong> ${meetingDate}</p>
             </div>
@@ -201,12 +232,12 @@ export const emailService: EmailService = {
       await client.emails.send({
         from: fromEmail,
         to,
-        subject: `New Conversation: ${conversationSubject}`,
+        subject: `New Conversation: ${sanitizeHtml(conversationSubject)}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">New Conversation Recorded</h2>
-            <p>Hi ${staffMemberName},</p>
-            <p>A conversation has been recorded regarding: <strong>${conversationSubject}</strong></p>
+            <p>Hi ${sanitizeHtml(staffMemberName)},</p>
+            <p>A conversation has been recorded regarding: <strong>${sanitizeHtml(conversationSubject)}</strong></p>
             <div style="background-color: #f5f5f5; padding: 15px; border-radius: 6px; margin: 20px 0;">
               <p style="margin: 5px 0;">
                 <strong>Rating:</strong> 
@@ -240,7 +271,7 @@ export const emailService: EmailService = {
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">Password Reset Request</h2>
-            <p>Hi ${userName},</p>
+            <p>Hi ${sanitizeHtml(userName)},</p>
             <p>We received a request to reset your password for your Anaxi account.</p>
             <p>Click the button below to reset your password. This link will expire in 1 hour.</p>
             <a href="${appUrl}/reset-password?token=${resetToken}" 
@@ -257,5 +288,95 @@ export const emailService: EmailService = {
         `,
       });
     }, 'Password reset email');
+  },
+
+  async sendLeaveRequestApproval({ to, teacherName, approverName, leaveType, startDate, endDate, status, responseNotes }) {
+    await safeSendEmail(async () => {
+      const { client, fromEmail } = await getUncachableResendClient();
+      const appUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+
+      const statusText = status === 'approved_with_pay' 
+        ? 'Approved with Pay' 
+        : status === 'approved_without_pay' 
+        ? 'Approved without Pay' 
+        : 'Denied';
+      
+      const statusColor = status.startsWith('approved') ? '#10B981' : '#EF4444';
+      
+      const leaveTypeText = leaveType
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+
+      await client.emails.send({
+        from: fromEmail,
+        to,
+        subject: `Leave Request ${statusText} - Anaxi`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Leave Request Update</h2>
+            <p>Hi ${sanitizeHtml(teacherName)},</p>
+            <p>Your leave request has been <strong style="color: ${statusColor};">${statusText}</strong> by ${sanitizeHtml(approverName)}.</p>
+            
+            <div style="background-color: #F9FAFB; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 5px 0;"><strong>Leave Type:</strong> ${leaveTypeText}</p>
+              <p style="margin: 5px 0;"><strong>Dates:</strong> ${startDate} to ${endDate}</p>
+              <p style="margin: 5px 0;"><strong>Status:</strong> <span style="color: ${statusColor};">${statusText}</span></p>
+              ${responseNotes ? `<p style="margin: 15px 0 5px 0;"><strong>Response Notes:</strong></p><p style="margin: 5px 0; color: #666;">${sanitizeHtml(responseNotes)}</p>` : ''}
+            </div>
+
+            <a href="${appUrl}/leave-requests" 
+               style="display: inline-block; padding: 12px 24px; background-color: #FF6B6B; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
+              View Leave Requests
+            </a>
+
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+              This is an automated message from Anaxi, your professional teacher observation platform.
+            </p>
+          </div>
+        `,
+      });
+    }, 'Leave request approval notification');
+  },
+
+  async sendWelcomeEmail({ to, userName, schoolName, temporaryPassword }) {
+    await safeSendEmail(async () => {
+      const { client, fromEmail } = await getUncachableResendClient();
+      const appUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000';
+
+      await client.emails.send({
+        from: fromEmail,
+        to,
+        subject: `Welcome to Anaxi - ${sanitizeHtml(schoolName)}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #333;">Welcome to Anaxi!</h2>
+            <p>Hi ${sanitizeHtml(userName)},</p>
+            <p>Your account has been created for <strong>${sanitizeHtml(schoolName)}</strong> on Anaxi, the professional teacher observation platform.</p>
+            
+            <div style="background-color: #F9FAFB; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 5px 0;"><strong>Email:</strong> ${to}</p>
+              <p style="margin: 5px 0;"><strong>Temporary Password:</strong> <code style="background-color: #E5E7EB; padding: 4px 8px; border-radius: 4px;">${temporaryPassword}</code></p>
+            </div>
+
+            <p style="color: #DC2626; font-weight: 600;">⚠️ Important Security Notice:</p>
+            <p style="color: #666;">Please change your password immediately after logging in for the first time. You can do this from your profile settings.</p>
+
+            <a href="${appUrl}" 
+               style="display: inline-block; padding: 12px 24px; background-color: #FF6B6B; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
+              Log In to Anaxi
+            </a>
+
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+              This is an automated message from Anaxi, your professional teacher observation platform.
+            </p>
+          </div>
+        `,
+      });
+    }, 'Welcome email');
   },
 };
