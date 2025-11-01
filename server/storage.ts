@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction } from "@shared/schema";
+import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction, type LeaveRequest, type InsertLeaveRequest } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -65,6 +65,14 @@ export interface IStorage {
   createMeetingAction(action: InsertMeetingAction): Promise<MeetingAction>;
   updateMeetingAction(id: string, updates: Partial<MeetingAction>): Promise<MeetingAction | undefined>;
   deleteMeetingAction(id: string): Promise<boolean>;
+  
+  // Leave Requests
+  getLeaveRequestsBySchool(schoolId: string): Promise<LeaveRequest[]>;
+  getLeaveRequestsByMembership(membershipId: string): Promise<LeaveRequest[]>;
+  getLeaveRequest(id: string): Promise<LeaveRequest | undefined>;
+  createLeaveRequest(request: InsertLeaveRequest): Promise<LeaveRequest>;
+  updateLeaveRequest(id: string, updates: Partial<LeaveRequest>): Promise<LeaveRequest | undefined>;
+  deleteLeaveRequest(id: string): Promise<boolean>;
   
   // Observations
   getObservationsBySchool(schoolId: string): Promise<Observation[]>;
@@ -334,6 +342,31 @@ export class MemStorage implements IStorage {
 
   async deleteMeetingAction(id: string): Promise<boolean> {
     throw new Error("Meeting actions not implemented in MemStorage");
+  }
+  
+  // Leave Requests - Not implemented in MemStorage (use DbStorage)
+  async getLeaveRequestsBySchool(schoolId: string): Promise<LeaveRequest[]> {
+    throw new Error("Leave requests not implemented in MemStorage");
+  }
+
+  async getLeaveRequestsByMembership(membershipId: string): Promise<LeaveRequest[]> {
+    throw new Error("Leave requests not implemented in MemStorage");
+  }
+
+  async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
+    throw new Error("Leave requests not implemented in MemStorage");
+  }
+
+  async createLeaveRequest(request: InsertLeaveRequest): Promise<LeaveRequest> {
+    throw new Error("Leave requests not implemented in MemStorage");
+  }
+
+  async updateLeaveRequest(id: string, updates: Partial<LeaveRequest>): Promise<LeaveRequest | undefined> {
+    throw new Error("Leave requests not implemented in MemStorage");
+  }
+
+  async deleteLeaveRequest(id: string): Promise<boolean> {
+    throw new Error("Leave requests not implemented in MemStorage");
   }
   
   // Observations - Not implemented in MemStorage (use DbStorage)

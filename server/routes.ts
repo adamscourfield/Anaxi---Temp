@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { DbStorage } from "./db-storage";
-import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertDepartmentSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertObservationSchema } from "@shared/schema";
+import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertDepartmentSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertLeaveRequestSchema, insertObservationSchema } from "@shared/schema";
 import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -1324,6 +1324,210 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ message: "Failed to delete action" });
+    }
+  });
+
+  // Leave Request routes
+  // POST /api/leave-requests - Create a new leave request
+  app.post("/api/leave-requests", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const requestData = req.body;
+      
+      // Validate that schoolId is provided
+      if (!requestData.schoolId) {
+        return res.status(400).json({ message: "schoolId is required" });
+      }
+      
+      // Get user's membership for the specified school
+      const userMemberships = await storage.getMembershipsByUser(user.id);
+      const membership = userMemberships.find(m => m.schoolId === requestData.schoolId);
+      
+      if (!membership) {
+        return res.status(403).json({ message: "Forbidden: You don't have a membership in this school" });
+      }
+      
+      // Set membershipId from authenticated user's membership and default status
+      const leaveRequestData = {
+        ...requestData,
+        membershipId: membership.id,
+        status: "pending",
+      };
+      
+      // Validate the request data
+      const validated = insertLeaveRequestSchema.parse(leaveRequestData);
+      const leaveRequest = await storage.createLeaveRequest(validated);
+      
+      res.status(201).json(leaveRequest);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid leave request data", errors: error.errors });
+      }
+      console.error("Error creating leave request:", error);
+      res.status(500).json({ message: "Failed to create leave request" });
+    }
+  });
+
+  // GET /api/leave-requests - List leave requests with optional filtering
+  app.get("/api/leave-requests", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const schoolId = req.query.schoolId as string;
+      const status = req.query.status as string | undefined;
+      const myRequests = req.query.myRequests === "true";
+      
+      if (!schoolId) {
+        return res.status(400).json({ message: "schoolId is required" });
+      }
+      
+      // Verify user has access to this school
+      let userMembership;
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        userMembership = userMemberships.find(m => m.schoolId === schoolId);
+        
+        if (!userMembership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+      
+      // Get all leave requests for the school
+      let leaveRequests = await storage.getLeaveRequestsBySchool(schoolId);
+      
+      // Filter by membership if regular teacher or myRequests is true
+      if (userMembership) {
+        const isLeaderOrAdmin = userMembership.role === "Leader" || userMembership.role === "Admin";
+        
+        // Regular teachers can only see their own requests
+        // Leaders/Admins can see all, but can filter to myRequests
+        if (!isLeaderOrAdmin || myRequests) {
+          leaveRequests = leaveRequests.filter(lr => lr.membershipId === userMembership.id);
+        }
+      } else if (myRequests && user.global_role === "Creator") {
+        // Creators with myRequests=true should get empty array (they have no membership)
+        leaveRequests = [];
+      }
+      
+      // Filter by status if provided
+      if (status) {
+        leaveRequests = leaveRequests.filter(lr => lr.status === status);
+      }
+      
+      res.json(leaveRequests);
+    } catch (error) {
+      console.error("Error fetching leave requests:", error);
+      res.status(500).json({ message: "Failed to fetch leave requests" });
+    }
+  });
+
+  // PATCH /api/leave-requests/:id - Update a leave request
+  app.patch("/api/leave-requests/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      const updates = req.body;
+      
+      // Get the existing leave request
+      const existingRequest = await storage.getLeaveRequest(id);
+      if (!existingRequest) {
+        return res.status(404).json({ message: "Leave request not found" });
+      }
+      
+      // Get the membership for the leave request to determine the school
+      const requestMembership = await storage.getMembership(existingRequest.membershipId);
+      if (!requestMembership) {
+        return res.status(404).json({ message: "Membership not found" });
+      }
+      
+      // Verify user has permission to update
+      let userMembership;
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        userMembership = userMemberships.find(m => m.schoolId === requestMembership.schoolId);
+        
+        if (!userMembership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+        
+        // Only Leaders/Admins can approve/deny
+        const isLeaderOrAdmin = userMembership.role === "Leader" || userMembership.role === "Admin";
+        if (!isLeaderOrAdmin) {
+          return res.status(403).json({ message: "Forbidden: Only Leaders and Admins can update leave requests" });
+        }
+      }
+      
+      // If status is being changed to approved or denied, set approvedBy
+      const finalUpdates = { ...updates };
+      if (updates.status && (updates.status.includes("approved") || updates.status === "denied")) {
+        if (userMembership) {
+          finalUpdates.approvedBy = userMembership.id;
+        } else if (user.global_role === "Creator") {
+          // Creator needs a membership to approve - find one or require it
+          const creatorMemberships = await storage.getMembershipsByUser(user.id);
+          const creatorMembership = creatorMemberships.find(m => m.schoolId === requestMembership.schoolId);
+          if (creatorMembership) {
+            finalUpdates.approvedBy = creatorMembership.id;
+          }
+        }
+      }
+      
+      const updatedRequest = await storage.updateLeaveRequest(id, finalUpdates);
+      if (!updatedRequest) {
+        return res.status(404).json({ message: "Leave request not found" });
+      }
+      
+      res.json(updatedRequest);
+    } catch (error) {
+      console.error("Error updating leave request:", error);
+      res.status(500).json({ message: "Failed to update leave request" });
+    }
+  });
+
+  // DELETE /api/leave-requests/:id - Delete a leave request
+  app.delete("/api/leave-requests/:id", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { id } = req.params;
+      
+      // Get the existing leave request
+      const existingRequest = await storage.getLeaveRequest(id);
+      if (!existingRequest) {
+        return res.status(404).json({ message: "Leave request not found" });
+      }
+      
+      // Get the membership for the leave request
+      const requestMembership = await storage.getMembership(existingRequest.membershipId);
+      if (!requestMembership) {
+        return res.status(404).json({ message: "Membership not found" });
+      }
+      
+      // Verify user has permission to delete
+      if (user.global_role !== "Creator") {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const userMembership = userMemberships.find(m => m.schoolId === requestMembership.schoolId);
+        
+        if (!userMembership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+        
+        // User can delete their own request, or Leaders/Admins can delete any
+        const isOwnRequest = userMembership.id === existingRequest.membershipId;
+        const isLeaderOrAdmin = userMembership.role === "Leader" || userMembership.role === "Admin";
+        
+        if (!isOwnRequest && !isLeaderOrAdmin) {
+          return res.status(403).json({ message: "Forbidden: You can only delete your own requests unless you are a Leader or Admin" });
+        }
+      }
+      
+      const deleted = await storage.deleteLeaveRequest(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Leave request not found" });
+      }
+      
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting leave request:", error);
+      res.status(500).json({ message: "Failed to delete leave request" });
     }
   });
 

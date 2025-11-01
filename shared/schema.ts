@@ -38,6 +38,7 @@ export type User = typeof users.$inferSelect;
 export const schools = pgTable("schools", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
+  enabled_features: jsonb("enabled_features").$type<string[]>().default(sql`'["observations"]'::jsonb`).notNull(), // Available features: observations, meetings, absence_management
 });
 
 export const insertSchoolSchema = createInsertSchema(schools).omit({ id: true });
@@ -218,3 +219,25 @@ export const meetingActions = pgTable("meeting_actions", {
 export const insertMeetingActionSchema = createInsertSchema(meetingActions).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertMeetingAction = z.infer<typeof insertMeetingActionSchema>;
 export type MeetingAction = typeof meetingActions.$inferSelect;
+
+// Leave Requests - for absence management
+export const leaveRequests = pgTable("leave_requests", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  schoolId: varchar("school_id").notNull().references(() => schools.id),
+  membershipId: varchar("membership_id").notNull().references(() => schoolMemberships.id), // Who is requesting leave
+  type: text("type").notNull(), // "Medical", "Professional Development", "Annual Leave", "Other", "Interview"
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  coverDetails: text("cover_details").notNull(), // Details about cover needed
+  additionalDetails: text("additional_details"), // Required for Professional Development, Other
+  attachmentUrl: text("attachment_url"), // Required for Medical (proof document)
+  status: text("status").notNull().default("pending"), // "pending", "approved_with_pay", "approved_without_pay", "denied"
+  approvedBy: varchar("approved_by").references(() => schoolMemberships.id), // Who approved/denied
+  responseNotes: text("response_notes"), // Admin notes when approving/denying
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
+export type LeaveRequest = typeof leaveRequests.$inferSelect;

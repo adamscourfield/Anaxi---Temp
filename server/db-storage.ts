@@ -21,6 +21,8 @@ import {
   type InsertMeetingAttendee,
   type MeetingAction,
   type InsertMeetingAction,
+  type LeaveRequest,
+  type InsertLeaveRequest,
   users,
   schoolMemberships,
   schools,
@@ -31,6 +33,7 @@ import {
   meetings,
   meetingAttendees,
   meetingActions,
+  leaveRequests,
 } from "@shared/schema";
 import { type IStorage } from "./storage";
 
@@ -88,7 +91,10 @@ export class DbStorage implements IStorage {
   }
 
   async createSchool(insertSchool: InsertSchool): Promise<School> {
-    const [school] = await db.insert(schools).values(insertSchool).returning();
+    const [school] = await db.insert(schools).values({
+      ...insertSchool,
+      enabled_features: insertSchool.enabled_features || ["observations"]
+    }).returning();
     return school;
   }
 
@@ -369,6 +375,49 @@ export class DbStorage implements IStorage {
 
   async deleteMeetingAction(id: string): Promise<boolean> {
     const result = await db.delete(meetingActions).where(eq(meetingActions.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Leave Requests
+  async getLeaveRequestsBySchool(schoolId: string): Promise<LeaveRequest[]> {
+    const result = await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.schoolId, schoolId))
+      .orderBy(desc(leaveRequests.createdAt));
+    return result;
+  }
+
+  async getLeaveRequestsByMembership(membershipId: string): Promise<LeaveRequest[]> {
+    const result = await db
+      .select()
+      .from(leaveRequests)
+      .where(eq(leaveRequests.membershipId, membershipId))
+      .orderBy(desc(leaveRequests.createdAt));
+    return result;
+  }
+
+  async getLeaveRequest(id: string): Promise<LeaveRequest | undefined> {
+    const result = await db.select().from(leaveRequests).where(eq(leaveRequests.id, id));
+    return result[0];
+  }
+
+  async createLeaveRequest(request: InsertLeaveRequest): Promise<LeaveRequest> {
+    const result = await db.insert(leaveRequests).values(request).returning();
+    return result[0];
+  }
+
+  async updateLeaveRequest(id: string, updates: Partial<LeaveRequest>): Promise<LeaveRequest | undefined> {
+    const result = await db
+      .update(leaveRequests)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(leaveRequests.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async deleteLeaveRequest(id: string): Promise<boolean> {
+    const result = await db.delete(leaveRequests).where(eq(leaveRequests.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 }
