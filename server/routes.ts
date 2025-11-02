@@ -2009,7 +2009,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get teachers for observation (respects observation view permissions)
+  // Get teachers for observation dropdown
+  // Note: Anyone can observe anyone in their school. View permissions only control viewing observations.
   app.get("/api/teachers", isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
@@ -2017,6 +2018,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!schoolId) {
         return res.status(400).json({ message: "School ID is required" });
+      }
+
+      // Verify the user has access to this school BEFORE fetching any data
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        
+        if (!membership) {
+          return res.status(403).json({ 
+            message: "Forbidden: You do not have access to this school's teachers" 
+          });
+        }
       }
 
       // Get users who are members of this school
@@ -2033,43 +2045,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Filter to only valid users (all roles can be observed)
       const validUsers = allUsers.filter(u => u !== null);
 
-      // Creators can see all teachers (users with any role) across all schools
-      if (user.global_role === "Creator") {
-        const sanitized = validUsers.map(sanitizeUser);
-        return res.json(sanitized);
-      }
-
-      // Verify the user has membership in the requested school
-      const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
-      
-      if (!membership) {
-        return res.status(403).json({ 
-          message: "Forbidden: You do not have access to this school's teachers" 
-        });
-      }
-
-      const role = membership.role || "Teacher";
-
-      // Admins can see all teachers in their school
-      if (role === "Admin") {
-        const sanitized = validUsers.map(sanitizeUser);
-        return res.json(sanitized);
-      }
-
-      // Leaders and Teachers: See themselves + teachers they have explicit permission to view
-      // Get the list of teachers this user can view
-      const viewPermissions = await storage.getObservationViewPermissionsByViewer(user.id, schoolId);
-      const viewableTeacherIds = new Set(viewPermissions.map(p => p.viewableTeacherId));
-
-      // Always include the user themselves
-      viewableTeacherIds.add(user.id);
-
-      // Filter to only teachers this user has permission to observe (including themselves)
-      const filteredTeachers = validUsers.filter(teacher => 
-        viewableTeacherIds.has(teacher.id)
-      );
-
-      const sanitized = filteredTeachers.map(sanitizeUser);
+      // All school members can observe anyone else in their school
+      // Observation view permissions only control who can VIEW observations, not who can BE observed
+      const sanitized = validUsers.map(sanitizeUser);
       res.json(sanitized);
     } catch (error) {
       console.error("Error fetching teachers for observation:", error);
