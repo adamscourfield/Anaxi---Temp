@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { CategorySelector } from "@/components/category-selector";
 import { HabitChecklist } from "@/components/habit-checklist";
@@ -50,10 +50,30 @@ export default function ConductObservation() {
   });
 
   // Fetch rubric and categories for the current school
-  const { data: rubrics = [] } = useQuery<any[]>({
+  const { data: rubrics = [], isLoading: rubricsLoading } = useQuery<any[]>({
     queryKey: ["/api/schools", currentSchoolId, "rubrics"],
     enabled: !!currentSchoolId,
   });
+
+  // Create default rubric mutation
+  const createDefaultRubricMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentSchoolId) throw new Error("No school selected");
+      return await apiRequest('POST', `/api/schools/${currentSchoolId}/rubrics`, { 
+        name: 'Default Rubric' 
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/schools", currentSchoolId, "rubrics"] });
+    },
+  });
+
+  // Auto-create default rubric if none exists
+  useEffect(() => {
+    if (!rubricsLoading && currentSchoolId && rubrics?.length === 0 && !createDefaultRubricMutation.isPending) {
+      createDefaultRubricMutation.mutate();
+    }
+  }, [rubricsLoading, currentSchoolId, rubrics?.length, createDefaultRubricMutation]);
 
   const rubricId = rubrics[0]?.id;
 
@@ -148,7 +168,7 @@ export default function ConductObservation() {
       // observerId is set by backend from authenticated user
       schoolId: currentSchoolId,
       rubricId,
-      date: new Date().toISOString(),
+      date: new Date(),
       lessonTopic: lessonTopic || null,
       classInfo: classGroup || null,
       qualitativeFeedback: qualitativeFeedback || null,

@@ -2116,10 +2116,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user;
       
       // Remove observerId from body and set it from authenticated user
-      const { observerId: _, ...bodyWithoutObserver } = req.body;
+      const { observerId: _, date, ...bodyWithoutObserver } = req.body;
       const validated = insertObservationSchema.parse({
         ...bodyWithoutObserver,
         observerId: user.id, // Set observer to authenticated user
+        date: date ? new Date(date) : new Date(), // Convert string to Date
       });
       
       // Verify user has access to the school
@@ -2144,7 +2145,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           if (teacher?.email && observer) {
             const teacherName = `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || teacher.email;
             const observerName = `${observer.first_name || ''} ${observer.last_name || ''}`.trim() || observer.email;
-            const observationDate = new Date(validated.date).toLocaleDateString('en-US', {
+            const observationDate = validated.date.toLocaleDateString('en-US', {
               weekday: 'long',
               year: 'numeric',
               month: 'long',
