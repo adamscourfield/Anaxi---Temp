@@ -1594,14 +1594,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // If status is being changed to approved or denied, set approvedBy
       const finalUpdates = { ...updates };
       if (updates.status && (updates.status.includes("approved") || updates.status === "denied")) {
-        if (userMembership) {
-          finalUpdates.approvedBy = userMembership.id;
-        } else if (user.global_role === "Creator") {
-          // Creator needs a membership to approve - find one or require it
-          const creatorMemberships = await storage.getMembershipsByUser(user.id);
-          const creatorMembership = creatorMemberships.find(m => m.schoolId === requestMembership.schoolId);
-          if (creatorMembership) {
-            finalUpdates.approvedBy = creatorMembership.id;
+        // If approvedBy not provided in updates, determine it from the authenticated user
+        if (!updates.approvedBy) {
+          if (userMembership) {
+            finalUpdates.approvedBy = userMembership.id;
+          } else if (user.global_role === "Creator") {
+            // For creators without membership in this school, leave approvedBy null
+            // The frontend will handle this appropriately when displaying
+            finalUpdates.approvedBy = null;
           }
         }
       }

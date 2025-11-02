@@ -116,11 +116,20 @@ export default function ApproveLeave() {
       return;
     }
     
-    approveMutation.mutate({
-      id: currentAction.requestId,
+    const payload: any = {
       status: currentAction.status,
       responseNotes,
-      approvedBy: currentMembership?.id || "creator",
+    };
+    
+    // Only include approvedBy if we have a membership (regular users)
+    // Creators will have approvedBy set by the backend
+    if (currentMembership) {
+      payload.approvedBy = currentMembership.id;
+    }
+    
+    approveMutation.mutate({
+      id: currentAction.requestId,
+      ...payload,
     });
   };
 
