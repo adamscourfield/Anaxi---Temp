@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import crypto from "crypto";
 import { DbStorage } from "./db-storage";
 import { db } from "./db";
 import { sql, desc } from "drizzle-orm";
@@ -12,6 +13,20 @@ import { setupAuth, isAuthenticated, hashPassword } from "./auth";
 import { emailService } from "./email";
 
 const storage = new DbStorage();
+
+// Helper function to sanitize user data (remove sensitive fields)
+function sanitizeUser(user: any) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    profile_image_url: user.profile_image_url,
+    global_role: user.global_role,
+    archived: user.archived,
+  };
+}
 
 // Permission middleware
 type Role = "Teacher" | "Leader" | "Admin";
@@ -461,7 +476,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const users = await storage.getAllUsers();
       // Filter out archived users unless specifically requested by Creator
       const filteredUsers = includeArchived ? users : users.filter(u => !u.archived);
-      res.json(filteredUsers);
+      res.json(filteredUsers.map(sanitizeUser));
     } catch (error) {
       console.error("Error fetching teachers:", error);
       res.status(500).json({ message: "Failed to fetch teachers" });
@@ -548,7 +563,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       })();
 
-      res.status(201).json(newUser);
+      res.status(201).json(sanitizeUser(newUser));
     } catch (error) {
       console.error("Error creating teacher:", error);
       res.status(500).json({ message: "Failed to create teacher" });
@@ -726,7 +741,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
 
-      res.json(updatedUser);
+      res.json(sanitizeUser(updatedUser));
     } catch (error) {
       console.error("Error updating user:", error);
       res.status(500).json({ message: "Failed to update user" });
@@ -798,7 +813,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json({ message: "User archived successfully", user: updatedUser });
+      res.json({ message: "User archived successfully", user: sanitizeUser(updatedUser) });
     } catch (error) {
       console.error("Error archiving user:", error);
       res.status(500).json({ message: "Failed to archive user" });
@@ -817,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "User not found" });
       }
       
-      res.json({ message: "User unarchived successfully", user: updatedUser });
+      res.json({ message: "User unarchived successfully", user: sanitizeUser(updatedUser) });
     } catch (error) {
       console.error("Error unarchiving user:", error);
       res.status(500).json({ message: "Failed to unarchive user" });
@@ -2003,16 +2018,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!schoolId) {
         return res.status(400).json({ message: "School ID is required" });
       }
-
-      // Helper function to sanitize user data (remove sensitive fields)
-      const sanitizeUser = (user: any) => ({
-        id: user.id,
-        email: user.email,
-        first_name: user.first_name,
-        last_name: user.last_name,
-        profile_picture_url: user.profile_picture_url,
-        global_role: user.global_role,
-      });
 
       // Get users who are members of this school
       const schoolMemberships = await storage.getMembershipsBySchool(schoolId);
