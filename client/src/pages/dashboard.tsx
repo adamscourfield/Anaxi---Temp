@@ -77,49 +77,7 @@ export default function Dashboard() {
   const observationTrend = analytics?.observationTrend || [];
   const topPerformers = analytics?.topPerformers || [];
   const categoryPerformance = analytics?.categoryPerformance || [];
-
-
-  const teachingGroups = [
-    {
-      id: "1",
-      name: "English Department",
-      groupLead: {
-        name: "Sarah Mitchell",
-        initials: "SM",
-      },
-      memberCount: 5,
-      avgScore: 4.5,
-      maxScore: 5,
-      totalObservations: 45,
-      weeklyObservations: 10,
-    },
-    {
-      id: "2",
-      name: "Mathematics",
-      groupLead: {
-        name: "James Chen",
-        initials: "JC",
-      },
-      memberCount: 4,
-      avgScore: 4.1,
-      maxScore: 5,
-      totalObservations: 31,
-      weeklyObservations: 6,
-    },
-    {
-      id: "3",
-      name: "Science Team",
-      groupLead: {
-        name: "Emily Rodriguez",
-        initials: "ER",
-      },
-      memberCount: 6,
-      avgScore: 4.3,
-      maxScore: 5,
-      totalObservations: 51,
-      weeklyObservations: 11,
-    },
-  ];
+  const teachingGroups = [];
 
   // Get selected observation details
   const selectedObservation = selectedObservationId

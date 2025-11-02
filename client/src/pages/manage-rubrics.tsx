@@ -33,55 +33,7 @@ import { CsvColumnMapper } from "@/components/csv-column-mapper";
 import { DialogTrigger } from "@radix-ui/react-dialog";
 import { useToast } from "@/hooks/use-toast";
 
-const initialCategories = [
-  {
-    id: "1",
-    name: "Entrance and Do Now",
-    habitCount: 7,
-    habits: [
-      "Do Now on board or distributed.",
-      "Uniforms checked and corrected silently.",
-      "Teacher positioned at threshold, greeting each pupil.",
-      "Countdown used.",
-      "Students working within 20 seconds.",
-      "Exercise books handed out by designated students.",
-      "All students seated silently within 5 seconds.",
-    ],
-  },
-  {
-    id: "2",
-    name: "Direct Instruction",
-    habitCount: 4,
-    habits: [
-      "One clear strategy of instruction is being used.",
-      "Pupils are actively participating (jotting, repeating, constructing).",
-      "Modelling is visible and structured.",
-      "Teacher checks for accuracy and understanding throughout.",
-    ],
-  },
-  {
-    id: "3",
-    name: "Checking for Understanding",
-    habitCount: 4,
-    habits: [
-      "At least one strategy in use.",
-      "Follow-up questions deepen thinking.",
-      "Misconceptions are addressed instantly.",
-      "Every pupil is participating (no opt out).",
-    ],
-  },
-  {
-    id: "4",
-    name: "Application",
-    habitCount: 4,
-    habits: [
-      "Pupils are completing core, stretch and twist tasks.",
-      "Pupils are resilient and focused on task.",
-      "Silent Solo is observed with no help offered.",
-      "Timings are visible and enforced.",
-    ],
-  },
-];
+const initialCategories: any[] = [];
 
 const habitFormSchema = z.object({
   description: z.string().min(1, "Habit description is required").min(5, "Habit description must be at least 5 characters"),
