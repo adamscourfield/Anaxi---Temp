@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction, type LeaveRequest, type InsertLeaveRequest, type ObservationViewPermission, type InsertObservationViewPermission } from "@shared/schema";
+import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction, type LeaveRequest, type InsertLeaveRequest, type ObservationViewPermission, type InsertObservationViewPermission, type Rubric, type InsertRubric, type Category, type InsertCategory, type CategoryWithHabits, type Habit, type InsertHabit } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -87,6 +87,27 @@ export interface IStorage {
   createObservationViewPermission(permission: InsertObservationViewPermission): Promise<ObservationViewPermission>;
   deleteObservationViewPermission(id: string): Promise<boolean>;
   deleteObservationViewPermissionByFields(viewerId: string, viewableTeacherId: string, schoolId: string): Promise<boolean>;
+  
+  // Rubrics
+  getRubricsBySchool(schoolId: string): Promise<Rubric[]>;
+  getRubric(id: string): Promise<Rubric | undefined>;
+  createRubric(rubric: InsertRubric): Promise<Rubric>;
+  updateRubric(id: string, updates: Partial<Rubric>): Promise<Rubric | undefined>;
+  deleteRubric(id: string): Promise<boolean>;
+  
+  // Categories
+  getCategoriesByRubric(rubricId: string): Promise<CategoryWithHabits[]>;
+  getCategory(id: string): Promise<Category | undefined>;
+  createCategory(category: InsertCategory): Promise<Category>;
+  updateCategory(id: string, updates: Partial<Category>): Promise<Category | undefined>;
+  deleteCategory(id: string): Promise<boolean>;
+  
+  // Habits
+  getHabitsByCategory(categoryId: string): Promise<Habit[]>;
+  getHabit(id: string): Promise<Habit | undefined>;
+  createHabit(habit: InsertHabit): Promise<Habit>;
+  updateHabit(id: string, updates: Partial<Habit>): Promise<Habit | undefined>;
+  deleteHabit(id: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {
@@ -398,6 +419,90 @@ export class MemStorage implements IStorage {
   
   async createObservation(observation: InsertObservation): Promise<Observation> {
     throw new Error("Observations not implemented in MemStorage");
+  }
+  
+  // Observation View Permissions - Not implemented in MemStorage (use DbStorage)
+  async getObservationViewPermissionsByViewer(viewerId: string, schoolId: string): Promise<ObservationViewPermission[]> {
+    throw new Error("Observation view permissions not implemented in MemStorage");
+  }
+
+  async getObservationViewPermissionsBySchool(schoolId: string): Promise<ObservationViewPermission[]> {
+    throw new Error("Observation view permissions not implemented in MemStorage");
+  }
+
+  async createObservationViewPermission(permission: InsertObservationViewPermission): Promise<ObservationViewPermission> {
+    throw new Error("Observation view permissions not implemented in MemStorage");
+  }
+
+  async deleteObservationViewPermission(id: string): Promise<boolean> {
+    throw new Error("Observation view permissions not implemented in MemStorage");
+  }
+
+  async deleteObservationViewPermissionByFields(viewerId: string, viewableTeacherId: string, schoolId: string): Promise<boolean> {
+    throw new Error("Observation view permissions not implemented in MemStorage");
+  }
+  
+  // Rubrics - Not implemented in MemStorage (use DbStorage)
+  async getRubricsBySchool(schoolId: string): Promise<Rubric[]> {
+    throw new Error("Rubrics not implemented in MemStorage");
+  }
+
+  async getRubric(id: string): Promise<Rubric | undefined> {
+    throw new Error("Rubrics not implemented in MemStorage");
+  }
+
+  async createRubric(rubric: InsertRubric): Promise<Rubric> {
+    throw new Error("Rubrics not implemented in MemStorage");
+  }
+
+  async updateRubric(id: string, updates: Partial<Rubric>): Promise<Rubric | undefined> {
+    throw new Error("Rubrics not implemented in MemStorage");
+  }
+
+  async deleteRubric(id: string): Promise<boolean> {
+    throw new Error("Rubrics not implemented in MemStorage");
+  }
+  
+  // Categories - Not implemented in MemStorage (use DbStorage)
+  async getCategoriesByRubric(rubricId: string): Promise<CategoryWithHabits[]> {
+    throw new Error("Categories not implemented in MemStorage");
+  }
+
+  async getCategory(id: string): Promise<Category | undefined> {
+    throw new Error("Categories not implemented in MemStorage");
+  }
+
+  async createCategory(category: InsertCategory): Promise<Category> {
+    throw new Error("Categories not implemented in MemStorage");
+  }
+
+  async updateCategory(id: string, updates: Partial<Category>): Promise<Category | undefined> {
+    throw new Error("Categories not implemented in MemStorage");
+  }
+
+  async deleteCategory(id: string): Promise<boolean> {
+    throw new Error("Categories not implemented in MemStorage");
+  }
+  
+  // Habits - Not implemented in MemStorage (use DbStorage)
+  async getHabitsByCategory(categoryId: string): Promise<Habit[]> {
+    throw new Error("Habits not implemented in MemStorage");
+  }
+
+  async getHabit(id: string): Promise<Habit | undefined> {
+    throw new Error("Habits not implemented in MemStorage");
+  }
+
+  async createHabit(habit: InsertHabit): Promise<Habit> {
+    throw new Error("Habits not implemented in MemStorage");
+  }
+
+  async updateHabit(id: string, updates: Partial<Habit>): Promise<Habit | undefined> {
+    throw new Error("Habits not implemented in MemStorage");
+  }
+
+  async deleteHabit(id: string): Promise<boolean> {
+    throw new Error("Habits not implemented in MemStorage");
   }
 }
 

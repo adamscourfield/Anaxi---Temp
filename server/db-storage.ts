@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, asc } from "drizzle-orm";
 import { 
   type User, 
   type InsertUser, 
@@ -25,6 +25,13 @@ import {
   type InsertLeaveRequest,
   type ObservationViewPermission,
   type InsertObservationViewPermission,
+  type Rubric,
+  type InsertRubric,
+  type Category,
+  type InsertCategory,
+  type CategoryWithHabits,
+  type Habit,
+  type InsertHabit,
   users,
   schoolMemberships,
   schools,
@@ -37,6 +44,9 @@ import {
   meetingActions,
   leaveRequests,
   observationViewPermissions,
+  rubrics,
+  categories,
+  habits,
 } from "@shared/schema";
 import { type IStorage } from "./storage";
 
@@ -467,6 +477,100 @@ export class DbStorage implements IStorage {
         eq(observationViewPermissions.schoolId, schoolId)
       )
     );
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Rubrics
+  async getRubricsBySchool(schoolId: string): Promise<Rubric[]> {
+    return await db.select().from(rubrics).where(eq(rubrics.schoolId, schoolId));
+  }
+
+  async getRubric(id: string): Promise<Rubric | undefined> {
+    const [rubric] = await db.select().from(rubrics).where(eq(rubrics.id, id));
+    return rubric;
+  }
+
+  async createRubric(insertRubric: InsertRubric): Promise<Rubric> {
+    const [rubric] = await db.insert(rubrics).values(insertRubric).returning();
+    return rubric;
+  }
+
+  async updateRubric(id: string, updates: Partial<Rubric>): Promise<Rubric | undefined> {
+    const [rubric] = await db.update(rubrics).set(updates).where(eq(rubrics.id, id)).returning();
+    return rubric;
+  }
+
+  async deleteRubric(id: string): Promise<boolean> {
+    const result = await db.delete(rubrics).where(eq(rubrics.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Categories
+  async getCategoriesByRubric(rubricId: string): Promise<CategoryWithHabits[]> {
+    const categoriesData = await db
+      .select()
+      .from(categories)
+      .where(eq(categories.rubricId, rubricId))
+      .orderBy(asc(categories.order));
+
+    const categoriesWithHabits: CategoryWithHabits[] = [];
+    for (const category of categoriesData) {
+      const habitsData = await this.getHabitsByCategory(category.id);
+      categoriesWithHabits.push({
+        ...category,
+        habits: habitsData,
+      });
+    }
+
+    return categoriesWithHabits;
+  }
+
+  async getCategory(id: string): Promise<Category | undefined> {
+    const [category] = await db.select().from(categories).where(eq(categories.id, id));
+    return category;
+  }
+
+  async createCategory(insertCategory: InsertCategory): Promise<Category> {
+    const [category] = await db.insert(categories).values(insertCategory).returning();
+    return category;
+  }
+
+  async updateCategory(id: string, updates: Partial<Category>): Promise<Category | undefined> {
+    const [category] = await db.update(categories).set(updates).where(eq(categories.id, id)).returning();
+    return category;
+  }
+
+  async deleteCategory(id: string): Promise<boolean> {
+    const result = await db.delete(categories).where(eq(categories.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Habits
+  async getHabitsByCategory(categoryId: string): Promise<Habit[]> {
+    return await db
+      .select()
+      .from(habits)
+      .where(eq(habits.categoryId, categoryId))
+      .orderBy(asc(habits.order));
+  }
+
+  async getHabit(id: string): Promise<Habit | undefined> {
+    const [habit] = await db.select().from(habits).where(eq(habits.id, id));
+    return habit;
+  }
+
+  async createHabit(insertHabit: InsertHabit): Promise<Habit> {
+    const [habit] = await db.insert(habits).values(insertHabit).returning();
+    return habit;
+  }
+
+  async updateHabit(id: string, updates: Partial<Habit>): Promise<Habit | undefined> {
+    const [habit] = await db.update(habits).set(updates).where(eq(habits.id, id)).returning();
+    return habit;
+  }
+
+  async deleteHabit(id: string): Promise<boolean> {
+    const result = await db.delete(habits).where(eq(habits.id, id));
     return result.rowCount !== null && result.rowCount > 0;
   }
 }

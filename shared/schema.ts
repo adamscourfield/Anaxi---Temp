@@ -112,6 +112,11 @@ export const insertCategorySchema = createInsertSchema(categories).omit({ id: tr
 export type InsertCategory = z.infer<typeof insertCategorySchema>;
 export type Category = typeof categories.$inferSelect;
 
+// Helper type for category with habits
+export interface CategoryWithHabits extends Category {
+  habits: Habit[];
+}
+
 export const habits = pgTable("habits", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   categoryId: varchar("category_id").notNull().references(() => categories.id),
