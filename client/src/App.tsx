@@ -34,7 +34,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/observe" component={ConductObservation} />
       <Route path="/history" component={ObservationHistory} />
-      <Route path="/rubrics" component={ManageRubrics} />
+      <Route path="/manage-rubrics" component={ManageRubrics} />
       <Route path="/teachers" component={ManageTeachers} />
       <Route path="/schools" component={ManageSchools} />
       <Route path="/management" component={AppManagement} />

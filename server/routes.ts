@@ -2371,7 +2371,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const validated = insertCategorySchema.parse({ ...req.body, rubricId });
+      // Get existing categories to calculate next order
+      const existingCategories = await storage.getCategoriesByRubric(rubricId);
+      const nextOrder = existingCategories.length;
+
+      const validated = insertCategorySchema.parse({ ...req.body, rubricId, order: nextOrder });
       const category = await storage.createCategory(validated);
       res.status(201).json(category);
     } catch (error) {
@@ -2481,7 +2485,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const validated = insertHabitSchema.parse({ ...req.body, categoryId });
+      // Get existing habits to calculate next order
+      const categoryWithHabits = await storage.getCategoriesByRubric(rubric.id);
+      const currentCategory = categoryWithHabits.find(c => c.id === categoryId);
+      const nextOrder = currentCategory?.habits.length || 0;
+
+      // Use description for both text and description fields
+      const { description } = req.body;
+      const validated = insertHabitSchema.parse({ 
+        categoryId, 
+        text: description, 
+        description, 
+        order: nextOrder 
+      });
       const habit = await storage.createHabit(validated);
       res.status(201).json(habit);
     } catch (error) {

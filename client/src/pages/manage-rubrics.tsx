@@ -29,12 +29,14 @@ import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CsvColumnMapper } from "@/components/csv-column-mapper";
 import { DialogTrigger } from "@radix-ui/react-dialog";
 import { useToast } from "@/hooks/use-toast";
-
-const initialCategories: any[] = [];
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useSchool } from "@/hooks/use-school";
+import type { Rubric, Category, Habit, CategoryWithHabits } from "@shared/schema";
 
 const habitFormSchema = z.object({
   description: z.string().min(1, "Habit description is required").min(5, "Habit description must be at least 5 characters"),
@@ -49,12 +51,12 @@ const categoryFormSchema = z.object({
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
 export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boolean }) {
-  const [categories, setCategories] = useState(initialCategories);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<{
+    habitId: string;
     categoryId: string;
-    habitIndex: number;
+    currentDescription: string;
   } | null>(null);
   const [addingToCategoryId, setAddingToCategoryId] = useState<string | null>(null);
   
@@ -63,6 +65,135 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
   const [csvData, setCsvData] = useState<{ headers: string[]; rows: string[][]; mappings: Record<string, string> } | null>(null);
   const [isImportValid, setIsImportValid] = useState(false);
   const { toast } = useToast();
+  const { currentSchool } = useSchool();
+
+  // Fetch rubrics for the current school
+  const { data: rubrics, isLoading: rubricsLoading } = useQuery<Rubric[]>({
+    queryKey: ['/api/schools', currentSchool?.id, 'rubrics'],
+    enabled: !!currentSchool?.id,
+  });
+
+  // Create default rubric mutation
+  const createDefaultRubricMutation = useMutation({
+    mutationFn: async () => {
+      if (!currentSchool?.id) throw new Error("No school selected");
+      const response = await apiRequest('POST', `/api/schools/${currentSchool.id}/rubrics`, { 
+        name: 'Default Rubric' 
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/schools', currentSchool?.id, 'rubrics'] });
+    },
+  });
+
+  // Get the first rubric (or create one if none exists)
+  const currentRubric = rubrics?.[0];
+  
+  // Auto-create default rubric if none exists
+  useEffect(() => {
+    if (!rubricsLoading && currentSchool?.id && rubrics?.length === 0 && !createDefaultRubricMutation.isPending) {
+      createDefaultRubricMutation.mutate();
+    }
+  }, [rubricsLoading, currentSchool?.id, rubrics?.length, createDefaultRubricMutation]);
+
+  // Fetch categories with habits for the current rubric
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery<CategoryWithHabits[]>({
+    queryKey: ['/api/rubrics', currentRubric?.id, 'categories'],
+    enabled: !!currentRubric?.id,
+  });
+
+  // Create category mutation
+  const createCategoryMutation = useMutation({
+    mutationFn: async (data: CategoryFormValues) => {
+      if (!currentRubric?.id) throw new Error("No rubric selected");
+      const response = await apiRequest('POST', `/api/rubrics/${currentRubric.id}/categories`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rubrics', currentRubric?.id, 'categories'] });
+      toast({
+        title: "Category added",
+        description: "Category has been added to the rubric",
+      });
+      setCategoryDialogOpen(false);
+      categoryForm.reset();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create category",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Create habit mutation
+  const createHabitMutation = useMutation({
+    mutationFn: async ({ categoryId, description }: { categoryId: string; description: string }) => {
+      const response = await apiRequest('POST', `/api/categories/${categoryId}/habits`, { description });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rubrics', currentRubric?.id, 'categories'] });
+      toast({
+        title: "Habit added",
+        description: "Habit has been added successfully",
+      });
+      handleDialogClose();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create habit",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update habit mutation
+  const updateHabitMutation = useMutation({
+    mutationFn: async ({ habitId, description }: { habitId: string; description: string }) => {
+      const response = await apiRequest('PUT', `/api/habits/${habitId}`, { description });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rubrics', currentRubric?.id, 'categories'] });
+      toast({
+        title: "Habit updated",
+        description: "Habit has been updated successfully",
+      });
+      handleDialogClose();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update habit",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete habit mutation
+  const deleteHabitMutation = useMutation({
+    mutationFn: async (habitId: string) => {
+      await apiRequest('DELETE', `/api/habits/${habitId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rubrics', currentRubric?.id, 'categories'] });
+      toast({
+        title: "Habit deleted",
+        description: "Habit has been removed",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete habit",
+        variant: "destructive",
+      });
+    },
+  });
 
   const form = useForm<HabitFormValues>({
     resolver: zodResolver(habitFormSchema),
@@ -78,8 +209,8 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     },
   });
 
-  const handleEditHabit = (categoryId: string, habitIndex: number, currentDescription: string) => {
-    setEditingHabit({ categoryId, habitIndex });
+  const handleEditHabit = (habitId: string, categoryId: string, currentDescription: string) => {
+    setEditingHabit({ habitId, categoryId, currentDescription });
     setAddingToCategoryId(null);
     form.setValue("description", currentDescription);
     setDialogOpen(true);
@@ -92,45 +223,24 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     setDialogOpen(true);
   };
 
-  const handleDeleteHabit = (categoryId: string, habitIndex: number) => {
-    setCategories(categories.map(cat => 
-      cat.id === categoryId
-        ? {
-            ...cat,
-            habits: cat.habits.filter((_, idx) => idx !== habitIndex),
-            habitCount: cat.habits.length - 1,
-          }
-        : cat
-    ));
+  const handleDeleteHabit = (habitId: string) => {
+    deleteHabitMutation.mutate(habitId);
   };
 
   const onSubmit = (data: HabitFormValues) => {
     if (editingHabit) {
       // Update existing habit
-      setCategories(categories.map(cat => 
-        cat.id === editingHabit.categoryId
-          ? {
-              ...cat,
-              habits: cat.habits.map((habit, idx) => 
-                idx === editingHabit.habitIndex ? data.description : habit
-              ),
-            }
-          : cat
-      ));
+      updateHabitMutation.mutate({
+        habitId: editingHabit.habitId,
+        description: data.description,
+      });
     } else if (addingToCategoryId) {
       // Add new habit
-      setCategories(categories.map(cat => 
-        cat.id === addingToCategoryId
-          ? {
-              ...cat,
-              habits: [...cat.habits, data.description],
-              habitCount: cat.habits.length + 1,
-            }
-          : cat
-      ));
+      createHabitMutation.mutate({
+        categoryId: addingToCategoryId,
+        description: data.description,
+      });
     }
-
-    handleDialogClose();
   };
 
   const handleDialogClose = () => {
@@ -146,29 +256,14 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
   };
 
   const onCategorySubmit = (data: CategoryFormValues) => {
-    const newCategory = {
-      id: `category-${Date.now()}`,
-      name: data.name,
-      habitCount: 0,
-      habits: [],
-    };
-
-    setCategories([...categories, newCategory]);
-    
-    toast({
-      title: "Category added",
-      description: `"${data.name}" has been added to the rubric`,
-    });
-
-    setCategoryDialogOpen(false);
-    categoryForm.reset();
+    createCategoryMutation.mutate(data);
   };
 
-  const handleImportCsv = () => {
-    if (!csvData) {
+  const handleImportCsv = async () => {
+    if (!csvData || !currentRubric?.id) {
       toast({
         title: "Error",
-        description: "No CSV data loaded",
+        description: "No CSV data loaded or no rubric available",
         variant: "destructive",
       });
       return;
@@ -191,19 +286,29 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
         importedCategories.get(categoryName)!.push(habitDescription);
       }
 
-      // Convert to category format
-      const newCategories = Array.from(importedCategories.entries()).map(([name, habits], index) => ({
-        id: `imported-${Date.now()}-${index}`,
-        name,
-        habitCount: habits.length,
-        habits,
-      }));
+      // Create categories and habits via API
+      let categoriesCreated = 0;
+      let habitsCreated = 0;
 
-      setCategories([...categories, ...newCategories]);
-      
+      for (const [categoryName, habits] of Array.from(importedCategories.entries())) {
+        const response = await apiRequest('POST', `/api/rubrics/${currentRubric.id}/categories`, { name: categoryName });
+        const category = await response.json() as Category;
+
+        categoriesCreated++;
+
+        // Create all habits for this category
+        for (const habitDescription of habits) {
+          await apiRequest('POST', `/api/categories/${category.id}/habits`, { description: habitDescription });
+          habitsCreated++;
+        }
+      }
+
+      // Invalidate categories query to refresh the list
+      queryClient.invalidateQueries({ queryKey: ['/api/rubrics', currentRubric.id, 'categories'] });
+
       toast({
         title: "Success",
-        description: `Imported ${newCategories.length} categories with ${rows.length} total habits`,
+        description: `Imported ${categoriesCreated} categories with ${habitsCreated} total habits`,
       });
 
       setIsImportOpen(false);
@@ -217,6 +322,9 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
       });
     }
   };
+
+  const isLoading = rubricsLoading || categoriesLoading;
+
   return (
     <div className={isEmbedded ? "space-y-6" : "p-6 space-y-8"}>
       <div className="flex items-center justify-between">
@@ -292,68 +400,78 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
           </div>
         </CardHeader>
         <CardContent>
-          <Accordion type="single" collapsible className="w-full">
-            {categories.map((category) => (
-              <AccordionItem
-                key={category.id}
-                value={category.id}
-                data-testid={`accordion-category-${category.id}`}
-              >
-                <AccordionTrigger>
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold">{category.name}</span>
-                    <Badge variant="secondary" className="text-xs">
-                      {category.habitCount} habits
-                    </Badge>
-                  </div>
-                </AccordionTrigger>
-                <AccordionContent>
-                  <div className="space-y-2 pt-2">
-                    {category.habits.map((habit, idx) => (
-                      <div
-                        key={idx}
-                        className="flex items-start gap-2 p-3 rounded-md bg-muted/50 hover-elevate group"
-                      >
-                        <span className="text-sm text-muted-foreground min-w-[2rem]">
-                          {idx + 1}.
-                        </span>
-                        <span className="text-sm flex-1">{habit}</span>
-                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                            onClick={() => handleEditHabit(category.id, idx, habit)}
-                            data-testid={`button-edit-habit-${category.id}-${idx}`}
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="h-7 w-7"
-                            onClick={() => handleDeleteHabit(category.id, idx)}
-                            data-testid={`button-delete-habit-${category.id}-${idx}`}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Loading rubric...
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No categories yet. Click "Add Category" to get started.
+            </div>
+          ) : (
+            <Accordion type="single" collapsible className="w-full">
+              {categories.map((category) => (
+                <AccordionItem
+                  key={category.id}
+                  value={category.id}
+                  data-testid={`accordion-category-${category.id}`}
+                >
+                  <AccordionTrigger>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold">{category.name}</span>
+                      <Badge variant="secondary" className="text-xs">
+                        {category.habits.length} habits
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="space-y-2 pt-2">
+                      {category.habits.map((habit, idx) => (
+                        <div
+                          key={habit.id}
+                          className="flex items-start gap-2 p-3 rounded-md bg-muted/50 hover-elevate group"
+                        >
+                          <span className="text-sm text-muted-foreground min-w-[2rem]">
+                            {idx + 1}.
+                          </span>
+                          <span className="text-sm flex-1">{habit.description}</span>
+                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => handleEditHabit(habit.id, category.id, habit.description)}
+                              data-testid={`button-edit-habit-${category.id}-${idx}`}
+                            >
+                              <Pencil className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7"
+                              onClick={() => handleDeleteHabit(habit.id)}
+                              data-testid={`button-delete-habit-${category.id}-${idx}`}
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                    <Button
-                      variant="outline"
-                      className="w-full mt-4"
-                      onClick={() => handleAddHabit(category.id)}
-                      data-testid={`button-add-habit-${category.id}`}
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Habit
-                    </Button>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
+                      ))}
+                      <Button
+                        variant="outline"
+                        className="w-full mt-4"
+                        onClick={() => handleAddHabit(category.id)}
+                        data-testid={`button-add-habit-${category.id}`}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Habit
+                      </Button>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
+          )}
         </CardContent>
       </Card>
 
@@ -393,8 +511,12 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
                 >
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit-category">
-                  Add Category
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit-category"
+                  disabled={createCategoryMutation.isPending}
+                >
+                  {createCategoryMutation.isPending ? "Adding..." : "Add Category"}
                 </Button>
               </DialogFooter>
             </form>
@@ -436,11 +558,22 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
                 )}
               />
               <DialogFooter>
-                <Button type="button" variant="ghost" onClick={handleDialogClose} data-testid="button-cancel-habit">
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={handleDialogClose} 
+                  data-testid="button-cancel-habit"
+                >
                   Cancel
                 </Button>
-                <Button type="submit" data-testid="button-submit-habit">
-                  {editingHabit ? "Update Habit" : "Add Habit"}
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit-habit"
+                  disabled={createHabitMutation.isPending || updateHabitMutation.isPending}
+                >
+                  {createHabitMutation.isPending || updateHabitMutation.isPending 
+                    ? (editingHabit ? "Updating..." : "Adding...")
+                    : (editingHabit ? "Update Habit" : "Add Habit")}
                 </Button>
               </DialogFooter>
             </form>
