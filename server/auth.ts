@@ -10,6 +10,20 @@ import { emailService } from "./email";
 
 const SALT_ROUNDS = 10;
 
+// Helper function to sanitize user data (remove sensitive fields)
+function sanitizeUser(user: any) {
+  if (!user) return null;
+  return {
+    id: user.id,
+    email: user.email,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    profile_image_url: user.profile_image_url,
+    global_role: user.global_role,
+    archived: user.archived,
+  };
+}
+
 export function getSession() {
   const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
   const pgStore = connectPg(session);
@@ -149,9 +163,8 @@ export async function setupAuth(app: Express) {
       // Set session
       (req.session as any).userId = user.id;
 
-      // Return user without password
-      const { password_hash: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      // Return sanitized user data
+      res.json(sanitizeUser(user));
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid input", errors: error.errors });
@@ -364,9 +377,8 @@ export async function setupAuth(app: Express) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      // Return user without password
-      const { password_hash: _, ...userWithoutPassword } = user;
-      res.json(userWithoutPassword);
+      // Return sanitized user data
+      res.json(sanitizeUser(user));
     } catch (error) {
       console.error("[AUTH] Get user error:", error);
       res.status(500).json({ message: "Failed to get user" });
