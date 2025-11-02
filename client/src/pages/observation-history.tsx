@@ -3,6 +3,7 @@ import { FeedbackReport } from "@/components/feedback-report";
 import { ObservationCard } from "@/components/observation-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
 import { Search, ArrowLeft, Download } from "lucide-react";
 import { Link } from "wouter";
 import { format } from "date-fns";
