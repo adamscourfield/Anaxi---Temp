@@ -51,7 +51,7 @@ export default function ConductObservation() {
 
   // Fetch rubric and categories for the current school
   const { data: rubrics = [] } = useQuery<any[]>({
-    queryKey: ["/api/rubrics", currentSchoolId],
+    queryKey: ["/api/schools", currentSchoolId, "rubrics"],
     enabled: !!currentSchoolId,
   });
 
@@ -59,7 +59,7 @@ export default function ConductObservation() {
 
   // Fetch categories for the rubric
   const { data: categoriesData = [], isLoading: categoriesLoading } = useQuery<CategoryWithHabits[]>({
-    queryKey: ["/api/categories", rubricId],
+    queryKey: ["/api/rubrics", rubricId, "categories"],
     enabled: !!rubricId,
   });
 
