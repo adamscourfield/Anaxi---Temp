@@ -25,6 +25,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -41,9 +42,16 @@ const habitFormSchema = z.object({
 
 type HabitFormValues = z.infer<typeof habitFormSchema>;
 
+const categoryFormSchema = z.object({
+  name: z.string().min(1, "Category name is required").min(3, "Category name must be at least 3 characters"),
+});
+
+type CategoryFormValues = z.infer<typeof categoryFormSchema>;
+
 export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const [categories, setCategories] = useState(initialCategories);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [editingHabit, setEditingHabit] = useState<{
     categoryId: string;
     habitIndex: number;
@@ -60,6 +68,13 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     resolver: zodResolver(habitFormSchema),
     defaultValues: {
       description: "",
+    },
+  });
+
+  const categoryForm = useForm<CategoryFormValues>({
+    resolver: zodResolver(categoryFormSchema),
+    defaultValues: {
+      name: "",
     },
   });
 
@@ -123,6 +138,30 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     setEditingHabit(null);
     setAddingToCategoryId(null);
     form.reset();
+  };
+
+  const handleAddCategory = () => {
+    categoryForm.reset();
+    setCategoryDialogOpen(true);
+  };
+
+  const onCategorySubmit = (data: CategoryFormValues) => {
+    const newCategory = {
+      id: `category-${Date.now()}`,
+      name: data.name,
+      habitCount: 0,
+      habits: [],
+    };
+
+    setCategories([...categories, newCategory]);
+    
+    toast({
+      title: "Category added",
+      description: `"${data.name}" has been added to the rubric`,
+    });
+
+    setCategoryDialogOpen(false);
+    categoryForm.reset();
   };
 
   const handleImportCsv = () => {
@@ -236,7 +275,7 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button data-testid="button-add-category">
+          <Button onClick={handleAddCategory} data-testid="button-add-category">
             <Plus className="h-4 w-4 mr-2" />
             Add Category
           </Button>
@@ -317,6 +356,51 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
           </Accordion>
         </CardContent>
       </Card>
+
+      <Dialog open={categoryDialogOpen} onOpenChange={setCategoryDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add New Category</DialogTitle>
+            <DialogDescription>
+              Enter a name for the new category. You can add habits to it afterwards.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...categoryForm}>
+            <form onSubmit={categoryForm.handleSubmit(onCategorySubmit)} className="space-y-4">
+              <FormField
+                control={categoryForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., Classroom Management"
+                        data-testid="input-category-name"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={() => setCategoryDialogOpen(false)} 
+                  data-testid="button-cancel-category"
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" data-testid="button-submit-category">
+                  Add Category
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
