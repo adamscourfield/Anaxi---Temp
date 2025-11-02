@@ -144,10 +144,17 @@ export default function ObservationHistory() {
   // Map observations with teacher names
   const observationsWithNames = observations.map(obs => {
     const teacher = teachers.find(t => t.id === obs.teacherId);
+    const teacherName = teacher 
+      ? `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || teacher.email
+      : "Unknown";
+    const teacherInitials = teacher && teacher.first_name && teacher.last_name
+      ? `${teacher.first_name[0]}${teacher.last_name[0]}`
+      : teacher?.email?.[0]?.toUpperCase() || "??";
+    
     return {
       ...obs,
-      teacherName: teacher?.name || "Unknown",
-      teacherInitials: teacher ? teacher.name.split(' ').map(n => n[0]).join('') : "??",
+      teacherName,
+      teacherInitials,
     };
   });
 

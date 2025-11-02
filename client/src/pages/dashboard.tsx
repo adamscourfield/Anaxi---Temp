@@ -40,6 +40,17 @@ export default function Dashboard() {
     },
   });
 
+  // Fetch teachers for the current school
+  const { data: teachers = [] } = useQuery({
+    queryKey: ["/api/teachers", currentSchoolId],
+    enabled: !!currentSchoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/teachers?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch teachers");
+      return response.json();
+    },
+  });
+
   // Fetch recent observations from API
   const { data: observations = [], isLoading: observationsLoading } = useQuery({
     queryKey: ["/api/observations", currentSchoolId],
@@ -51,10 +62,27 @@ export default function Dashboard() {
     },
   });
 
+  // Map observations with teacher data
+  const observationsWithTeachers = observations.map((obs: any) => {
+    const teacher = teachers.find((t: any) => t.id === obs.teacherId);
+    const teacherName = teacher 
+      ? `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || teacher.email
+      : "Unknown";
+    const teacherInitials = teacher && teacher.first_name && teacher.last_name
+      ? `${teacher.first_name[0]}${teacher.last_name[0]}`.toUpperCase()
+      : teacher?.email?.[0]?.toUpperCase() || "??";
+    
+    return {
+      ...obs,
+      teacherName,
+      teacherInitials,
+    };
+  });
+
   // Filter observations based on search query
-  const searchFilteredObservations = observations.filter((obs: any) => {
+  const searchFilteredObservations = observationsWithTeachers.filter((obs: any) => {
     if (!searchQuery) return true;
-    const teacherName = obs.teacher?.name?.toLowerCase() || "";
+    const teacherName = obs.teacherName?.toLowerCase() || "";
     return teacherName.includes(searchQuery.toLowerCase());
   });
 
@@ -81,7 +109,7 @@ export default function Dashboard() {
 
   // Get selected observation details
   const selectedObservation = selectedObservationId
-    ? observations.find((obs: any) => obs.id === selectedObservationId) || null
+    ? observationsWithTeachers.find((obs: any) => obs.id === selectedObservationId) || null
     : null;
 
   // Convert day name to a filter function
@@ -96,11 +124,11 @@ export default function Dashboard() {
 
     switch (filterType) {
       case "day":
-        return observations.filter((obs: any) => getDayOfWeek(new Date(obs.date)) === filterValue);
+        return observationsWithTeachers.filter((obs: any) => getDayOfWeek(new Date(obs.date)) === filterValue);
       case "teacher":
-        return observations.filter((obs: any) => obs.teacher?.name === filterValue);
+        return observationsWithTeachers.filter((obs: any) => obs.teacherName === filterValue);
       case "category":
-        return observations.filter((obs: any) => 
+        return observationsWithTeachers.filter((obs: any) => 
           obs.categories?.some((cat: any) => cat.categoryName === filterValue)
         );
       default:
@@ -246,8 +274,8 @@ export default function Dashboard() {
                 recentObservations.map((obs: any) => (
                   <ObservationCard
                     key={obs.id}
-                    teacherName={obs.teacher?.name || "Unknown Teacher"}
-                    teacherInitials={obs.teacher?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || "??"}
+                    teacherName={obs.teacherName}
+                    teacherInitials={obs.teacherInitials}
                     date={new Date(obs.date)}
                     categories={obs.categories?.map((c: any) => c.categoryName) || []}
                     score={obs.totalScore}
@@ -289,8 +317,8 @@ export default function Dashboard() {
         title={getFilterPanelTitle()}
         observations={filteredObservations.map((obs: any) => ({
           id: obs.id,
-          teacherName: obs.teacher?.name || "Unknown Teacher",
-          teacherInitials: obs.teacher?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase() || "??",
+          teacherName: obs.teacherName,
+          teacherInitials: obs.teacherInitials,
           date: new Date(obs.date),
           categories: obs.categories?.map((cat: any) => cat.categoryName) || [],
           score: obs.totalScore,
