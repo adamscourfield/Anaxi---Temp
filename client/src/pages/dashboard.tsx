@@ -5,8 +5,9 @@ import { CategoryPerformance } from "@/components/category-performance";
 import { TeachingGroupsSection } from "@/components/teaching-groups-section";
 import { ObservationDetailsPanel } from "@/components/observation-details-panel";
 import { FilteredObservationsPanel } from "@/components/filtered-observations-panel";
-import { Eye, Users, ClipboardCheck, TrendingUp } from "lucide-react";
+import { Eye, Users, ClipboardCheck, TrendingUp, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<"day" | "teacher" | "category" | null>(null);
   const [filterValue, setFilterValue] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const { currentSchoolId } = useSchool();
 
   // Fetch dashboard stats from API
@@ -49,8 +51,15 @@ export default function Dashboard() {
     },
   });
 
-  // Get 3 most recent observations for the overview
-  const recentObservations = observations
+  // Filter observations based on search query
+  const searchFilteredObservations = observations.filter((obs: any) => {
+    if (!searchQuery) return true;
+    const teacherName = obs.teacher?.name?.toLowerCase() || "";
+    return teacherName.includes(searchQuery.toLowerCase());
+  });
+
+  // Get 3 most recent observations for the overview (from search filtered results)
+  const recentObservations = searchFilteredObservations
     .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 3);
   
@@ -246,13 +255,25 @@ export default function Dashboard() {
 
         <TabsContent value="overview" className="space-y-6">
           <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-4 gap-4">
               <h2 className="text-xl font-semibold">Recent Observations</h2>
-              <Link href="/history">
-                <Button variant="ghost" size="sm" data-testid="button-view-all">
-                  View All
-                </Button>
-              </Link>
+              <div className="flex items-center gap-2">
+                <div className="relative w-64">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search by teacher name..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-dashboard-observations"
+                  />
+                </div>
+                <Link href="/history">
+                  <Button variant="ghost" size="sm" data-testid="button-view-all">
+                    View All
+                  </Button>
+                </Link>
+              </div>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {observationsLoading ? (
