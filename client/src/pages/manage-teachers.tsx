@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/use-auth";
@@ -936,62 +937,96 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEditTeacher(teacher)}
-                            data-testid={`button-edit-${teacher.id}`}
-                            disabled={teacher.archived}
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleAssignSchools(teacher)}
-                            data-testid={`button-assign-schools-${teacher.id}`}
-                            disabled={teacher.archived}
-                          >
-                            <Users className="w-4 h-4" />
-                          </Button>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleEditTeacher(teacher)}
+                                data-testid={`button-edit-${teacher.id}`}
+                                disabled={teacher.archived}
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Edit Teacher</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleAssignSchools(teacher)}
+                                data-testid={`button-assign-schools-${teacher.id}`}
+                                disabled={teacher.archived}
+                              >
+                                <Users className="w-4 h-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Assign Schools</p>
+                            </TooltipContent>
+                          </Tooltip>
                           {teacherSchools.length > 0 && !teacher.archived && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => {
-                                const teacherMemberships = allMemberships.filter(m => m.userId === teacher.id);
-                                const firstSchoolId = teacherMemberships[0]?.schoolId;
-                                if (firstSchoolId) {
-                                  handleManageObsPermissions(teacher, firstSchoolId);
-                                }
-                              }}
-                              data-testid={`button-manage-obs-${teacher.id}`}
-                              title="Manage Observation Permissions"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    const teacherMemberships = allMemberships.filter(m => m.userId === teacher.id);
+                                    const firstSchoolId = teacherMemberships[0]?.schoolId;
+                                    if (firstSchoolId) {
+                                      handleManageObsPermissions(teacher, firstSchoolId);
+                                    }
+                                  }}
+                                  data-testid={`button-manage-obs-${teacher.id}`}
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Manage Observation Permissions</p>
+                              </TooltipContent>
+                            </Tooltip>
                           )}
                           {isCreator && (
                             teacher.archived ? (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => unarchiveUserMutation.mutate(teacher.id)}
-                                data-testid={`button-unarchive-${teacher.id}`}
-                                disabled={unarchiveUserMutation.isPending}
-                              >
-                                <ArchiveRestore className="w-4 h-4" />
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => unarchiveUserMutation.mutate(teacher.id)}
+                                    data-testid={`button-unarchive-${teacher.id}`}
+                                    disabled={unarchiveUserMutation.isPending}
+                                  >
+                                    <ArchiveRestore className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Restore Teacher</p>
+                                </TooltipContent>
+                              </Tooltip>
                             ) : (
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => archiveUserMutation.mutate(teacher.id)}
-                                data-testid={`button-archive-${teacher.id}`}
-                                disabled={archiveUserMutation.isPending}
-                              >
-                                <Archive className="w-4 h-4" />
-                              </Button>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => archiveUserMutation.mutate(teacher.id)}
+                                    data-testid={`button-archive-${teacher.id}`}
+                                    disabled={archiveUserMutation.isPending}
+                                  >
+                                    <Archive className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Archive Teacher</p>
+                                </TooltipContent>
+                              </Tooltip>
                             )
                           )}
                         </div>
