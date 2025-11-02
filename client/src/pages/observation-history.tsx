@@ -257,7 +257,22 @@ export default function ObservationHistory() {
       ) : hasNoSchools ? (
         <div className="text-center text-muted-foreground py-12">No school assigned</div>
       ) : observations.length === 0 ? (
-        <div className="text-center text-muted-foreground py-12">No observations yet</div>
+        <Card className="p-8">
+          <div className="text-center space-y-3">
+            <p className="text-lg font-medium">No observations to display</p>
+            <p className="text-sm text-muted-foreground max-w-md mx-auto">
+              {!isCreator && currentTeacher?.role !== "Admin" && currentTeacher?.role !== "Leader" ? (
+                <>
+                  You don't have permission to view any observations yet. Administrators can grant you access to view specific teachers' observations for mentoring, department oversight, or peer observation groups.
+                </>
+              ) : (
+                <>
+                  No observations have been recorded yet. Start by creating your first observation.
+                </>
+              )}
+            </p>
+          </div>
+        </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {observationsWithNames.map((obs) => (

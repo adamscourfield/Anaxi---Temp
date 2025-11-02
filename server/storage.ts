@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction, type LeaveRequest, type InsertLeaveRequest } from "@shared/schema";
+import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction, type LeaveRequest, type InsertLeaveRequest, type ObservationViewPermission, type InsertObservationViewPermission } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -79,6 +79,13 @@ export interface IStorage {
   getObservationsByTeacher(teacherId: string): Promise<Observation[]>;
   getObservation(id: string): Promise<Observation | undefined>;
   createObservation(observation: InsertObservation): Promise<Observation>;
+  
+  // Observation View Permissions
+  getObservationViewPermissionsByViewer(viewerId: string, schoolId: string): Promise<ObservationViewPermission[]>;
+  getObservationViewPermissionsBySchool(schoolId: string): Promise<ObservationViewPermission[]>;
+  createObservationViewPermission(permission: InsertObservationViewPermission): Promise<ObservationViewPermission>;
+  deleteObservationViewPermission(id: string): Promise<boolean>;
+  deleteObservationViewPermissionByFields(viewerId: string, viewableTeacherId: string, schoolId: string): Promise<boolean>;
 }
 
 export class MemStorage implements IStorage {

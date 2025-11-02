@@ -1960,7 +1960,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Observation routes with role-based filtering
+  // Observation routes with granular permission-based filtering
   app.get("/api/observations", isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
@@ -1987,16 +1987,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const role = membership.role || "Teacher";
 
-      // Leaders and Admins can see all observations in their school
-      if (role === "Leader" || role === "Admin") {
+      // Admins can see all observations in their school
+      if (role === "Admin") {
         const observations = await storage.getObservationsBySchool(schoolId);
         return res.json(observations);
       }
 
-      // Teachers can only see their own observations
-      // teacherId now references users.id directly
-      const observations = await storage.getObservationsByTeacher(user.id);
-      res.json(observations);
+      // Leaders and Teachers: See their own observations + observations for teachers they have explicit permission to view
+      // Get the list of teachers this user can view
+      const viewPermissions = await storage.getObservationViewPermissionsByViewer(user.id, schoolId);
+      const viewableTeacherIds = viewPermissions.map(p => p.viewableTeacherId);
+
+      // Always include the user's own observations
+      const allowedTeacherIds = new Set([user.id, ...viewableTeacherIds]);
+
+      // Fetch all observations for the school
+      const allObservations = await storage.getObservationsBySchool(schoolId);
+      
+      // Filter to only observations for teachers this user has permission to view (including themselves)
+      const filteredObservations = allObservations.filter(obs => 
+        allowedTeacherIds.has(obs.teacherId)
+      );
+
+      res.json(filteredObservations);
     } catch (error) {
       console.error("Error fetching observations:", error);
       res.status(500).json({ message: "Failed to fetch observations" });
@@ -2063,6 +2076,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating observation:", error);
       res.status(500).json({ message: "Failed to create observation" });
+    }
+  });
+
+  // Observation View Permissions routes (Admin/Creator only)
+  
+  // Get all observation view permissions for a school
+  app.get("/api/observation-view-permissions", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const schoolId = req.query.schoolId as string;
+
+      if (!schoolId) {
+        return res.status(400).json({ message: "School ID is required" });
+      }
+
+      // Only Admins and Creators can manage observation view permissions
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ 
+            message: "Forbidden: Only Admins and Creators can view observation permissions" 
+          });
+        }
+      }
+
+      const permissions = await storage.getObservationViewPermissionsBySchool(schoolId);
+      res.json(permissions);
+    } catch (error) {
+      console.error("Error fetching observation view permissions:", error);
+      res.status(500).json({ message: "Failed to fetch observation view permissions" });
+    }
+  });
+
+  // Create observation view permission
+  app.post("/api/observation-view-permissions", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { viewerId, viewableTeacherId, schoolId } = req.body;
+
+      if (!viewerId || !viewableTeacherId || !schoolId) {
+        return res.status(400).json({ message: "viewerId, viewableTeacherId, and schoolId are required" });
+      }
+
+      // Only Admins and Creators can manage observation view permissions
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ 
+            message: "Forbidden: Only Admins and Creators can manage observation permissions" 
+          });
+        }
+      }
+
+      const permission = await storage.createObservationViewPermission({
+        viewerId,
+        viewableTeacherId,
+        schoolId,
+      });
+
+      res.status(201).json(permission);
+    } catch (error) {
+      console.error("Error creating observation view permission:", error);
+      res.status(500).json({ message: "Failed to create observation view permission" });
+    }
+  });
+
+  // Delete observation view permission
+  app.delete("/api/observation-view-permissions", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { viewerId, viewableTeacherId, schoolId } = req.body;
+
+      if (!viewerId || !viewableTeacherId || !schoolId) {
+        return res.status(400).json({ message: "viewerId, viewableTeacherId, and schoolId are required" });
+      }
+
+      // Only Admins and Creators can manage observation view permissions
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ 
+            message: "Forbidden: Only Admins and Creators can manage observation permissions" 
+          });
+        }
+      }
+
+      const deleted = await storage.deleteObservationViewPermissionByFields(viewerId, viewableTeacherId, schoolId);
+      
+      if (!deleted) {
+        return res.status(404).json({ message: "Permission not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting observation view permission:", error);
+      res.status(500).json({ message: "Failed to delete observation view permission" });
     }
   });
 

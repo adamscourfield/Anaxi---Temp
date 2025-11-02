@@ -242,3 +242,16 @@ export const leaveRequests = pgTable("leave_requests", {
 export const insertLeaveRequestSchema = createInsertSchema(leaveRequests).omit({ id: true, createdAt: true, updatedAt: true });
 export type InsertLeaveRequest = z.infer<typeof insertLeaveRequestSchema>;
 export type LeaveRequest = typeof leaveRequests.$inferSelect;
+
+// Observation View Permissions - granular control over who can view whose observations
+export const observationViewPermissions = pgTable("observation_view_permissions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  viewerId: varchar("viewer_id").notNull().references(() => users.id), // User who is granted view permission
+  viewableTeacherId: varchar("viewable_teacher_id").notNull().references(() => users.id), // Teacher whose observations can be viewed
+  schoolId: varchar("school_id").notNull().references(() => schools.id), // School context for this permission
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertObservationViewPermissionSchema = createInsertSchema(observationViewPermissions).omit({ id: true, createdAt: true });
+export type InsertObservationViewPermission = z.infer<typeof insertObservationViewPermissionSchema>;
+export type ObservationViewPermission = typeof observationViewPermissions.$inferSelect;

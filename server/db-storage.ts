@@ -23,6 +23,8 @@ import {
   type InsertMeetingAction,
   type LeaveRequest,
   type InsertLeaveRequest,
+  type ObservationViewPermission,
+  type InsertObservationViewPermission,
   users,
   schoolMemberships,
   schools,
@@ -34,6 +36,7 @@ import {
   meetingAttendees,
   meetingActions,
   leaveRequests,
+  observationViewPermissions,
 } from "@shared/schema";
 import { type IStorage } from "./storage";
 
@@ -418,6 +421,47 @@ export class DbStorage implements IStorage {
 
   async deleteLeaveRequest(id: string): Promise<boolean> {
     const result = await db.delete(leaveRequests).where(eq(leaveRequests.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  // Observation View Permissions
+  async getObservationViewPermissionsByViewer(viewerId: string, schoolId: string): Promise<ObservationViewPermission[]> {
+    const result = await db
+      .select()
+      .from(observationViewPermissions)
+      .where(and(
+        eq(observationViewPermissions.viewerId, viewerId),
+        eq(observationViewPermissions.schoolId, schoolId)
+      ));
+    return result;
+  }
+
+  async getObservationViewPermissionsBySchool(schoolId: string): Promise<ObservationViewPermission[]> {
+    const result = await db
+      .select()
+      .from(observationViewPermissions)
+      .where(eq(observationViewPermissions.schoolId, schoolId));
+    return result;
+  }
+
+  async createObservationViewPermission(permission: InsertObservationViewPermission): Promise<ObservationViewPermission> {
+    const result = await db.insert(observationViewPermissions).values(permission).returning();
+    return result[0];
+  }
+
+  async deleteObservationViewPermission(id: string): Promise<boolean> {
+    const result = await db.delete(observationViewPermissions).where(eq(observationViewPermissions.id, id));
+    return result.rowCount !== null && result.rowCount > 0;
+  }
+
+  async deleteObservationViewPermissionByFields(viewerId: string, viewableTeacherId: string, schoolId: string): Promise<boolean> {
+    const result = await db.delete(observationViewPermissions).where(
+      and(
+        eq(observationViewPermissions.viewerId, viewerId),
+        eq(observationViewPermissions.viewableTeacherId, viewableTeacherId),
+        eq(observationViewPermissions.schoolId, schoolId)
+      )
+    );
     return result.rowCount !== null && result.rowCount > 0;
   }
 }

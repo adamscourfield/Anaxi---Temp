@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Upload, Search, Pencil, Users, Archive, ArchiveRestore } from "lucide-react";
+import { Plus, Upload, Search, Pencil, Users, Archive, ArchiveRestore, Eye } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -60,6 +60,12 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [assignedSchools, setAssignedSchools] = useState<string[]>([]);
   // Map of schoolId -> { membershipId, canApproveLeaveRequests }
   const [membershipPermissions, setMembershipPermissions] = useState<Record<string, { membershipId: string; canApproveLeaveRequests: boolean }>>({});
+
+  // Observation permissions state
+  const [isObsPermOpen, setIsObsPermOpen] = useState(false);
+  const [obsPermUser, setObsPermUser] = useState<User | null>(null);
+  const [obsPermSchoolId, setObsPermSchoolId] = useState<string>("");
+  const [viewableTeacherIds, setViewableTeacherIds] = useState<string[]>([]);
 
   // Fetch all teachers (include archived for Creators)
   const { data: teachers = [], isLoading: teachersLoading } = useQuery<User[]>({
@@ -286,6 +292,39 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       toast({
         title: "Error",
         description: error.message || "Failed to unarchive user",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Observation permission mutations
+  const createObsPermMutation = useMutation({
+    mutationFn: async (data: { viewerId: string; viewableTeacherId: string; schoolId: string }) => {
+      return await apiRequest("POST", "/api/observation-view-permissions", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/observation-view-permissions"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to grant observation permission",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteObsPermMutation = useMutation({
+    mutationFn: async (data: { viewerId: string; viewableTeacherId: string; schoolId: string }) => {
+      return await apiRequest("DELETE", "/api/observation-view-permissions", data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/observation-view-permissions"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to revoke observation permission",
         variant: "destructive",
       });
     },
@@ -543,6 +582,59 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
         ? prev.filter(id => id !== schoolId)
         : [...prev, schoolId]
     );
+  };
+
+  // Observation permissions handlers
+  const handleManageObsPermissions = async (user: User, schoolId: string) => {
+    setObsPermUser(user);
+    setObsPermSchoolId(schoolId);
+
+    // Fetch current permissions for this user in this school
+    try {
+      const response = await fetch(`/api/observation-view-permissions?schoolId=${schoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch permissions");
+      const permissions = await response.json();
+      
+      // Filter to only permissions for this viewer
+      const userPerms = permissions.filter((p: any) => p.viewerId === user.id);
+      setViewableTeacherIds(userPerms.map((p: any) => p.viewableTeacherId));
+    } catch (error) {
+      console.error("Failed to fetch observation permissions:", error);
+      setViewableTeacherIds([]);
+    }
+
+    setIsObsPermOpen(true);
+  };
+
+  const handleCloseObsPermDialog = () => {
+    setIsObsPermOpen(false);
+    setObsPermUser(null);
+    setObsPermSchoolId("");
+    setViewableTeacherIds([]);
+  };
+
+  const toggleObsPermission = (teacherId: string) => {
+    if (!obsPermUser || !obsPermSchoolId) return;
+
+    const isCurrentlyViewable = viewableTeacherIds.includes(teacherId);
+
+    if (isCurrentlyViewable) {
+      // Remove permission
+      deleteObsPermMutation.mutate({
+        viewerId: obsPermUser.id,
+        viewableTeacherId: teacherId,
+        schoolId: obsPermSchoolId,
+      });
+      setViewableTeacherIds(prev => prev.filter(id => id !== teacherId));
+    } else {
+      // Add permission
+      createObsPermMutation.mutate({
+        viewerId: obsPermUser.id,
+        viewableTeacherId: teacherId,
+        schoolId: obsPermSchoolId,
+      });
+      setViewableTeacherIds(prev => [...prev, teacherId]);
+    }
   };
 
   // Get school names for a teacher
@@ -862,6 +954,23 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                           >
                             <Users className="w-4 h-4" />
                           </Button>
+                          {teacherSchools.length > 0 && !teacher.archived && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                const teacherMemberships = allMemberships.filter(m => m.userId === teacher.id);
+                                const firstSchoolId = teacherMemberships[0]?.schoolId;
+                                if (firstSchoolId) {
+                                  handleManageObsPermissions(teacher, firstSchoolId);
+                                }
+                              }}
+                              data-testid={`button-manage-obs-${teacher.id}`}
+                              title="Manage Observation Permissions"
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          )}
                           {isCreator && (
                             teacher.archived ? (
                               <Button
@@ -1052,6 +1161,67 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
               data-testid="button-submit-assign"
             >
               {updateSchoolsMutation.isPending ? "Updating..." : "Update Schools"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Observation Permissions Dialog */}
+      <Dialog open={isObsPermOpen} onOpenChange={(open) => !open && handleCloseObsPermDialog()}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Manage Observation Permissions</DialogTitle>
+            <DialogDescription>
+              Select which teachers {obsPermUser?.first_name || obsPermUser?.email || "this user"} can view observations for
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="text-sm text-muted-foreground mb-4">
+              Grant {obsPermUser?.first_name || obsPermUser?.email || "this user"} permission to view observations for specific teachers in this school. 
+              This is useful for mentoring relationships, department heads, or peer observation groups.
+            </div>
+            <div className="space-y-2">
+              {teachers
+                .filter(t => {
+                  // Only show teachers from the same school
+                  const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
+                  return teacherMemberships.some(m => m.schoolId === obsPermSchoolId) && !t.archived;
+                })
+                .map(teacher => {
+                  const displayName = teacher.first_name || teacher.last_name
+                    ? `${teacher.first_name || ""} ${teacher.last_name || ""}`.trim()
+                    : teacher.email;
+                  const isViewable = viewableTeacherIds.includes(teacher.id);
+
+                  return (
+                    <div key={teacher.id} className="flex items-center space-x-2 p-2 rounded hover-elevate">
+                      <Checkbox
+                        id={`obs-perm-${teacher.id}`}
+                        checked={isViewable}
+                        onCheckedChange={() => toggleObsPermission(teacher.id)}
+                        data-testid={`checkbox-obs-perm-${teacher.id}`}
+                      />
+                      <label
+                        htmlFor={`obs-perm-${teacher.id}`}
+                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+                      >
+                        {displayName}
+                        {teacher.id === obsPermUser?.id && (
+                          <Badge variant="secondary" className="ml-2">Self</Badge>
+                        )}
+                      </label>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={handleCloseObsPermDialog}
+              data-testid="button-close-obs-perm"
+            >
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
