@@ -376,7 +376,7 @@ export default function Profile() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Calendar className="w-5 h-5" />
-            Leave Requests
+            My Leave Requests
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -400,8 +400,8 @@ export default function Profile() {
                     <p className="text-sm text-muted-foreground">
                       {format(new Date(request.startDate), "MMM d, yyyy")} - {format(new Date(request.endDate), "MMM d, yyyy")}
                     </p>
-                    {request.reason && (
-                      <p className="text-sm text-muted-foreground mt-1">{request.reason}</p>
+                    {request.additionalDetails && (
+                      <p className="text-sm text-muted-foreground mt-1">{request.additionalDetails}</p>
                     )}
                   </div>
                 </div>

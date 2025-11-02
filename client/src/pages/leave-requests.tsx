@@ -150,11 +150,6 @@ export default function LeaveRequests() {
     enabled: !!currentSchoolId,
   });
 
-  // Filter requests for current user
-  const myRequests = leaveRequests.filter(
-    request => request.membershipId === currentMembership?.id
-  );
-
   const createRequestMutation = useMutation({
     mutationFn: async (data: FormValues) => {
       const payload = {
@@ -174,7 +169,7 @@ export default function LeaveRequests() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests", selectedSchoolId || currentSchoolId] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leave-requests", currentSchoolId] });
       toast({
         title: "Success",
         description: "Leave request submitted successfully",
@@ -220,9 +215,9 @@ export default function LeaveRequests() {
   return (
     <div className="p-6 space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Leave Requests</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Request Leave</h1>
         <p className="text-muted-foreground mt-1">
-          Submit and manage your leave requests
+          Submit your leave requests
         </p>
       </div>
 
@@ -474,90 +469,6 @@ export default function LeaveRequests() {
           </Form>
         </CardContent>
       </Card>
-
-      {/* My Leave Requests */}
-      <div className="space-y-4">
-        <h2 className="text-2xl font-semibold">My Leave Requests</h2>
-        {requestsLoading ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              Loading leave requests...
-            </CardContent>
-          </Card>
-        ) : myRequests.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No leave requests found</p>
-              <p className="text-sm mt-1">Submit your first leave request above</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {myRequests.map((request) => (
-              <Card key={request.id} data-testid={`card-leave-request-${request.id}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-base">
-                      {leaveTypeLabels[request.type as keyof typeof leaveTypeLabels]}
-                    </CardTitle>
-                    <Badge
-                      variant="outline"
-                      className={statusColors[request.status as keyof typeof statusColors]}
-                      data-testid={`badge-status-${request.id}`}
-                    >
-                      {statusLabels[request.status as keyof typeof statusLabels]}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Dates</p>
-                    <p className="text-sm" data-testid={`text-dates-${request.id}`}>
-                      {format(new Date(request.startDate), "PPP")} - {format(new Date(request.endDate), "PPP")}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Cover Arrangements</p>
-                    <p className="text-sm" data-testid={`text-cover-${request.id}`}>
-                      {request.coverDetails}
-                    </p>
-                  </div>
-                  {request.additionalDetails && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Additional Details</p>
-                      <p className="text-sm" data-testid={`text-details-${request.id}`}>
-                        {request.additionalDetails}
-                      </p>
-                    </div>
-                  )}
-                  {request.responseNotes && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Response Notes</p>
-                      <p className="text-sm" data-testid={`text-response-${request.id}`}>
-                        {request.responseNotes}
-                      </p>
-                    </div>
-                  )}
-                  {request.attachmentUrl && (
-                    <div>
-                      <a
-                        href={request.attachmentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline"
-                        data-testid={`link-attachment-${request.id}`}
-                      >
-                        View Attachment
-                      </a>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

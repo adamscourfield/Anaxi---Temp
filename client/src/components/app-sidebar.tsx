@@ -55,7 +55,7 @@ const menuItems = [
     color: "info",
   },
   {
-    title: "Leave Requests",
+    title: "Request Leave",
     url: "/leave-requests",
     icon: Calendar,
     color: "teal",
@@ -115,7 +115,7 @@ export function AppSidebar() {
     // When currentSchool is null/loading, hide feature-gated items
     if (!currentSchool) {
       // Hide feature-specific items when loading
-      if (item.title === "Meetings" || item.title === "Leave Requests" || item.title === "Approve Leave") {
+      if (item.title === "Meetings" || item.title === "Request Leave" || item.title === "Approve Leave") {
         return false;
       }
       return true;
@@ -128,8 +128,8 @@ export function AppSidebar() {
       return enabledFeatures.includes("meetings");
     }
 
-    // Leave Requests requires "absence_management" feature
-    if (item.title === "Leave Requests") {
+    // Request Leave requires "absence_management" feature
+    if (item.title === "Request Leave") {
       return enabledFeatures.includes("absence_management");
     }
 
