@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { DbStorage } from "./db-storage";
 import { db } from "./db";
 import { sql, desc } from "drizzle-orm";
-import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertDepartmentSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertLeaveRequestSchema, insertObservationSchema, meetingActions } from "@shared/schema";
+import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertDepartmentSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertLeaveRequestSchema, insertObservationSchema, insertRubricSchema, insertCategorySchema, insertHabitSchema, meetingActions } from "@shared/schema";
 import { z } from "zod";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
@@ -2270,6 +2270,310 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting observation view permission:", error);
       res.status(500).json({ message: "Failed to delete observation view permission" });
+    }
+  });
+
+  // Rubrics routes
+  
+  // Get all rubrics for a school
+  app.get("/api/schools/:schoolId/rubrics", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+
+      // Verify user has access to this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+
+      const rubrics = await storage.getRubricsBySchool(schoolId);
+      res.json(rubrics);
+    } catch (error) {
+      console.error("Error fetching rubrics:", error);
+      res.status(500).json({ message: "Failed to fetch rubrics" });
+    }
+  });
+
+  // Create a rubric
+  app.post("/api/schools/:schoolId/rubrics", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+
+      // Only Admin or Creator can create rubrics
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can create rubrics" });
+        }
+      }
+
+      const validated = insertRubricSchema.parse({ ...req.body, schoolId });
+      const rubric = await storage.createRubric(validated);
+      res.status(201).json(rubric);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid rubric data", errors: error.errors });
+      }
+      console.error("Error creating rubric:", error);
+      res.status(500).json({ message: "Failed to create rubric" });
+    }
+  });
+
+  // Get categories with habits for a rubric
+  app.get("/api/rubrics/:rubricId/categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { rubricId } = req.params;
+
+      // Get rubric to check school access
+      const rubric = await storage.getRubric(rubricId);
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+
+      // Verify user has access to this rubric's school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, rubric.schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+
+      const categories = await storage.getCategoriesByRubric(rubricId);
+      res.json(categories);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ message: "Failed to fetch categories" });
+    }
+  });
+
+  // Create a category
+  app.post("/api/rubrics/:rubricId/categories", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { rubricId } = req.params;
+
+      // Get rubric to check school access
+      const rubric = await storage.getRubric(rubricId);
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+
+      // Only Admin or Creator can create categories
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, rubric.schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can create categories" });
+        }
+      }
+
+      const validated = insertCategorySchema.parse({ ...req.body, rubricId });
+      const category = await storage.createCategory(validated);
+      res.status(201).json(category);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid category data", errors: error.errors });
+      }
+      console.error("Error creating category:", error);
+      res.status(500).json({ message: "Failed to create category" });
+    }
+  });
+
+  // Update a category
+  app.put("/api/categories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+
+      // Get category to check access
+      const category = await storage.getCategory(id);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+
+      // Get rubric to check school access
+      const rubric = await storage.getRubric(category.rubricId);
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+
+      // Only Admin or Creator can update categories
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, rubric.schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can update categories" });
+        }
+      }
+
+      const updated = await storage.updateCategory(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating category:", error);
+      res.status(500).json({ message: "Failed to update category" });
+    }
+  });
+
+  // Delete a category
+  app.delete("/api/categories/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+
+      // Get category to check access
+      const category = await storage.getCategory(id);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+
+      // Get rubric to check school access
+      const rubric = await storage.getRubric(category.rubricId);
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+
+      // Only Admin or Creator can delete categories
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, rubric.schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can delete categories" });
+        }
+      }
+
+      const deleted = await storage.deleteCategory(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      res.status(500).json({ message: "Failed to delete category" });
+    }
+  });
+
+  // Create a habit
+  app.post("/api/categories/:categoryId/habits", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { categoryId } = req.params;
+
+      // Get category to check access
+      const category = await storage.getCategory(categoryId);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+
+      // Get rubric to check school access
+      const rubric = await storage.getRubric(category.rubricId);
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+
+      // Only Admin or Creator can create habits
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, rubric.schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can create habits" });
+        }
+      }
+
+      const validated = insertHabitSchema.parse({ ...req.body, categoryId });
+      const habit = await storage.createHabit(validated);
+      res.status(201).json(habit);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid habit data", errors: error.errors });
+      }
+      console.error("Error creating habit:", error);
+      res.status(500).json({ message: "Failed to create habit" });
+    }
+  });
+
+  // Update a habit
+  app.put("/api/habits/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+
+      // Get habit to check access
+      const habit = await storage.getHabit(id);
+      if (!habit) {
+        return res.status(404).json({ message: "Habit not found" });
+      }
+
+      // Get category to check access
+      const category = await storage.getCategory(habit.categoryId);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+
+      // Get rubric to check school access
+      const rubric = await storage.getRubric(category.rubricId);
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+
+      // Only Admin or Creator can update habits
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, rubric.schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can update habits" });
+        }
+      }
+
+      const updated = await storage.updateHabit(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating habit:", error);
+      res.status(500).json({ message: "Failed to update habit" });
+    }
+  });
+
+  // Delete a habit
+  app.delete("/api/habits/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+
+      // Get habit to check access
+      const habit = await storage.getHabit(id);
+      if (!habit) {
+        return res.status(404).json({ message: "Habit not found" });
+      }
+
+      // Get category to check access
+      const category = await storage.getCategory(habit.categoryId);
+      if (!category) {
+        return res.status(404).json({ message: "Category not found" });
+      }
+
+      // Get rubric to check school access
+      const rubric = await storage.getRubric(category.rubricId);
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+
+      // Only Admin or Creator can delete habits
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, rubric.schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can delete habits" });
+        }
+      }
+
+      const deleted = await storage.deleteHabit(id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Habit not found" });
+      }
+
+      res.status(204).send();
+    } catch (error) {
+      console.error("Error deleting habit:", error);
+      res.status(500).json({ message: "Failed to delete habit" });
     }
   });
 
