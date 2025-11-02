@@ -20,7 +20,7 @@ import { useSchool } from "@/hooks/use-school";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import type { Teacher, Category, Habit } from "@shared/schema";
+import type { User, Category, Habit } from "@shared/schema";
 
 interface CategoryWithHabits extends Category {
   habits: Habit[];
@@ -39,8 +39,13 @@ export default function ConductObservation() {
   const [checkedHabits, setCheckedHabits] = useState<string[]>([]);
 
   // Fetch teachers for the current school
-  const { data: teachers = [], isLoading: teachersLoading } = useQuery<Teacher[]>({
+  const { data: teachers = [], isLoading: teachersLoading } = useQuery<User[]>({
     queryKey: ["/api/teachers", currentSchoolId],
+    queryFn: async () => {
+      const response = await fetch(`/api/teachers?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch teachers");
+      return response.json();
+    },
     enabled: !!currentSchoolId,
   });
 
@@ -200,8 +205,10 @@ export default function ConductObservation() {
                 </SelectTrigger>
                 <SelectContent>
                   {teachers.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>
-                      {teacher.name}
+                    <SelectItem key={teacher.id} value={teacher.id} data-testid={`option-teacher-${teacher.id}`}>
+                      {teacher.first_name && teacher.last_name 
+                        ? `${teacher.first_name} ${teacher.last_name}` 
+                        : teacher.email}
                     </SelectItem>
                   ))}
                 </SelectContent>
