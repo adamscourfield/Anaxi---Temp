@@ -105,7 +105,7 @@ export interface EmailService {
     to: string;
     userName: string;
     schoolName: string;
-    temporaryPassword: string;
+    setupToken: string;
   }): Promise<void>;
 }
 
@@ -341,17 +341,19 @@ export const emailService: EmailService = {
     }, 'Leave request approval notification');
   },
 
-  async sendWelcomeEmail({ to, userName, schoolName, temporaryPassword }) {
+  async sendWelcomeEmail({ to, userName, schoolName, setupToken }) {
     await safeSendEmail(async () => {
       const { client, fromEmail } = await getUncachableResendClient();
       const appUrl = process.env.REPLIT_DEV_DOMAIN 
         ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
         : 'http://localhost:5000';
 
+      const setupLink = `${appUrl}/set-password?token=${setupToken}`;
+
       await client.emails.send({
         from: fromEmail,
         to,
-        subject: `Welcome to Anaxi - ${sanitizeHtml(schoolName)}`,
+        subject: `Welcome to Anaxi - Set Your Password`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #333;">Welcome to Anaxi!</h2>
@@ -360,16 +362,15 @@ export const emailService: EmailService = {
             
             <div style="background-color: #F9FAFB; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 5px 0;"><strong>Email:</strong> ${to}</p>
-              <p style="margin: 5px 0;"><strong>Temporary Password:</strong> <code style="background-color: #E5E7EB; padding: 4px 8px; border-radius: 4px;">${temporaryPassword}</code></p>
+              <p style="margin: 10px 0;">To get started, please set your password by clicking the button below:</p>
             </div>
 
-            <p style="color: #DC2626; font-weight: 600;">⚠️ Important Security Notice:</p>
-            <p style="color: #666;">Please change your password immediately after logging in for the first time. You can do this from your profile settings.</p>
-
-            <a href="${appUrl}" 
+            <a href="${setupLink}" 
                style="display: inline-block; padding: 12px 24px; background-color: #FF6B6B; color: white; text-decoration: none; border-radius: 6px; margin: 20px 0;">
-              Log In to Anaxi
+              Set Your Password
             </a>
+
+            <p style="color: #666; font-size: 14px;">This link will expire in 7 days for security reasons.</p>
 
             <p style="color: #666; font-size: 14px; margin-top: 30px;">
               This is an automated message from Anaxi, your professional teacher observation platform.

@@ -19,7 +19,7 @@ export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   stytch_user_id: varchar("stytch_user_id").unique(), // Legacy: Stytch user ID (deprecated)
   email: varchar("email").unique().notNull(),
-  password_hash: varchar("password_hash"), // Password hash for email/password auth (nullable for migration compatibility)
+  password_hash: varchar("password_hash"), // Password hash for email/password auth (nullable for new users setting up password)
   first_name: varchar("first_name"),
   last_name: varchar("last_name"),
   profile_image_url: varchar("profile_image_url"),
@@ -27,6 +27,8 @@ export const users = pgTable("users", {
   archived: boolean("archived").default(false).notNull(), // Archived users cannot log in or be assigned observations
   reset_token: varchar("reset_token"), // Password reset token
   reset_token_expires: timestamp("reset_token_expires"), // Password reset token expiration
+  password_setup_token: varchar("password_setup_token"), // Token for new users to set their initial password
+  password_setup_token_expires: timestamp("password_setup_token_expires"), // Password setup token expiration
   created_at: timestamp("created_at").defaultNow(),
   updated_at: timestamp("updated_at").defaultNow(),
 });

@@ -58,6 +58,11 @@ export class DbStorage implements IStorage {
     return user;
   }
 
+  async getUserByPasswordSetupToken(token: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.password_setup_token, token));
+    return user;
+  }
+
   async getAllUsers(): Promise<User[]> {
     return await db.select().from(users);
   }

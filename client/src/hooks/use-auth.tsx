@@ -1,11 +1,12 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { User, Teacher } from "@shared/schema";
+import type { User } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
 interface AuthContextType {
   user: User | null;
   isCreator: boolean;
+  isAdminOrCreator: boolean;
   isLoading: boolean;
   logout: () => void;
 }
@@ -23,14 +24,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refetchInterval: false,
   });
 
+  // Fetch user's memberships to check for Admin role
+  const { data: memberships = [], isLoading: membershipsLoading } = useQuery<any[]>({
+    queryKey: ['/api/all-memberships'],
+    enabled: !!user,
+    retry: false,
+  });
+
   // Check if user has Creator global role
   const isCreator = user?.global_role === "Creator";
 
+  // Check if user has Admin role in any school OR is Creator
+  const isAdminOrCreator = isCreator || memberships.some((m: any) => m.role === "Admin");
+
   useEffect(() => {
-    if (!userLoading) {
+    if (!userLoading && !membershipsLoading) {
       setIsLoading(false);
     }
-  }, [userLoading]);
+  }, [userLoading, membershipsLoading]);
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -47,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user: user || null, isCreator, isLoading, logout }}>
+    <AuthContext.Provider value={{ user: user || null, isCreator, isAdminOrCreator, isLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );

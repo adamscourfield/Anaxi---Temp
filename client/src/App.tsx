@@ -26,6 +26,7 @@ import Profile from "@/pages/profile";
 import Landing from "@/pages/landing";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
+import SetPassword from "@/pages/set-password";
 
 function Router() {
   return (
@@ -61,13 +62,14 @@ function AppContent() {
     );
   }
 
-  // Allow access to forgot-password and reset-password pages regardless of login state
+  // Allow access to password-related pages regardless of login state
   const currentPath = window.location.pathname;
-  if (currentPath === "/forgot-password" || currentPath === "/reset-password") {
+  if (currentPath === "/forgot-password" || currentPath === "/reset-password" || currentPath === "/set-password") {
     return (
       <Switch>
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
+        <Route path="/set-password" component={SetPassword} />
       </Switch>
     );
   }

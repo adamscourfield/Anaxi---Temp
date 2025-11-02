@@ -247,6 +247,79 @@ export async function setupAuth(app: Express) {
     }
   });
 
+  // Set password for new users - confirm with setup token
+  app.post("/api/auth/setup-password", async (req, res) => {
+    try {
+      const { token, password } = z.object({
+        token: z.string(),
+        password: z.string().min(8),
+      }).parse(req.body);
+
+      // Find user by setup token
+      const user = await storage.getUserByPasswordSetupToken(token);
+      
+      if (!user || !user.password_setup_token_expires) {
+        return res.status(400).json({ message: "Invalid or expired setup token" });
+      }
+
+      // Check if token is expired
+      if (new Date() > user.password_setup_token_expires) {
+        return res.status(400).json({ message: "Invalid or expired setup token" });
+      }
+
+      // Hash new password
+      const password_hash = await bcrypt.hash(password, SALT_ROUNDS);
+
+      // Update user password and clear setup token
+      await storage.updateUser(user.id, {
+        password_hash,
+        password_setup_token: null,
+        password_setup_token_expires: null,
+      });
+
+      res.json({ message: "Password set successfully. You can now log in with your new password." });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", errors: error.errors });
+      }
+      console.error("[AUTH] Setup password error:", error);
+      res.status(500).json({ message: "Failed to setup password" });
+    }
+  });
+
+  // Verify password setup token (for pre-checking if token is valid)
+  app.post("/api/auth/verify-setup-token", async (req, res) => {
+    try {
+      const { token } = z.object({
+        token: z.string(),
+      }).parse(req.body);
+
+      // Find user by setup token
+      const user = await storage.getUserByPasswordSetupToken(token);
+      
+      if (!user || !user.password_setup_token_expires) {
+        return res.status(400).json({ message: "Invalid or expired setup token", valid: false });
+      }
+
+      // Check if token is expired
+      if (new Date() > user.password_setup_token_expires) {
+        return res.status(400).json({ message: "Invalid or expired setup token", valid: false });
+      }
+
+      res.json({ 
+        valid: true, 
+        email: user.email,
+        name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || null
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid input", valid: false });
+      }
+      console.error("[AUTH] Verify setup token error:", error);
+      res.status(500).json({ message: "Failed to verify token", valid: false });
+    }
+  });
+
   // Logout route
   app.post("/api/auth/logout", async (req, res) => {
     const stytchSessionToken = (req.session as any).stytchSessionToken;

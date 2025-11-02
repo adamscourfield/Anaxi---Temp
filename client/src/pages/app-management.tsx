@@ -1,8 +1,9 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ClipboardList, Users, Building2 } from "lucide-react";
+import { ClipboardList, Users, Building2, Lock } from "lucide-react";
 import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/use-auth";
 
 // Import the existing management page components (we'll extract their content)
 import ManageRubrics from "./manage-rubrics";
@@ -12,6 +13,7 @@ import ManageSchools from "./manage-schools";
 export default function AppManagement() {
   const [location, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("rubrics");
+  const { isAdminOrCreator, isLoading } = useAuth();
 
   // Handle tab change from URL hash
   useEffect(() => {
@@ -26,6 +28,36 @@ export default function AppManagement() {
     setActiveTab(value);
     window.location.hash = value;
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-center h-64">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Access denied for non-Admin/Creator users
+  if (!isAdminOrCreator) {
+    return (
+      <div className="p-6 space-y-6">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Lock className="w-5 h-5 text-destructive" />
+              <CardTitle>Access Denied</CardTitle>
+            </div>
+            <CardDescription>
+              You do not have permission to access App Management. Only Admins and Creators can access this page.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">

@@ -35,7 +35,6 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   // Add teacher state
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newTeacherEmail, setNewTeacherEmail] = useState("");
-  const [newTeacherPassword, setNewTeacherPassword] = useState("");
   const [newTeacherFirstName, setNewTeacherFirstName] = useState("");
   const [newTeacherLastName, setNewTeacherLastName] = useState("");
   const [newTeacherSchools, setNewTeacherSchools] = useState<string[]>([]);
@@ -333,17 +332,16 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
 
   const resetAddForm = () => {
     setNewTeacherEmail("");
-    setNewTeacherPassword("");
     setNewTeacherFirstName("");
     setNewTeacherLastName("");
     setNewTeacherSchools([]);
   };
 
   const handleCreateTeacher = () => {
-    if (!newTeacherEmail.trim() || !newTeacherPassword.trim()) {
+    if (!newTeacherEmail.trim()) {
       toast({
         title: "Error",
-        description: "Email and password are required",
+        description: "Email is required",
         variant: "destructive",
       });
       return;
@@ -351,7 +349,6 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
 
     createTeacherMutation.mutate({
       email: newTeacherEmail,
-      password: newTeacherPassword,
       first_name: newTeacherFirstName,
       last_name: newTeacherLastName,
       schoolIds: newTeacherSchools,
@@ -773,7 +770,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
               <DialogHeader>
                 <DialogTitle>Add New Teacher</DialogTitle>
                 <DialogDescription>
-                  Create a new teacher account and assign to schools
+                  Create a new teacher account. They will receive an email with instructions to set their password.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
@@ -808,17 +805,6 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                     value={newTeacherEmail}
                     onChange={(e) => setNewTeacherEmail(e.target.value)}
                     placeholder="teacher@school.edu"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="teacher-password">Password *</Label>
-                  <Input
-                    id="teacher-password"
-                    data-testid="input-teacher-password"
-                    type="password"
-                    value={newTeacherPassword}
-                    onChange={(e) => setNewTeacherPassword(e.target.value)}
-                    placeholder="Enter password"
                   />
                 </div>
                 <div>

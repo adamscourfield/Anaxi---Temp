@@ -83,7 +83,7 @@ const iconColorClasses: Record<string, string> = {
 
 export function AppSidebar() {
   const [location] = useLocation();
-  const { user, isCreator } = useAuth();
+  const { user, isCreator, isAdminOrCreator } = useAuth();
   const { currentSchool, currentSchoolId } = useSchool();
 
   // Get user's memberships to determine permissions for current school
@@ -108,6 +108,11 @@ export function AppSidebar() {
 
   // Filter menu items based on user permissions and enabled features
   const visibleMenuItems = menuItems.filter(item => {
+    // App Management requires Admin or Creator role
+    if (item.title === "App Management") {
+      return isAdminOrCreator;
+    }
+
     // Creators see all menu items regardless of school feature flags
     if (isCreator) return true;
 

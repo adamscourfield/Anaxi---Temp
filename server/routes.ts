@@ -486,11 +486,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const { email, password, first_name, last_name, schoolIds, role } = req.body;
+      const { email, first_name, last_name, schoolIds, role } = req.body;
 
       // Validate required fields
-      if (!email || !password) {
-        return res.status(400).json({ message: "Email and password are required" });
+      if (!email) {
+        return res.status(400).json({ message: "Email is required" });
       }
 
       // Check if user already exists
@@ -499,14 +499,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "User with this email already exists" });
       }
 
-      // Create user account
-      const hashedPassword = await hashPassword(password);
+      // Generate password setup token
+      const setupToken = crypto.randomBytes(32).toString('hex');
+      const setupTokenExpires = new Date();
+      setupTokenExpires.setDate(setupTokenExpires.getDate() + 7); // Token expires in 7 days
+
+      // Create user account without password (will be set via email link)
       const newUser = await storage.createUser({
         email,
-        password_hash: hashedPassword,
+        password_hash: null,
         first_name: first_name || null,
         last_name: last_name || null,
         global_role: null,
+        password_setup_token: setupToken,
+        password_setup_token_expires: setupTokenExpires,
       });
 
       // Create school memberships if schoolIds provided
@@ -526,7 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Send welcome email with password setup instructions (fire and forget)
+      // Send welcome email with password setup link (fire and forget)
       void (async () => {
         try {
           const userName = `${first_name || ''} ${last_name || ''}`.trim() || email || 'there';
@@ -535,7 +541,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             to: email,
             userName,
             schoolName: primarySchoolName,
-            temporaryPassword: password, // Send the temporary password they were assigned
+            setupToken,
           });
         } catch (error) {
           console.error("[EMAIL] Failed to send welcome email:", error);
@@ -580,13 +586,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const teacherData of teachers) {
         try {
-          const { email, password, first_name, last_name, schoolIds, role } = teacherData;
+          const { email, first_name, last_name, schoolIds, role } = teacherData;
 
           // Validate required fields
-          if (!email || !password) {
+          if (!email) {
             results.errors.push({
               email: email || "unknown",
-              error: "Email and password are required",
+              error: "Email is required",
             });
             continue;
           }
@@ -601,17 +607,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
 
-          // Create user account
-          const hashedPassword = await hashPassword(password);
+          // Generate password setup token
+          const setupToken = crypto.randomBytes(32).toString('hex');
+          const setupTokenExpires = new Date();
+          setupTokenExpires.setDate(setupTokenExpires.getDate() + 7); // Token expires in 7 days
+
+          // Create user account without password (will be set via email link)
           const newUser = await storage.createUser({
             email,
-            password_hash: hashedPassword,
+            password_hash: null,
             first_name: first_name || null,
             last_name: last_name || null,
             global_role: null,
+            password_setup_token: setupToken,
+            password_setup_token_expires: setupTokenExpires,
           });
 
           // Create school memberships
+          let primarySchoolName = "Anaxi";
           if (schoolIds && Array.isArray(schoolIds) && schoolIds.length > 0) {
             for (const schoolId of schoolIds) {
               await storage.createMembership({
@@ -620,7 +633,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 role: role || "Teacher",
               });
             }
+            // Get the first school's name for the welcome email
+            const firstSchool = await storage.getSchool(schoolIds[0]);
+            if (firstSchool) {
+              primarySchoolName = firstSchool.name;
+            }
           }
+
+          // Send welcome email with password setup link (fire and forget)
+          void (async () => {
+            try {
+              const userName = `${first_name || ''} ${last_name || ''}`.trim() || email || 'there';
+              
+              await emailService.sendWelcomeEmail({
+                to: email,
+                userName,
+                schoolName: primarySchoolName,
+                setupToken,
+              });
+            } catch (error) {
+              console.error("[EMAIL] Failed to send welcome email:", error);
+            }
+          })();
 
           results.success.push({
             email: newUser.email,
