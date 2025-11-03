@@ -40,8 +40,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { MessageSquare, Plus, Users, CheckSquare, X, Trash2, UserPlus, Check } from "lucide-react";
+import { MessageSquare, Plus, Users, CheckSquare, X, Trash2, UserPlus, Check, Eye } from "lucide-react";
 import { format } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type FormType = "conversation" | "meeting" | null;
 
@@ -70,6 +76,7 @@ export default function Meetings() {
   const [attendeeSearchOpen, setAttendeeSearchOpen] = useState(false);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [newAction, setNewAction] = useState({ description: "", assignedToMembershipId: "", dueDate: "" });
+  const [selectedMeeting, setSelectedMeeting] = useState<any | null>(null);
 
   const [formData, setFormData] = useState({
     type: "Line Management",
@@ -176,7 +183,7 @@ export default function Meetings() {
         });
       } else if (formType === "meeting" && data.attendees.length > 0) {
         // For meetings, add all selected attendees
-        await Promise.all(
+        const attendeeResults = await Promise.allSettled(
           data.attendees.map((membershipId) =>
             apiRequest("POST", `/api/meetings/${meetingId}/attendees`, {
               membershipId,
@@ -185,6 +192,13 @@ export default function Meetings() {
             })
           )
         );
+        
+        // Check for failed attendee creations
+        const failedAttendees = attendeeResults.filter(r => r.status === 'rejected');
+        if (failedAttendees.length > 0) {
+          console.error("Failed to add some attendees:", failedAttendees);
+          throw new Error(`Failed to add ${failedAttendees.length} attendee(s)`);
+        }
       }
 
       // Add action items (only for meetings, not conversations)
@@ -388,8 +402,12 @@ export default function Meetings() {
                             {teachers.map((teacher) => (
                               <CommandItem
                                 key={teacher.id}
-                                value={`${teacher.firstName} ${teacher.lastName}`}
-                                onSelect={() => toggleAttendee(teacher.id)}
+                                value={teacher.id}
+                                keywords={[teacher.firstName, teacher.lastName, teacher.email]}
+                                onSelect={(value) => {
+                                  toggleAttendee(value);
+                                  setAttendeeSearchOpen(true); // Keep the popover open for multi-select
+                                }}
                                 data-testid={`command-item-attendee-${teacher.id}`}
                               >
                                 <Check
@@ -745,6 +763,7 @@ export default function Meetings() {
                     <TableHead>Subject</TableHead>
                     <TableHead>Attendees</TableHead>
                     <TableHead>Details</TableHead>
+                    <TableHead className="w-[80px]">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -781,6 +800,16 @@ export default function Meetings() {
                       <TableCell className="max-w-md truncate" data-testid={`meeting-details-${meeting.id}`}>
                         {meeting.details}
                       </TableCell>
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setSelectedMeeting(meeting)}
+                          data-testid={`button-view-meeting-${meeting.id}`}
+                        >
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -789,6 +818,71 @@ export default function Meetings() {
           )}
         </CardContent>
       </Card>
+
+      {/* Meeting Details Dialog */}
+      <Dialog open={!!selectedMeeting} onOpenChange={() => setSelectedMeeting(null)}>
+        <DialogContent className="max-w-2xl" data-testid="dialog-meeting-details">
+          <DialogHeader>
+            <DialogTitle>{selectedMeeting?.subject}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-medium mb-2">Meeting Information</h4>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Type:</span>
+                  <span className="ml-2">{selectedMeeting?.type}</span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Date:</span>
+                  <span className="ml-2">
+                    {selectedMeeting?.createdAt && format(new Date(selectedMeeting.createdAt), "MMM d, yyyy")}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-sm font-medium mb-2">Details</h4>
+              <p className="text-sm text-muted-foreground">{selectedMeeting?.details}</p>
+            </div>
+
+            {selectedMeeting?.attendees && selectedMeeting.attendees.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">Attendees</h4>
+                <div className="flex flex-wrap gap-2">
+                  {selectedMeeting.attendees.map((attendee: any, index: number) => (
+                    <Badge key={index} variant="secondary">
+                      {attendee.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {selectedMeeting?.actions && selectedMeeting.actions.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium mb-2">Action Items</h4>
+                <div className="space-y-2">
+                  {selectedMeeting.actions.map((action: any) => (
+                    <div key={action.id} className="flex items-start gap-2 text-sm">
+                      <CheckSquare className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                      <div className="flex-1">
+                        <p>{action.description}</p>
+                        {action.assignedTo && (
+                          <p className="text-xs text-muted-foreground">
+                            Assigned to: {action.assignedTo}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -203,7 +203,12 @@ export const meetingAttendees = pgTable("meeting_attendees", {
   joinedAt: timestamp("joined_at"),
 });
 
-export const insertMeetingAttendeeSchema = createInsertSchema(meetingAttendees).omit({ id: true });
+export const insertMeetingAttendeeSchema = createInsertSchema(meetingAttendees).omit({ id: true }).extend({
+  attendeeRole: z.string().nullable().optional(),
+  attendanceStatus: z.string().default("pending"),
+  isRequired: z.boolean().default(true),
+  joinedAt: z.date().nullable().optional(),
+});
 export type InsertMeetingAttendee = z.infer<typeof insertMeetingAttendeeSchema>;
 export type MeetingAttendee = typeof meetingAttendees.$inferSelect;
 

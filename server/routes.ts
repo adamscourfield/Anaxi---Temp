@@ -120,8 +120,8 @@ function requireFeature(featureName: string) {
         schoolId = req.body.schoolId;
       }
       
-      // If still not found and this is a PATCH/DELETE on an existing resource, get it from the resource
-      if (!schoolId && (req.method === 'PATCH' || req.method === 'DELETE' || req.method === 'GET') && req.params.id) {
+      // If still not found and this is operating on/under an existing resource, get it from the resource
+      if (!schoolId && req.params.id) {
         // For leave requests
         if (req.path.includes('/leave-requests/')) {
           const leaveRequest = await storage.getLeaveRequest(req.params.id);
@@ -129,7 +129,7 @@ function requireFeature(featureName: string) {
             schoolId = leaveRequest.schoolId;
           }
         }
-        // For meetings
+        // For meetings and meeting sub-resources (attendees, actions)
         else if (req.path.includes('/meetings/')) {
           const meeting = await storage.getMeeting(req.params.id);
           if (meeting) {
@@ -1382,17 +1382,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      console.log("Creating attendee for meeting:", id);
-      console.log("Request body:", req.body);
+      console.log("[DEBUG] Creating attendee for meeting:", id);
+      console.log("[DEBUG] Request body:", JSON.stringify(req.body, null, 2));
       
-      const validated = insertMeetingAttendeeSchema.parse({ ...req.body, meetingId: id });
-      console.log("Validated attendee data:", validated);
+      // Prepare the attendee data with defaults
+      const attendeeData = {
+        meetingId: id,
+        membershipId: req.body.membershipId,
+        attendeeRole: req.body.attendeeRole || null,
+        attendanceStatus: req.body.attendanceStatus || "pending",
+        isRequired: req.body.isRequired !== undefined ? req.body.isRequired : true,
+        joinedAt: req.body.joinedAt || null,
+      };
+      
+      console.log("[DEBUG] Prepared attendee data:", JSON.stringify(attendeeData, null, 2));
+      
+      const validated = insertMeetingAttendeeSchema.parse(attendeeData);
+      console.log("[DEBUG] Validated attendee data:", JSON.stringify(validated, null, 2));
       
       const attendee = await storage.createMeetingAttendee(validated);
       res.status(201).json(attendee);
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Zod validation error:", error.errors);
+        console.error("[DEBUG] Zod validation error:", JSON.stringify(error.errors, null, 2));
         return res.status(400).json({ message: "Invalid attendee data", errors: error.errors });
       }
       console.error("Error creating attendee:", error);
