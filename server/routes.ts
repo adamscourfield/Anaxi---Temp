@@ -1208,7 +1208,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      res.json(meeting);
+      // Enrich meeting with organizer name
+      let organizerName = null;
+      if (meeting.organizerId) {
+        const organizer = await storage.getUser(meeting.organizerId);
+        if (organizer) {
+          organizerName = `${organizer.first_name || ''} ${organizer.last_name || ''}`.trim() || organizer.email;
+        }
+      }
+      
+      // Enrich meeting with department name
+      let departmentName = null;
+      if (meeting.departmentId) {
+        const department = await storage.getDepartment(meeting.departmentId);
+        if (department) {
+          departmentName = department.name;
+        }
+      }
+      
+      res.json({
+        ...meeting,
+        organizerName,
+        departmentName,
+      });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch meeting" });
     }
@@ -1356,7 +1378,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const attendees = await storage.getAttendeesByMeeting(id);
-      res.json(attendees);
+      
+      // Enrich attendees with user information
+      const enrichedAttendees = await Promise.all(
+        attendees.map(async (attendee) => {
+          const membership = await storage.getMembership(attendee.membershipId);
+          if (!membership) return null;
+          
+          const attendeeUser = await storage.getUser(membership.userId);
+          if (!attendeeUser) return null;
+          
+          const name = `${attendeeUser.first_name || ''} ${attendeeUser.last_name || ''}`.trim() || attendeeUser.email;
+          
+          return {
+            id: attendee.id,
+            name,
+            email: attendeeUser.email,
+            role: membership.role,
+            attendeeRole: attendee.attendeeRole,
+            attendanceStatus: attendee.attendanceStatus,
+            isRequired: attendee.isRequired,
+            joinedAt: attendee.joinedAt,
+          };
+        })
+      );
+      
+      res.json(enrichedAttendees.filter(a => a !== null));
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch attendees" });
     }
@@ -1465,7 +1512,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const actions = await storage.getActionsByMeeting(id);
-      res.json(actions);
+      
+      // Enrich actions with assignee information
+      const enrichedActions = await Promise.all(
+        actions.map(async (action) => {
+          let assignedTo = null;
+          if (action.assignedToMembershipId) {
+            const membership = await storage.getMembership(action.assignedToMembershipId);
+            if (membership) {
+              const assigneeUser = await storage.getUser(membership.userId);
+              if (assigneeUser) {
+                assignedTo = `${assigneeUser.first_name || ''} ${assigneeUser.last_name || ''}`.trim() || assigneeUser.email;
+              }
+            }
+          }
+          
+          return {
+            ...action,
+            assignedTo,
+          };
+        })
+      );
+      
+      res.json(enrichedActions);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch actions" });
     }
