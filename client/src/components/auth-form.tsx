@@ -38,9 +38,9 @@ export function AuthForm() {
     },
   });
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = (data: LoginFormData) => {
     setLoginError(null);
-    await loginMutation.mutateAsync(data);
+    loginMutation.mutate(data);
   };
 
   return (
