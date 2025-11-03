@@ -2236,30 +2236,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const allCategories = await storage.getCategoriesByRubric(rubric.id);
 
-      // Build categories with habit observation status
-      const categories = allCategories.map(category => {
-        const categoryHabits = observationHabits.filter(oh => oh.categoryId === category.id);
-        const habits = category.habits.map(habit => {
-          const habitObs = categoryHabits.find(oh => oh.habitId === habit.id);
+      // Build categories with habit observation status - only include categories that were actually used in the observation
+      const categories = allCategories
+        .map(category => {
+          // Only include this category if it has observation habits recorded
+          const categoryHabits = observationHabits.filter(oh => oh.categoryId === category.id);
+          
+          // Skip categories with no recorded habits
+          if (categoryHabits.length === 0) {
+            return null;
+          }
+
+          const habits = category.habits.map(habit => {
+            const habitObs = categoryHabits.find(oh => oh.habitId === habit.id);
+            return {
+              id: habit.id,
+              text: habit.text,
+              description: habit.description,
+              observed: habitObs?.observed || false,
+            };
+          });
+
+          const score = habits.filter(h => h.observed).length;
+          const maxScore = habits.length;
+
           return {
-            id: habit.id,
-            text: habit.text,
-            description: habit.description,
-            observed: habitObs?.observed || false,
+            id: category.id,
+            name: category.name,
+            habits,
+            score,
+            maxScore,
           };
-        });
-
-        const score = habits.filter(h => h.observed).length;
-        const maxScore = habits.length;
-
-        return {
-          id: category.id,
-          name: category.name,
-          habits,
-          score,
-          maxScore,
-        };
-      }).filter(cat => cat.habits.length > 0); // Only include categories that have habits
+        })
+        .filter((cat): cat is NonNullable<typeof cat> => cat !== null && cat.habits.length > 0); // Only include categories that were used in the observation
 
       res.json({
         ...observation,
