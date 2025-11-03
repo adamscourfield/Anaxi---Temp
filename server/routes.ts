@@ -1810,22 +1810,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // User lookup endpoint (for membership management)
-  app.get("/api/users", isAuthenticated, async (req, res) => {
+  // Get users by school (for displaying teacher/observer names)
+  app.get("/api/users", isAuthenticated, async (req: any, res) => {
     try {
-      const email = req.query.email as string;
-      if (!email) {
-        return res.status(400).json({ message: "Email parameter is required" });
+      const { schoolId, email } = req.query;
+      const user = req.user;
+
+      // If email is provided, find user by email
+      if (email) {
+        const foundUser = await storage.getUserByEmail(email as string);
+        if (!foundUser) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        return res.json(sanitizeUser(foundUser));
       }
 
-      const user = await storage.getUserByEmail(email);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
+      // If schoolId is provided, get all users in that school
+      if (schoolId) {
+        // Verify user has access to this school
+        if (user.global_role !== "Creator") {
+          const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId as string);
+          if (!membership) {
+            return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+          }
+        }
+
+        // Get all memberships for this school
+        const memberships = await storage.getMembershipsBySchool(schoolId as string);
+        const userIds = [...new Set(memberships.map(m => m.userId))];
+
+        // Fetch all users
+        const users = await Promise.all(
+          userIds.map(async (userId) => {
+            const u = await storage.getUser(userId);
+            return u;
+          })
+        );
+
+        // Filter out nulls and archived users
+        const filteredUsers = users.filter(u => u && !u.archived);
+        
+        return res.json(filteredUsers.map(sanitizeUser));
       }
 
-      res.json(user);
+      return res.status(400).json({ message: "Either email or schoolId parameter is required" });
     } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Failed to fetch users" });
     }
   });
 
@@ -2111,12 +2142,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get a single observation with full details (categories and habits)
+  app.get("/api/observations/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+
+      const observation = await storage.getObservation(id);
+      if (!observation) {
+        return res.status(404).json({ message: "Observation not found" });
+      }
+
+      // Check access permissions
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, observation.schoolId);
+        
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+
+        // Check if user can view this observation
+        const role = membership.role || "Teacher";
+        if (role !== "Admin") {
+          // Teachers and Leaders can only see their own observations or those they have permission for
+          const viewPermissions = await storage.getObservationViewPermissionsByViewer(user.id, observation.schoolId);
+          const viewableTeacherIds = viewPermissions.map(p => p.viewableTeacherId);
+          const allowedTeacherIds = new Set([user.id, ...viewableTeacherIds]);
+
+          if (!allowedTeacherIds.has(observation.teacherId)) {
+            return res.status(403).json({ message: "Forbidden: You don't have permission to view this observation" });
+          }
+        }
+      }
+
+      // Fetch observation habits
+      const observationHabits = await storage.getObservationHabitsByObservation(id);
+
+      // Fetch rubric categories and habits
+      const rubric = await storage.getRubric(observation.rubricId);
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+
+      const allCategories = await storage.getCategoriesByRubric(rubric.id);
+
+      // Build categories with habit observation status
+      const categories = allCategories.map(category => {
+        const categoryHabits = observationHabits.filter(oh => oh.categoryId === category.id);
+        const habits = category.habits.map(habit => {
+          const habitObs = categoryHabits.find(oh => oh.habitId === habit.id);
+          return {
+            id: habit.id,
+            text: habit.text,
+            description: habit.description,
+            observed: habitObs?.observed || false,
+          };
+        });
+
+        const score = habits.filter(h => h.observed).length;
+        const maxScore = habits.length;
+
+        return {
+          id: category.id,
+          name: category.name,
+          habits,
+          score,
+          maxScore,
+        };
+      }).filter(cat => cat.habits.length > 0); // Only include categories that have habits
+
+      res.json({
+        ...observation,
+        categories,
+      });
+    } catch (error) {
+      console.error("Error fetching observation details:", error);
+      res.status(500).json({ message: "Failed to fetch observation details" });
+    }
+  });
+
   app.post("/api/observations", isAuthenticated, async (req: any, res) => {
     try {
       const user = req.user;
       
-      // Remove observerId from body and set it from authenticated user
-      const { observerId: _, date, ...bodyWithoutObserver } = req.body;
+      // Remove observerId and habits from body and set them from authenticated user
+      const { observerId: _, date, habits, ...bodyWithoutObserver } = req.body;
       const validated = insertObservationSchema.parse({
         ...bodyWithoutObserver,
         observerId: user.id, // Set observer to authenticated user
@@ -2134,6 +2244,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const observation = await storage.createObservation(validated);
+      
+      // Save observation habits
+      if (habits && Array.isArray(habits)) {
+        for (const habit of habits) {
+          await storage.createObservationHabit({
+            observationId: observation.id,
+            categoryId: habit.categoryId,
+            habitId: habit.habitId,
+            observed: habit.observed,
+          });
+        }
+      }
       
       // Send email notification to the teacher being observed (fire-and-forget)
       void (async () => {

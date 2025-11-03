@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction, type LeaveRequest, type InsertLeaveRequest, type ObservationViewPermission, type InsertObservationViewPermission, type Rubric, type InsertRubric, type Category, type InsertCategory, type CategoryWithHabits, type Habit, type InsertHabit } from "@shared/schema";
+import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type ObservationHabit, type InsertObservationHabit, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction, type LeaveRequest, type InsertLeaveRequest, type ObservationViewPermission, type InsertObservationViewPermission, type Rubric, type InsertRubric, type Category, type InsertCategory, type CategoryWithHabits, type Habit, type InsertHabit } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -80,6 +80,10 @@ export interface IStorage {
   getObservationsByTeacher(teacherId: string): Promise<Observation[]>;
   getObservation(id: string): Promise<Observation | undefined>;
   createObservation(observation: InsertObservation): Promise<Observation>;
+  
+  // Observation Habits
+  getObservationHabitsByObservation(observationId: string): Promise<ObservationHabit[]>;
+  createObservationHabit(observationHabit: InsertObservationHabit): Promise<ObservationHabit>;
   
   // Observation View Permissions
   getObservationViewPermissionsByViewer(viewerId: string, schoolId: string): Promise<ObservationViewPermission[]>;

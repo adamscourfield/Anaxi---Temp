@@ -163,6 +163,15 @@ export default function ConductObservation() {
       return;
     }
 
+    // Build habit observations data
+    const habitObservations = selectedCategoryData.flatMap(category =>
+      category.habits.map(habit => ({
+        categoryId: category.id,
+        habitId: habit.id,
+        observed: checkedHabits.includes(habit.id),
+      }))
+    );
+
     createObservationMutation.mutate({
       teacherId,
       // observerId is set by backend from authenticated user
@@ -174,6 +183,7 @@ export default function ConductObservation() {
       qualitativeFeedback: qualitativeFeedback || null,
       totalScore,
       totalMaxScore,
+      habits: habitObservations,
     });
   };
 

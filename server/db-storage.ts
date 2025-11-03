@@ -32,6 +32,8 @@ import {
   type CategoryWithHabits,
   type Habit,
   type InsertHabit,
+  type ObservationHabit,
+  type InsertObservationHabit,
   users,
   schoolMemberships,
   schools,
@@ -39,6 +41,7 @@ import {
   departments,
   conversations,
   observations,
+  observationHabits,
   meetings,
   meetingAttendees,
   meetingActions,
@@ -249,6 +252,23 @@ export class DbStorage implements IStorage {
   async createObservation(insertObservation: InsertObservation): Promise<Observation> {
     const [observation] = await db.insert(observations).values(insertObservation).returning();
     return observation;
+  }
+
+  // Observation Habits
+  async getObservationHabitsByObservation(observationId: string): Promise<ObservationHabit[]> {
+    const result = await db
+      .select()
+      .from(observationHabits)
+      .where(eq(observationHabits.observationId, observationId));
+    return result;
+  }
+
+  async createObservationHabit(insertObservationHabit: InsertObservationHabit): Promise<ObservationHabit> {
+    const [observationHabit] = await db
+      .insert(observationHabits)
+      .values(insertObservationHabit)
+      .returning();
+    return observationHabit;
   }
 
   // Meetings

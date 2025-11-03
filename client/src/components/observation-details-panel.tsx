@@ -119,7 +119,7 @@ export function ObservationDetailsPanel({
 
         <div className="space-y-4">
           <h3 className="font-semibold">Categories</h3>
-          {observation.categories.map((category, idx) => {
+          {observation.categories?.map((category, idx) => {
             const catPercentage = category.maxScore > 0
               ? Math.round((category.score / category.maxScore) * 100)
               : 0;
