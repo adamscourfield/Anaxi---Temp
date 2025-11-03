@@ -67,7 +67,7 @@ export default function SetPassword() {
         description: "You can now log in with your new password.",
       });
       setTimeout(() => {
-        navigate("/");
+        navigate("/login");
       }, 2000);
     },
     onError: (error: Error) => {
