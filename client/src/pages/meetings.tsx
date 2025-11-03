@@ -169,8 +169,7 @@ export default function Meetings() {
       // Add attendees (for meetings) or single staff member (for conversations)
       if (formType === "conversation" && data.meeting.staffMemberId) {
         // For conversations, add the single staff member as an attendee
-        await apiRequest("POST", "/api/meeting-attendees", {
-          meetingId,
+        await apiRequest("POST", `/api/meetings/${meetingId}/attendees`, {
           membershipId: data.meeting.staffMemberId,
           attendanceStatus: "pending",
           isRequired: true,
@@ -179,8 +178,7 @@ export default function Meetings() {
         // For meetings, add all selected attendees
         await Promise.all(
           data.attendees.map((membershipId) =>
-            apiRequest("POST", "/api/meeting-attendees", {
-              meetingId,
+            apiRequest("POST", `/api/meetings/${meetingId}/attendees`, {
               membershipId,
               attendanceStatus: "pending",
               isRequired: true,
@@ -745,11 +743,12 @@ export default function Meetings() {
                     <TableHead>Date</TableHead>
                     <TableHead>Type</TableHead>
                     <TableHead>Subject</TableHead>
+                    <TableHead>Attendees</TableHead>
                     <TableHead>Details</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredMeetings.map((meeting) => (
+                  {filteredMeetings.map((meeting: any) => (
                     <TableRow key={meeting.id} data-testid={`meeting-row-${meeting.id}`}>
                       <TableCell className="whitespace-nowrap" data-testid={`meeting-date-${meeting.id}`}>
                         {format(new Date(meeting.createdAt), "MMM d, yyyy")}
@@ -761,6 +760,24 @@ export default function Meetings() {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium" data-testid={`meeting-subject-${meeting.id}`}>{meeting.subject}</TableCell>
+                      <TableCell data-testid={`meeting-attendees-${meeting.id}`}>
+                        {meeting.attendees && meeting.attendees.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {meeting.attendees.slice(0, 3).map((attendee: any, index: number) => (
+                              <Badge key={index} variant="secondary" className="text-xs">
+                                {attendee.name}
+                              </Badge>
+                            ))}
+                            {meeting.attendees.length > 3 && (
+                              <Badge variant="secondary" className="text-xs">
+                                +{meeting.attendees.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">No attendees</span>
+                        )}
+                      </TableCell>
                       <TableCell className="max-w-md truncate" data-testid={`meeting-details-${meeting.id}`}>
                         {meeting.details}
                       </TableCell>

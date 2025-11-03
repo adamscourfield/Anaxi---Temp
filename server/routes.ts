@@ -1138,7 +1138,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Pass membershipId to filter meetings (undefined for Creators = see all)
       const meetings = await storage.getMeetingsBySchool(schoolId, userMembershipId);
-      res.json(meetings);
+      
+      // Enrich meetings with attendee information
+      const meetingsWithAttendees = await Promise.all(
+        meetings.map(async (meeting) => {
+          const attendees = await storage.getAttendeesByMeeting(meeting.id);
+          console.log(`Meeting ${meeting.id} has ${attendees.length} attendees`);
+          
+          // Get user details for each attendee
+          const attendeeDetails = await Promise.all(
+            attendees.map(async (attendee) => {
+              const membership = await storage.getMembership(attendee.membershipId);
+              if (!membership) {
+                console.log(`No membership found for attendee ${attendee.id}`);
+                return null;
+              }
+              
+              const user = await storage.getUser(membership.userId);
+              if (!user) {
+                console.log(`No user found for membership ${membership.id}`);
+                return null;
+              }
+              
+              const name = `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.email;
+              console.log(`Attendee: ${name}`);
+              
+              return {
+                id: attendee.id,
+                name,
+                email: user.email,
+                attendanceStatus: attendee.attendanceStatus,
+              };
+            })
+          );
+          
+          const filtered = attendeeDetails.filter((a): a is NonNullable<typeof a> => a !== null);
+          console.log(`Meeting ${meeting.id} final attendees count: ${filtered.length}`);
+          
+          return {
+            ...meeting,
+            attendees: filtered,
+          };
+        })
+      );
+      
+      res.json(meetingsWithAttendees);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch meetings" });
     }
@@ -1338,13 +1382,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      console.log("Creating attendee for meeting:", id);
+      console.log("Request body:", req.body);
+      
       const validated = insertMeetingAttendeeSchema.parse({ ...req.body, meetingId: id });
+      console.log("Validated attendee data:", validated);
+      
       const attendee = await storage.createMeetingAttendee(validated);
       res.status(201).json(attendee);
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Zod validation error:", error.errors);
         return res.status(400).json({ message: "Invalid attendee data", errors: error.errors });
       }
+      console.error("Error creating attendee:", error);
       res.status(500).json({ message: "Failed to add attendee" });
     }
   });
