@@ -1,5 +1,5 @@
 import { StatCard } from "@/components/stat-card";
-import { ObservationCard } from "@/components/observation-card";
+import { ObservationTable } from "@/components/observation-table";
 import { AnalyticsChart } from "@/components/analytics-chart";
 import { CategoryPerformance } from "@/components/category-performance";
 import { TeachingGroupsSection } from "@/components/teaching-groups-section";
@@ -8,12 +8,13 @@ import { FilteredObservationsPanel } from "@/components/filtered-observations-pa
 import { Eye, Users, ClipboardCheck, TrendingUp, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { useSchool } from "@/hooks/use-school";
+import type { User } from "@shared/schema";
 
 interface DashboardStats {
   totalObservations: number;
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [filterValue, setFilterValue] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const { currentSchoolId } = useSchool();
+  const [, setLocation] = useLocation();
 
   // Fetch dashboard stats from API
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
@@ -40,13 +42,13 @@ export default function Dashboard() {
     },
   });
 
-  // Fetch teachers for the current school
-  const { data: teachers = [] } = useQuery({
-    queryKey: ["/api/teachers", currentSchoolId],
+  // Fetch users for the current school (for teacher and observer names)
+  const { data: users = [] } = useQuery<User[]>({
+    queryKey: ["/api/users", currentSchoolId],
     enabled: !!currentSchoolId,
     queryFn: async () => {
-      const response = await fetch(`/api/teachers?schoolId=${currentSchoolId}`);
-      if (!response.ok) throw new Error("Failed to fetch teachers");
+      const response = await fetch(`/api/users?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch users");
       return response.json();
     },
   });
@@ -62,34 +64,48 @@ export default function Dashboard() {
     },
   });
 
-  // Map observations with teacher data
-  const observationsWithTeachers = observations.map((obs: any) => {
-    const teacher = teachers.find((t: any) => t.id === obs.teacherId);
+  // Map observations with teacher and observer data
+  const observationsWithNames = observations.map((obs: any) => {
+    const teacher = users.find((u: User) => u.id === obs.teacherId);
+    const observer = users.find((u: User) => u.id === obs.observerId);
+    
     const teacherName = teacher 
       ? `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || teacher.email
       : "Unknown";
     const teacherInitials = teacher && teacher.first_name && teacher.last_name
       ? `${teacher.first_name[0]}${teacher.last_name[0]}`.toUpperCase()
       : teacher?.email?.[0]?.toUpperCase() || "??";
+    const observerName = observer
+      ? `${observer.first_name || ''} ${observer.last_name || ''}`.trim() || observer.email
+      : "Unknown";
+    
+    // Normalize categories to match ObservationTable format
+    const categories = obs.categories?.map((cat: any) => ({
+      name: cat.categoryName || cat.name,
+    })) || [];
     
     return {
       ...obs,
       teacherName,
       teacherInitials,
+      observerName,
+      categories,
     };
   });
 
   // Filter observations based on search query
-  const searchFilteredObservations = observationsWithTeachers.filter((obs: any) => {
+  const searchFilteredObservations = observationsWithNames.filter((obs: any) => {
     if (!searchQuery) return true;
     const teacherName = obs.teacherName?.toLowerCase() || "";
-    return teacherName.includes(searchQuery.toLowerCase());
+    const observerName = obs.observerName?.toLowerCase() || "";
+    const query = searchQuery.toLowerCase();
+    return teacherName.includes(query) || observerName.includes(query);
   });
 
-  // Get 3 most recent observations for the overview (from search filtered results)
+  // Get 5 most recent observations for the overview (from search filtered results)
   const recentObservations = searchFilteredObservations
     .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 3);
+    .slice(0, 5);
   
   // Fetch analytics data from API
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
@@ -109,7 +125,7 @@ export default function Dashboard() {
 
   // Get selected observation details
   const selectedObservation = selectedObservationId
-    ? observationsWithTeachers.find((obs: any) => obs.id === selectedObservationId) || null
+    ? observationsWithNames.find((obs: any) => obs.id === selectedObservationId) || null
     : null;
 
   // Convert day name to a filter function
@@ -124,12 +140,12 @@ export default function Dashboard() {
 
     switch (filterType) {
       case "day":
-        return observationsWithTeachers.filter((obs: any) => getDayOfWeek(new Date(obs.date)) === filterValue);
+        return observationsWithNames.filter((obs: any) => getDayOfWeek(new Date(obs.date)) === filterValue);
       case "teacher":
-        return observationsWithTeachers.filter((obs: any) => obs.teacherName === filterValue);
+        return observationsWithNames.filter((obs: any) => obs.teacherName === filterValue);
       case "category":
-        return observationsWithTeachers.filter((obs: any) => 
-          obs.categories?.some((cat: any) => cat.categoryName === filterValue)
+        return observationsWithNames.filter((obs: any) => 
+          obs.categories?.some((cat: any) => cat.name === filterValue)
         );
       default:
         return [];
@@ -261,30 +277,20 @@ export default function Dashboard() {
                 </Link>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {observationsLoading ? (
-                <div className="col-span-3 text-center text-muted-foreground py-12">
-                  Loading observations...
-                </div>
-              ) : recentObservations.length === 0 ? (
-                <div className="col-span-3 text-center text-muted-foreground py-12">
-                  No observations yet. Create your first observation to get started.
-                </div>
-              ) : (
-                recentObservations.map((obs: any) => (
-                  <ObservationCard
-                    key={obs.id}
-                    teacherName={obs.teacherName}
-                    teacherInitials={obs.teacherInitials}
-                    date={new Date(obs.date)}
-                    categories={obs.categories?.map((c: any) => c.categoryName) || []}
-                    score={obs.totalScore}
-                    maxScore={obs.totalMaxScore}
-                    onView={() => setSelectedObservationId(obs.id)}
-                  />
-                ))
-              )}
-            </div>
+            {observationsLoading ? (
+              <div className="text-center text-muted-foreground py-12">
+                Loading observations...
+              </div>
+            ) : recentObservations.length === 0 ? (
+              <div className="text-center text-muted-foreground py-12">
+                No observations yet. Create your first observation to get started.
+              </div>
+            ) : (
+              <ObservationTable
+                observations={recentObservations}
+                onViewDetails={(id) => setLocation(`/history?observationId=${id}`)}
+              />
+            )}
           </div>
         </TabsContent>
 

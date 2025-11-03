@@ -1,11 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FeedbackReport } from "@/components/feedback-report";
-import { ObservationCard } from "@/components/observation-card";
+import { ObservationTable } from "@/components/observation-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Search, ArrowLeft, Download } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -23,6 +23,16 @@ export default function ObservationHistory() {
   const { currentSchoolId, hasNoSchools } = useSchool();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedObservation, setSelectedObservation] = useState<string | null>(null);
+  const [location] = useLocation();
+
+  // Check for observationId in URL query params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const observationId = params.get('observationId');
+    if (observationId) {
+      setSelectedObservation(observationId);
+    }
+  }, [location]);
 
   // Fetch observations for current school
   const { data: observations = [], isLoading: observationsLoading } = useQuery<Observation[]>({
@@ -71,30 +81,53 @@ export default function ObservationHistory() {
   const currentMembership = memberships.find(m => m.schoolId === currentSchoolId);
   const canExport = isCreator || currentMembership?.role === "Leader" || currentMembership?.role === "Admin";
 
-  // Map observations with teacher names
+  // Map observations with teacher and observer names
   const observationsWithNames = observations.map(obs => {
     const teacher = users.find(u => u.id === obs.teacherId);
+    const observer = users.find(u => u.id === obs.observerId);
+    
     const teacherName = teacher 
       ? `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || teacher.email
       : "Unknown";
     const teacherInitials = teacher && teacher.first_name && teacher.last_name
       ? `${teacher.first_name[0]}${teacher.last_name[0]}`
       : teacher?.email?.[0]?.toUpperCase() || "??";
+    const observerName = observer
+      ? `${observer.first_name || ''} ${observer.last_name || ''}`.trim() || observer.email
+      : "Unknown";
+    
+    // Normalize categories to match ObservationTable format
+    const categories = obs.categories?.map((cat: any) => ({
+      name: cat.categoryName || cat.name,
+    })) || [];
     
     return {
       ...obs,
       teacherName,
       teacherInitials,
+      observerName,
+      categories,
     };
   });
 
+  // Filter observations based on search query
+  const filteredObservations = observationsWithNames.filter(obs => {
+    if (!searchQuery) return true;
+    const teacherName = obs.teacherName?.toLowerCase() || "";
+    const observerName = obs.observerName?.toLowerCase() || "";
+    const query = searchQuery.toLowerCase();
+    return teacherName.includes(query) || observerName.includes(query);
+  });
+
   const exportToCSV = () => {
-    const headers = ["Date", "Teacher", "Score", "Max Score", "Percentage"];
-    const rows = observationsWithNames.map((obs) => {
+    const headers = ["Date", "Teacher", "Observer", "Class", "Score", "Max Score", "Percentage"];
+    const rows = filteredObservations.map((obs) => {
       const percentage = obs.totalMaxScore > 0 ? Math.round((obs.totalScore / obs.totalMaxScore) * 100) : 0;
       return [
         format(new Date(obs.date), "yyyy-MM-dd"),
         obs.teacherName,
+        obs.observerName,
+        obs.classGroup || "",
         obs.totalScore.toString(),
         obs.totalMaxScore.toString(),
         `${percentage}%`,
@@ -118,7 +151,7 @@ export default function ObservationHistory() {
 
     toast({
       title: "Success",
-      description: `Exported ${observations.length} observations to CSV`,
+      description: `Exported ${filteredObservations.length} observations to CSV`,
     });
   };
 
@@ -247,12 +280,16 @@ export default function ObservationHistory() {
         <div className="text-center text-muted-foreground py-12">Loading observations...</div>
       ) : hasNoSchools ? (
         <div className="text-center text-muted-foreground py-12">No school assigned</div>
-      ) : observations.length === 0 ? (
+      ) : filteredObservations.length === 0 ? (
         <Card className="p-8">
           <div className="text-center space-y-3">
             <p className="text-lg font-medium">No observations to display</p>
             <p className="text-sm text-muted-foreground max-w-md mx-auto">
-              {!isCreator && currentMembership?.role !== "Admin" && currentMembership?.role !== "Leader" ? (
+              {searchQuery ? (
+                <>
+                  No observations found matching "{searchQuery}". Try a different search term.
+                </>
+              ) : !isCreator && currentMembership?.role !== "Admin" && currentMembership?.role !== "Leader" ? (
                 <>
                   You don't have permission to view any observations yet. Administrators can grant you access to view specific teachers' observations for mentoring, department oversight, or peer observation groups.
                 </>
@@ -265,20 +302,10 @@ export default function ObservationHistory() {
           </div>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {observationsWithNames.map((obs) => (
-            <ObservationCard
-              key={obs.id}
-              teacherName={obs.teacherName}
-              teacherInitials={obs.teacherInitials}
-              date={new Date(obs.date)}
-              categories={[]} // Categories not yet implemented
-              score={obs.totalScore}
-              maxScore={obs.totalMaxScore}
-              onView={() => setSelectedObservation(obs.id)}
-            />
-          ))}
-        </div>
+        <ObservationTable
+          observations={filteredObservations}
+          onViewDetails={(id) => setSelectedObservation(id)}
+        />
       )}
     </div>
   );

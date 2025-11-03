@@ -2099,7 +2099,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Creators can see all observations across all schools
       if (user.global_role === "Creator") {
         const observations = await storage.getObservationsBySchool(schoolId);
-        return res.json(observations);
+        
+        // Add category names to each observation
+        const observationsWithCategories = await Promise.all(
+          observations.map(async (obs) => {
+            const rubric = await storage.getRubric(obs.rubricId);
+            if (!rubric) return { ...obs, categories: [] };
+            
+            const categories = await storage.getCategoriesByRubric(rubric.id);
+            return {
+              ...obs,
+              categories: categories
+                .filter(cat => cat.habits && cat.habits.length > 0)
+                .map(cat => ({ categoryName: cat.name })),
+            };
+          })
+        );
+        
+        return res.json(observationsWithCategories);
       }
 
       // Verify the user has membership in the requested school
@@ -2116,7 +2133,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Admins can see all observations in their school
       if (role === "Admin") {
         const observations = await storage.getObservationsBySchool(schoolId);
-        return res.json(observations);
+        
+        // Add category names to each observation
+        const observationsWithCategories = await Promise.all(
+          observations.map(async (obs) => {
+            const rubric = await storage.getRubric(obs.rubricId);
+            if (!rubric) return { ...obs, categories: [] };
+            
+            const categories = await storage.getCategoriesByRubric(rubric.id);
+            return {
+              ...obs,
+              categories: categories
+                .filter(cat => cat.habits && cat.habits.length > 0)
+                .map(cat => ({ categoryName: cat.name })),
+            };
+          })
+        );
+        
+        return res.json(observationsWithCategories);
       }
 
       // Leaders and Teachers: See their own observations + observations for teachers they have explicit permission to view
@@ -2135,7 +2169,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allowedTeacherIds.has(obs.teacherId)
       );
 
-      res.json(filteredObservations);
+      // Add category names to each observation
+      const observationsWithCategories = await Promise.all(
+        filteredObservations.map(async (obs) => {
+          const rubric = await storage.getRubric(obs.rubricId);
+          if (!rubric) return { ...obs, categories: [] };
+          
+          const categories = await storage.getCategoriesByRubric(rubric.id);
+          return {
+            ...obs,
+            categories: categories
+              .filter(cat => cat.habits && cat.habits.length > 0)
+              .map(cat => ({ categoryName: cat.name })),
+          };
+        })
+      );
+
+      res.json(observationsWithCategories);
     } catch (error) {
       console.error("Error fetching observations:", error);
       res.status(500).json({ message: "Failed to fetch observations" });
