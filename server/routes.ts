@@ -1574,10 +1574,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Set membershipId from authenticated user's membership and default status
+      // Convert date strings to Date objects for Zod validation
       const leaveRequestData = {
         ...requestData,
         membershipId: membership.id,
         status: "pending",
+        startDate: new Date(requestData.startDate),
+        endDate: new Date(requestData.endDate),
       };
       
       // Validate the request data
