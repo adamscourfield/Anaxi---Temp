@@ -288,7 +288,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Creators can see all memberships
       if (user.global_role === "Creator") {
         const memberships = await storage.getMembershipsBySchool(schoolId);
-        return res.json(memberships);
+        
+        // Enrich with user data
+        const membershipsWithUsers = await Promise.all(
+          memberships.map(async (m) => {
+            const memberUser = await storage.getUser(m.userId);
+            return {
+              ...m,
+              user: memberUser ? {
+                id: memberUser.id,
+                email: memberUser.email,
+                first_name: memberUser.first_name,
+                last_name: memberUser.last_name,
+              } : null,
+            };
+          })
+        );
+        
+        return res.json(membershipsWithUsers);
       }
 
       // Check if user has Admin role in this school
@@ -302,7 +319,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const memberships = await storage.getMembershipsBySchool(schoolId);
-      res.json(memberships);
+      
+      // Enrich with user data
+      const membershipsWithUsers = await Promise.all(
+        memberships.map(async (m) => {
+          const memberUser = await storage.getUser(m.userId);
+          return {
+            ...m,
+            user: memberUser ? {
+              id: memberUser.id,
+              email: memberUser.email,
+              first_name: memberUser.first_name,
+              last_name: memberUser.last_name,
+            } : null,
+          };
+        })
+      );
+      
+      res.json(membershipsWithUsers);
     } catch (error) {
       console.error("Error fetching memberships:", error);
       res.status(500).json({ message: "Failed to fetch memberships" });
