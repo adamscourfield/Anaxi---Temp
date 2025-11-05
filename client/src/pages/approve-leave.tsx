@@ -5,11 +5,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useSchool } from "@/hooks/use-school";
 import type { LeaveRequest, SchoolMembership, User, School } from "@shared/schema";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -18,13 +18,29 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CheckCircle, XCircle, DollarSign, FileText, ExternalLink } from "lucide-react";
+import { CheckCircle, XCircle, DollarSign, FileText, ExternalLink, Eye, Search } from "lucide-react";
 import { format } from "date-fns";
 
-interface LeaveRequestWithDetails extends LeaveRequest {
-  membership?: SchoolMembership & { user?: User };
-  approver?: SchoolMembership & { user?: User };
+interface EnrichedLeaveRequest extends LeaveRequest {
+  requester?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+  approver?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
 }
 
 type StatusFilter = "all" | "pending" | "approved_with_pay" | "approved_without_pay" | "denied";
@@ -34,14 +50,39 @@ interface ApprovalAction {
   status: "approved_with_pay" | "approved_without_pay" | "denied";
 }
 
+const leaveTypeLabels = {
+  medical: "Medical",
+  professional_development: "Professional Development",
+  annual_leave: "Annual Leave",
+  interview: "Interview",
+  other: "Other",
+};
+
+const statusLabels = {
+  pending: "Pending",
+  approved_with_pay: "Approved (With Pay)",
+  approved_without_pay: "Approved (Without Pay)",
+  denied: "Denied",
+};
+
+const statusColors = {
+  pending: "bg-amber/10 text-amber border-amber/20",
+  approved_with_pay: "bg-success/10 text-success border-success/20",
+  approved_without_pay: "bg-info/10 text-info border-info/20",
+  denied: "bg-destructive/10 text-destructive border-destructive/20",
+};
+
 export default function ApproveLeave() {
   const { toast } = useToast();
   const { user, isCreator } = useAuth();
   const { currentSchoolId } = useSchool();
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<EnrichedLeaveRequest | null>(null);
   const [currentAction, setCurrentAction] = useState<ApprovalAction | null>(null);
   const [responseNotes, setResponseNotes] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch user's memberships to find schools where they can approve leave requests
   const { data: leaderMemberships = [] } = useQuery<Array<SchoolMembership & { school?: School }>>({
@@ -56,14 +97,9 @@ export default function ApproveLeave() {
   });
 
   // Fetch leave requests for current school
-  const { data: leaveRequests = [], isLoading } = useQuery<LeaveRequestWithDetails[]>({
+  const { data: leaveRequests = [], isLoading } = useQuery<EnrichedLeaveRequest[]>({
     queryKey: ["/api/leave-requests", currentSchoolId],
     enabled: !!currentSchoolId,
-    queryFn: async () => {
-      const response = await fetch(`/api/leave-requests?schoolId=${currentSchoolId}`);
-      if (!response.ok) throw new Error("Failed to fetch leave requests");
-      return response.json();
-    },
   });
 
   // Get current user's membership in current school from already-fetched memberships
@@ -71,7 +107,7 @@ export default function ApproveLeave() {
 
   // Approve/deny mutation
   const approveMutation = useMutation({
-    mutationFn: async (data: { id: string; status: string; responseNotes: string; approvedBy: string }) => {
+    mutationFn: async (data: { id: string; status: string; responseNotes: string; approvedBy?: string }) => {
       return apiRequest("PATCH", `/api/leave-requests/${data.id}`, {
         status: data.status,
         responseNotes: data.responseNotes,
@@ -97,13 +133,24 @@ export default function ApproveLeave() {
     },
   });
 
-  const handleApprovalAction = (requestId: string, status: "approved_with_pay" | "approved_without_pay" | "denied") => {
-    setCurrentAction({ requestId, status });
+  const handleApprovalAction = (request: EnrichedLeaveRequest, status: "approved_with_pay" | "approved_without_pay" | "denied") => {
+    setSelectedRequest(request);
+    setCurrentAction({ requestId: request.id, status });
     setApprovalDialogOpen(true);
   };
 
   const confirmApproval = () => {
     if (!currentAction) return;
+    
+    // For denial, require response notes
+    if (currentAction.status === "denied" && !responseNotes.trim()) {
+      toast({
+        title: "Error",
+        description: "Response notes are required when denying a request",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // For creators, use a special membership ID (or handle differently on backend)
     // For regular users with approval permission, use their membership ID
@@ -133,42 +180,6 @@ export default function ApproveLeave() {
     });
   };
 
-  // Filter requests by status
-  const filteredRequests = leaveRequests.filter(request => {
-    if (statusFilter === "all") return true;
-    return request.status === statusFilter;
-  });
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "default";
-      case "approved_with_pay":
-        return "default";
-      case "approved_without_pay":
-        return "secondary";
-      case "denied":
-        return "destructive";
-      default:
-        return "default";
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case "pending":
-        return "Pending";
-      case "approved_with_pay":
-        return "Approved (with pay)";
-      case "approved_without_pay":
-        return "Approved (without pay)";
-      case "denied":
-        return "Denied";
-      default:
-        return status;
-    }
-  };
-
   const getActionLabel = (status: string) => {
     switch (status) {
       case "approved_with_pay":
@@ -181,6 +192,20 @@ export default function ApproveLeave() {
         return "";
     }
   };
+
+  // Filter and search requests
+  const filteredRequests = leaveRequests.filter(request => {
+    // Filter by status
+    const statusMatch = statusFilter === "all" || request.status === statusFilter;
+    
+    // Filter by search query (search in teacher name)
+    const teacherName = request.requester 
+      ? `${request.requester.firstName} ${request.requester.lastName}`.toLowerCase()
+      : "";
+    const searchMatch = !searchQuery || teacherName.includes(searchQuery.toLowerCase());
+    
+    return statusMatch && searchMatch;
+  });
 
   // Check authorization - user must have approval permission in current school or be creator
   const isAuthorized = isCreator || (currentMembership && currentMembership.canApproveLeaveRequests);
@@ -206,7 +231,7 @@ export default function ApproveLeave() {
   }
 
   return (
-    <div className="p-6 space-y-8">
+    <div className="p-6 space-y-6">
       <div className="space-y-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
@@ -217,15 +242,28 @@ export default function ApproveLeave() {
           </p>
         </div>
 
-        <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-          <TabsList data-testid="tabs-status-filter">
-            <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
-            <TabsTrigger value="pending" data-testid="tab-pending">Pending</TabsTrigger>
-            <TabsTrigger value="approved_with_pay" data-testid="tab-approved-with-pay">Approved (with pay)</TabsTrigger>
-            <TabsTrigger value="approved_without_pay" data-testid="tab-approved-without-pay">Approved (without pay)</TabsTrigger>
-            <TabsTrigger value="denied" data-testid="tab-denied">Denied</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+            <TabsList data-testid="tabs-status-filter">
+              <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
+              <TabsTrigger value="pending" data-testid="tab-pending">Pending</TabsTrigger>
+              <TabsTrigger value="approved_with_pay" data-testid="tab-approved-with-pay">Approved (with pay)</TabsTrigger>
+              <TabsTrigger value="approved_without_pay" data-testid="tab-approved-without-pay">Approved (without pay)</TabsTrigger>
+              <TabsTrigger value="denied" data-testid="tab-denied">Denied</TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by teacher..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+              data-testid="input-search"
+            />
+          </div>
+        </div>
       </div>
 
       {isLoading ? (
@@ -234,130 +272,203 @@ export default function ApproveLeave() {
         </div>
       ) : filteredRequests.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground" data-testid="text-empty-state">
-          No leave requests found for the selected filter.
+          {searchQuery ? "No leave requests found matching your search." : "No leave requests found for the selected filter."}
         </div>
       ) : (
-        <div className="grid gap-4">
-          {filteredRequests.map((request) => {
-            const teacherName = request.membership?.user
-              ? `${request.membership.user.first_name || ""} ${request.membership.user.last_name || ""}`.trim() || request.membership.user.email
-              : "Unknown Teacher";
+        <div className="border rounded-lg">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead data-testid="header-teacher">Teacher</TableHead>
+                <TableHead data-testid="header-type">Type</TableHead>
+                <TableHead data-testid="header-dates">Dates</TableHead>
+                <TableHead data-testid="header-status">Status</TableHead>
+                <TableHead data-testid="header-submitted">Submitted</TableHead>
+                <TableHead data-testid="header-actions" className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredRequests.map((request) => {
+                const teacherName = request.requester 
+                  ? `${request.requester.firstName} ${request.requester.lastName}`.trim() || request.requester.email
+                  : "Unknown Teacher";
 
-            const approverName = request.approver?.user
-              ? `${request.approver.user.first_name || ""} ${request.approver.user.last_name || ""}`.trim() || request.approver.user.email
-              : null;
-
-            return (
-              <Card key={request.id} data-testid={`card-leave-request-${request.id}`}>
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <CardTitle className="flex items-center gap-2">
-                        <span data-testid={`text-teacher-name-${request.id}`}>{teacherName}</span>
-                        <Badge variant={getStatusBadgeVariant(request.status)} data-testid={`badge-status-${request.id}`}>
-                          {getStatusLabel(request.status)}
-                        </Badge>
-                      </CardTitle>
-                    </div>
-                    <Badge variant="outline" data-testid={`badge-type-${request.id}`}>
-                      {request.type}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Date Range</Label>
-                      <p className="text-sm" data-testid={`text-dates-${request.id}`}>
-                        {format(new Date(request.startDate), "PPP")} - {format(new Date(request.endDate), "PPP")}
-                      </p>
-                    </div>
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Cover Arrangements</Label>
-                      <p className="text-sm" data-testid={`text-cover-${request.id}`}>
-                        {request.coverDetails}
-                      </p>
-                    </div>
-                  </div>
-
-                  {request.additionalDetails && (
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Additional Details</Label>
-                      <p className="text-sm" data-testid={`text-additional-${request.id}`}>
-                        {request.additionalDetails}
-                      </p>
-                    </div>
-                  )}
-
-                  {request.attachmentUrl && (
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Attachment</Label>
-                      <a
-                        href={request.attachmentUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm text-primary hover:underline flex items-center gap-1"
-                        data-testid={`link-attachment-${request.id}`}
-                      >
-                        <FileText className="h-4 w-4" />
-                        View medical documentation
-                        <ExternalLink className="h-3 w-3" />
-                      </a>
-                    </div>
-                  )}
-
-                  {request.responseNotes && (
-                    <div>
-                      <Label className="text-sm text-muted-foreground">Response Notes</Label>
-                      <p className="text-sm" data-testid={`text-response-notes-${request.id}`}>
-                        {request.responseNotes}
-                      </p>
-                      {approverName && (
-                        <p className="text-xs text-muted-foreground mt-1" data-testid={`text-approver-${request.id}`}>
-                          By {approverName}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {request.status === "pending" && (
-                    <div className="flex flex-wrap gap-2 pt-2">
-                      <Button
-                        size="sm"
-                        variant="default"
-                        onClick={() => handleApprovalAction(request.id, "approved_with_pay")}
-                        data-testid={`button-approve-with-pay-${request.id}`}
-                      >
-                        <DollarSign className="h-4 w-4 mr-1" />
-                        Approve with Pay
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => handleApprovalAction(request.id, "approved_without_pay")}
-                        data-testid={`button-approve-without-pay-${request.id}`}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve without Pay
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleApprovalAction(request.id, "denied")}
-                        data-testid={`button-deny-${request.id}`}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        Deny
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
+                return (
+                  <TableRow key={request.id} data-testid={`row-leave-request-${request.id}`}>
+                    <TableCell data-testid={`cell-teacher-${request.id}`} className="font-medium">
+                      {teacherName}
+                    </TableCell>
+                    <TableCell data-testid={`cell-type-${request.id}`}>
+                      <Badge variant="outline">
+                        {leaveTypeLabels[request.type as keyof typeof leaveTypeLabels] || request.type}
+                      </Badge>
+                    </TableCell>
+                    <TableCell data-testid={`cell-dates-${request.id}`} className="text-sm">
+                      {format(new Date(request.startDate), "MMM d")} - {format(new Date(request.endDate), "MMM d, yyyy")}
+                    </TableCell>
+                    <TableCell data-testid={`cell-status-${request.id}`}>
+                      <Badge className={statusColors[request.status as keyof typeof statusColors]}>
+                        {statusLabels[request.status as keyof typeof statusLabels]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell data-testid={`cell-submitted-${request.id}`} className="text-sm text-muted-foreground">
+                      {request.createdAt ? format(new Date(request.createdAt), "MMM d, yyyy") : "-"}
+                    </TableCell>
+                    <TableCell data-testid={`cell-actions-${request.id}`} className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setSelectedRequest(request);
+                            setDetailsDialogOpen(true);
+                          }}
+                          data-testid={`button-view-${request.id}`}
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        {request.status === "pending" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handleApprovalAction(request, "approved_with_pay")}
+                              data-testid={`button-approve-with-pay-${request.id}`}
+                            >
+                              <DollarSign className="h-4 w-4 mr-1" />
+                              With Pay
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleApprovalAction(request, "approved_without_pay")}
+                              data-testid={`button-approve-without-pay-${request.id}`}
+                            >
+                              <CheckCircle className="h-4 w-4 mr-1" />
+                              Without Pay
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleApprovalAction(request, "denied")}
+                              data-testid={`button-deny-${request.id}`}
+                            >
+                              <XCircle className="h-4 w-4 mr-1" />
+                              Deny
+                            </Button>
+                          </>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
       )}
 
+      {/* Details Dialog */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="max-w-2xl" data-testid="dialog-details">
+          <DialogHeader>
+            <DialogTitle>Leave Request Details</DialogTitle>
+          </DialogHeader>
+          {selectedRequest && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Teacher</Label>
+                  <p className="text-sm font-medium" data-testid="text-details-teacher">
+                    {selectedRequest.requester 
+                      ? `${selectedRequest.requester.firstName} ${selectedRequest.requester.lastName}`.trim() || selectedRequest.requester.email
+                      : "Unknown Teacher"}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Leave Type</Label>
+                  <p className="text-sm" data-testid="text-details-type">
+                    {leaveTypeLabels[selectedRequest.type as keyof typeof leaveTypeLabels] || selectedRequest.type}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Start Date</Label>
+                  <p className="text-sm" data-testid="text-details-start-date">
+                    {format(new Date(selectedRequest.startDate), "PPP")}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">End Date</Label>
+                  <p className="text-sm" data-testid="text-details-end-date">
+                    {format(new Date(selectedRequest.endDate), "PPP")}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm text-muted-foreground">Status</Label>
+                <div className="mt-1">
+                  <Badge className={statusColors[selectedRequest.status as keyof typeof statusColors]} data-testid="badge-details-status">
+                    {statusLabels[selectedRequest.status as keyof typeof statusLabels]}
+                  </Badge>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm text-muted-foreground">Cover Arrangements</Label>
+                <p className="text-sm" data-testid="text-details-cover">
+                  {selectedRequest.coverDetails}
+                </p>
+              </div>
+
+              {selectedRequest.additionalDetails && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Additional Details</Label>
+                  <p className="text-sm whitespace-pre-wrap" data-testid="text-details-additional">
+                    {selectedRequest.additionalDetails}
+                  </p>
+                </div>
+              )}
+
+              {selectedRequest.attachmentUrl && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Medical Documentation</Label>
+                  <a
+                    href={selectedRequest.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                    data-testid="link-details-attachment"
+                  >
+                    <FileText className="h-4 w-4" />
+                    View document
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+
+              {selectedRequest.responseNotes && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Response Notes</Label>
+                  <p className="text-sm whitespace-pre-wrap" data-testid="text-details-response-notes">
+                    {selectedRequest.responseNotes}
+                  </p>
+                  {selectedRequest.approver && (
+                    <p className="text-xs text-muted-foreground mt-1" data-testid="text-details-approver">
+                      By {selectedRequest.approver.firstName} {selectedRequest.approver.lastName}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Approval Dialog */}
       <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
         <DialogContent data-testid="dialog-approval">
           <DialogHeader>
@@ -365,12 +476,16 @@ export default function ApproveLeave() {
               {currentAction ? getActionLabel(currentAction.status) : "Confirm Action"}
             </DialogTitle>
             <DialogDescription>
-              Please provide notes for your decision. This will be visible to the teacher.
+              {currentAction?.status === "denied" 
+                ? "Please provide notes explaining your decision. This is required when denying a request."
+                : "Please provide notes for your decision. This will be visible to the teacher."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="response-notes">Response Notes</Label>
+              <Label htmlFor="response-notes">
+                Response Notes {currentAction?.status === "denied" && <span className="text-destructive">*</span>}
+              </Label>
               <Textarea
                 id="response-notes"
                 placeholder="Enter your notes here..."
