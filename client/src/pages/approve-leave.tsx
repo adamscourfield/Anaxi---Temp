@@ -11,6 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -240,7 +246,8 @@ export default function ApproveLeave() {
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <TooltipProvider>
+      <div className="p-6 space-y-6">
       <div className="space-y-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">
@@ -324,47 +331,64 @@ export default function ApproveLeave() {
                       {request.createdAt ? format(new Date(request.createdAt), "MMM d, yyyy") : "-"}
                     </TableCell>
                     <TableCell data-testid={`cell-actions-${request.id}`} className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => {
-                            setSelectedRequest(request);
-                            setDetailsDialogOpen(true);
-                          }}
-                          data-testid={`button-view-${request.id}`}
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedRequest(request);
+                                setDetailsDialogOpen(true);
+                              }}
+                              data-testid={`button-view-${request.id}`}
+                            >
+                              <Eye className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>View details</TooltipContent>
+                        </Tooltip>
                         {request.status === "pending" && (
                           <>
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => handleApprovalAction(request, "approved_with_pay")}
-                              data-testid={`button-approve-with-pay-${request.id}`}
-                            >
-                              <DollarSign className="h-4 w-4 mr-1" />
-                              With Pay
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => handleApprovalAction(request, "approved_without_pay")}
-                              data-testid={`button-approve-without-pay-${request.id}`}
-                            >
-                              <CheckCircle className="h-4 w-4 mr-1" />
-                              Without Pay
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleApprovalAction(request, "denied")}
-                              data-testid={`button-deny-${request.id}`}
-                            >
-                              <XCircle className="h-4 w-4 mr-1" />
-                              Deny
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="default"
+                                  onClick={() => handleApprovalAction(request, "approved_with_pay")}
+                                  data-testid={`button-approve-with-pay-${request.id}`}
+                                >
+                                  <DollarSign className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Approve with pay</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="secondary"
+                                  onClick={() => handleApprovalAction(request, "approved_without_pay")}
+                                  data-testid={`button-approve-without-pay-${request.id}`}
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Approve without pay</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button
+                                  size="icon"
+                                  variant="destructive"
+                                  onClick={() => handleApprovalAction(request, "denied")}
+                                  data-testid={`button-deny-${request.id}`}
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>Deny request</TooltipContent>
+                            </Tooltip>
                           </>
                         )}
                       </div>
@@ -527,6 +551,7 @@ export default function ApproveLeave() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }
