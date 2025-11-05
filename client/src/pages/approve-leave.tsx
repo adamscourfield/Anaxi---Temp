@@ -100,6 +100,15 @@ export default function ApproveLeave() {
   const { data: leaveRequests = [], isLoading } = useQuery<EnrichedLeaveRequest[]>({
     queryKey: ["/api/leave-requests", currentSchoolId],
     enabled: !!currentSchoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/leave-requests?schoolId=${currentSchoolId}`, {
+        credentials: "include",
+      });
+      if (!response.ok) {
+        throw new Error("Failed to fetch leave requests");
+      }
+      return response.json();
+    },
   });
 
   // Get current user's membership in current school from already-fetched memberships
