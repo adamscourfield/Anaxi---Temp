@@ -250,6 +250,28 @@ export async function setupAuth(app: Express) {
         reset_token_expires: null,
       });
 
+      // Destroy the session to force re-login with new password
+      if (req.session) {
+        await new Promise<void>((resolve, reject) => {
+          req.session.destroy((err) => {
+            if (err) {
+              console.error('[AUTH] Failed to destroy session:', err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+      }
+
+      // Clear the session cookie
+      res.clearCookie('connect.sid', {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
+      });
+
       res.json({ message: "Password reset successfully. You can now log in with your new password." });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -288,6 +310,28 @@ export async function setupAuth(app: Express) {
         password_hash,
         password_setup_token: null,
         password_setup_token_expires: null,
+      });
+
+      // Destroy the session to force re-login with new password
+      if (req.session) {
+        await new Promise<void>((resolve, reject) => {
+          req.session.destroy((err) => {
+            if (err) {
+              console.error('[AUTH] Failed to destroy session:', err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+      }
+
+      // Clear the session cookie
+      res.clearCookie('connect.sid', {
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax'
       });
 
       res.json({ message: "Password set successfully. You can now log in with your new password." });
