@@ -2979,7 +2979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Endpoint for serving uploaded profile pictures with ACL check
   app.get("/objects/:objectPath(*)", isAuthenticated, async (req: any, res) => {
-    const userId = req.user.claims.sub;
+    const userId = req.user.id;
     const objectStorageService = new ObjectStorageService();
     
     try {
@@ -3006,7 +3006,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Endpoint for getting presigned upload URL
   app.post("/api/objects/upload", isAuthenticated, async (req: any, res) => {
-    const userId = req.user.claims.sub;
+    const userId = req.user.id;
     
     const objectStorageService = new ObjectStorageService();
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
@@ -3015,7 +3015,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Endpoint for setting ACL on uploaded object (doesn't update database)
   app.post("/api/objects/set-acl", isAuthenticated, async (req: any, res) => {
-    const userId = req.user.claims.sub;
+    const userId = req.user.id;
     
     if (!req.body.objectURL) {
       return res.status(400).json({ error: "objectURL is required" });
@@ -3045,7 +3045,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Endpoint for updating current user's profile picture (sets ACL + updates database)
   app.put("/api/profile-pictures", isAuthenticated, async (req: any, res) => {
-    const userId = req.user.claims.sub;
+    const userId = req.user.id;
     
     if (!req.body.profilePictureURL) {
       return res.status(400).json({ error: "profilePictureURL is required" });
