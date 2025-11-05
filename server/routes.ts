@@ -1723,7 +1723,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         leaveRequests = leaveRequests.filter(lr => lr.status === status);
       }
       
-      res.json(leaveRequests);
+      // Enrich leave requests with user information
+      const enrichedRequests = await Promise.all(
+        leaveRequests.map(async (request) => {
+          const membership = await storage.getMembership(request.membershipId);
+          const requestUser = membership ? await storage.getUser(membership.userId) : null;
+          
+          let approver = null;
+          if (request.approvedBy) {
+            const approverMembership = await storage.getMembership(request.approvedBy);
+            if (approverMembership) {
+              const approverUser = await storage.getUser(approverMembership.userId);
+              approver = approverUser ? {
+                firstName: approverUser.first_name,
+                lastName: approverUser.last_name,
+                email: approverUser.email,
+              } : null;
+            }
+          }
+          
+          return {
+            ...request,
+            requester: requestUser ? {
+              firstName: requestUser.first_name,
+              lastName: requestUser.last_name,
+              email: requestUser.email,
+            } : null,
+            approver,
+          };
+        })
+      );
+      
+      res.json(enrichedRequests);
     } catch (error) {
       console.error("Error fetching leave requests:", error);
       res.status(500).json({ message: "Failed to fetch leave requests" });
@@ -2990,14 +3021,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(400).json({ error: "objectURL is required" });
     }
 
+    // Default to private visibility for security, allow explicit public setting
+    const visibility = req.body.visibility === "public" ? "public" : "private";
+
     try {
       const objectStorageService = new ObjectStorageService();
       const objectPath = await objectStorageService.trySetObjectEntityAclPolicy(
         req.body.objectURL,
         {
           owner: userId,
-          // Profile pictures are public so they can be viewed by other users
-          visibility: "public",
+          visibility,
         },
       );
 
