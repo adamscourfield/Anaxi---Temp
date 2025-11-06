@@ -2086,7 +2086,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schoolId = req.query.schoolId as string;
       const categoryTimePeriod = (req.query.categoryTimePeriod as string) || "month";
-      const performersTimePeriod = (req.query.performersTimePeriod as string) || "all";
+      const topPerformersTimePeriod = (req.query.topPerformersTimePeriod as string) || "all";
+      const lowestPerformersTimePeriod = (req.query.lowestPerformersTimePeriod as string) || "all";
       const includeLowest = req.query.includeLowest === "true";
       const trendTimePeriod = (req.query.trendTimePeriod as string) || "week";
       const staffIds = req.query.staffIds ? (Array.isArray(req.query.staffIds) ? req.query.staffIds : [req.query.staffIds]) : [];
@@ -2139,7 +2140,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter observations by time period for different analytics
       const filteredObservationsForCategories = getFilteredObservations(categoryTimePeriod);
-      const filteredObservationsForPerformers = getFilteredObservations(performersTimePeriod);
+      const filteredObservationsForTopPerformers = getFilteredObservations(topPerformersTimePeriod);
+      const filteredObservationsForLowestPerformers = getFilteredObservations(lowestPerformersTimePeriod);
       const filteredObservationsForTrend = getFilteredObservations(trendTimePeriod);
       
       // Apply staff filtering if provided
@@ -2237,29 +2239,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Calculate top/lowest performers (teachers with highest/lowest avg scores)
-      const teacherScores: Record<string, { totalScore: number; totalMaxScore: number; count: number; name: string }> = {};
+      // Calculate top performers (teachers with highest avg scores)
+      const topTeacherScores: Record<string, { totalScore: number; totalMaxScore: number; count: number; name: string }> = {};
       
-      for (const obs of filteredObservationsForPerformers) {
-        if (!teacherScores[obs.teacherId]) {
+      for (const obs of filteredObservationsForTopPerformers) {
+        if (!topTeacherScores[obs.teacherId]) {
           const userData = userMap.get(obs.teacherId);
           const teacherName = userData
             ? `${userData.firstName} ${userData.lastName}`.trim() || userData.email
             : "Unknown";
           
-          teacherScores[obs.teacherId] = {
+          topTeacherScores[obs.teacherId] = {
             totalScore: 0,
             totalMaxScore: 0,
             count: 0,
             name: teacherName
           };
         }
-        teacherScores[obs.teacherId].totalScore += obs.totalScore;
-        teacherScores[obs.teacherId].totalMaxScore += obs.totalMaxScore;
-        teacherScores[obs.teacherId].count += 1;
+        topTeacherScores[obs.teacherId].totalScore += obs.totalScore;
+        topTeacherScores[obs.teacherId].totalMaxScore += obs.totalMaxScore;
+        topTeacherScores[obs.teacherId].count += 1;
       }
 
-      const topPerformers = Object.entries(teacherScores)
+      const topPerformers = Object.entries(topTeacherScores)
         .filter(([_, data]) => data.count > 0) // Only include teachers with observations
         .map(([teacherId, data]) => ({
           label: data.name,
@@ -2271,19 +2273,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
       
-      const lowestPerformers = includeLowest
-        ? Object.entries(teacherScores)
-            .filter(([_, data]) => data.count > 0)
-            .map(([teacherId, data]) => ({
-              label: data.name,
-              value: (data.totalScore / data.totalMaxScore) * 5,
-              maxValue: 5,
-              count: data.count
-            }))
-            .filter(item => item.value < 3.5) // Only show teachers scoring below 3.5/5 (70%)
-            .sort((a, b) => a.value - b.value)
-            .slice(0, 5)
-        : [];
+      // Calculate lowest performers separately with their own time filter
+      let lowestPerformers: any[] = [];
+      if (includeLowest) {
+        const lowestTeacherScores: Record<string, { totalScore: number; totalMaxScore: number; count: number; name: string }> = {};
+        
+        for (const obs of filteredObservationsForLowestPerformers) {
+          if (!lowestTeacherScores[obs.teacherId]) {
+            const userData = userMap.get(obs.teacherId);
+            const teacherName = userData
+              ? `${userData.firstName} ${userData.lastName}`.trim() || userData.email
+              : "Unknown";
+            
+            lowestTeacherScores[obs.teacherId] = {
+              totalScore: 0,
+              totalMaxScore: 0,
+              count: 0,
+              name: teacherName
+            };
+          }
+          lowestTeacherScores[obs.teacherId].totalScore += obs.totalScore;
+          lowestTeacherScores[obs.teacherId].totalMaxScore += obs.totalMaxScore;
+          lowestTeacherScores[obs.teacherId].count += 1;
+        }
+        
+        lowestPerformers = Object.entries(lowestTeacherScores)
+          .filter(([_, data]) => data.count > 0)
+          .map(([teacherId, data]) => ({
+            label: data.name,
+            value: (data.totalScore / data.totalMaxScore) * 5,
+            maxValue: 5,
+            count: data.count
+          }))
+          .filter(item => item.value < 3.5) // Only show teachers scoring below 3.5/5 (70%)
+          .sort((a, b) => a.value - b.value)
+          .slice(0, 5);
+      }
 
       // Calculate category performance (avg scores by category)
       // Bulk-load all observation habits and categories for efficiency

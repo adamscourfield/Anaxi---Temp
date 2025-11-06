@@ -33,7 +33,8 @@ export default function Dashboard() {
   const [filterValue, setFilterValue] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryTimePeriod, setCategoryTimePeriod] = useState<"week" | "month" | "year">("month");
-  const [performersTimePeriod, setPerformersTimePeriod] = useState<"week" | "month" | "year" | "all">("all");
+  const [topPerformersTimePeriod, setTopPerformersTimePeriod] = useState<"week" | "month" | "year" | "all">("all");
+  const [lowestPerformersTimePeriod, setLowestPerformersTimePeriod] = useState<"week" | "month" | "year" | "all">("all");
   const [trendTimePeriod, setTrendTimePeriod] = useState<"week" | "month" | "year">("week");
   const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const { currentSchoolId } = useSchool();
@@ -121,7 +122,8 @@ export default function Dashboard() {
       "/api/dashboard/analytics", 
       currentSchoolId, 
       categoryTimePeriod, 
-      performersTimePeriod, 
+      topPerformersTimePeriod,
+      lowestPerformersTimePeriod,
       trendTimePeriod,
       selectedStaffIds
     ],
@@ -130,7 +132,8 @@ export default function Dashboard() {
       const params = new URLSearchParams({
         schoolId: currentSchoolId!,
         categoryTimePeriod,
-        performersTimePeriod,
+        topPerformersTimePeriod,
+        lowestPerformersTimePeriod,
         trendTimePeriod,
         includeLowest: "true",
       });
@@ -347,12 +350,15 @@ export default function Dashboard() {
               title="Top Performers"
               data={topPerformers}
               type="progress"
+              showFilter={true}
+              timePeriod={topPerformersTimePeriod}
+              onTimePeriodChange={setTopPerformersTimePeriod}
               onDataPointClick={handleTeacherClick}
             />
             <LowestPerformers
               data={lowestPerformers}
-              timePeriod={performersTimePeriod}
-              onTimePeriodChange={setPerformersTimePeriod}
+              timePeriod={lowestPerformersTimePeriod}
+              onTimePeriodChange={setLowestPerformersTimePeriod}
               onDataPointClick={handleTeacherClick}
             />
           </div>

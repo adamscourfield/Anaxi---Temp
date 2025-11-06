@@ -20,6 +20,8 @@ interface AnalyticsChartProps {
   data: DataPoint[];
   type?: "bar" | "progress";
   showFilter?: boolean;
+  timePeriod?: "week" | "month" | "year" | "all";
+  onTimePeriodChange?: (period: "week" | "month" | "year" | "all") => void;
   onDataPointClick?: (label: string) => void;
 }
 
@@ -28,9 +30,10 @@ export function AnalyticsChart({
   data,
   type = "bar",
   showFilter = false,
+  timePeriod = "all",
+  onTimePeriodChange,
   onDataPointClick,
 }: AnalyticsChartProps) {
-  const [timeframe, setTimeframe] = useState("month");
 
   const maxValue = Math.max(...data.map((d) => d.maxValue || d.value));
 
@@ -39,8 +42,8 @@ export function AnalyticsChart({
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg">{title}</CardTitle>
-          {showFilter && (
-            <Select value={timeframe} onValueChange={setTimeframe}>
+          {showFilter && onTimePeriodChange && (
+            <Select value={timePeriod} onValueChange={onTimePeriodChange}>
               <SelectTrigger className="w-[120px]" data-testid="select-timeframe">
                 <SelectValue />
               </SelectTrigger>
@@ -48,6 +51,7 @@ export function AnalyticsChart({
                 <SelectItem value="week">Week</SelectItem>
                 <SelectItem value="month">Month</SelectItem>
                 <SelectItem value="year">Year</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
               </SelectContent>
             </Select>
           )}
