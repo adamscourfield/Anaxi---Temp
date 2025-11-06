@@ -2085,6 +2085,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/dashboard/analytics", isAuthenticated, async (req: any, res) => {
     try {
       const schoolId = req.query.schoolId as string;
+      const categoryTimePeriod = (req.query.categoryTimePeriod as string) || "month";
       const user = req.user;
       
       if (!schoolId) {
@@ -2104,7 +2105,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all observations for this school
-      const schoolObservations = await storage.getObservationsBySchool(schoolId);
+      const allObservations = await storage.getObservationsBySchool(schoolId);
+      
+      // Filter observations by time period for category performance
+      const now = new Date();
+      let categoryStartDate = new Date();
+      
+      switch (categoryTimePeriod) {
+        case "week":
+          categoryStartDate.setDate(now.getDate() - 7);
+          break;
+        case "month":
+          categoryStartDate.setMonth(now.getMonth() - 1);
+          break;
+        case "year":
+          categoryStartDate.setFullYear(now.getFullYear() - 1);
+          break;
+      }
+      
+      const filteredObservationsForCategories = allObservations.filter(obs => {
+        const obsDate = new Date(obs.date);
+        return obsDate >= categoryStartDate;
+      });
+      
+      // Use all observations for other analytics (trend, top performers)
+      const schoolObservations = allObservations;
 
       // Fetch all users for the school to get teacher names
       const memberships = await storage.getMembershipsBySchool(schoolId);
@@ -2127,7 +2152,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       // Calculate observation trend by day of week (last 7 days)
-      const now = new Date();
       const last7Days = [];
       const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
       
@@ -2176,11 +2200,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate category performance (avg scores by category)
       // Bulk-load all observation habits and categories for efficiency
+      // Use filtered observations based on selected time period
       const categoryScores: Record<string, { totalScore: number; totalMaxScore: number; count: number }> = {};
       
-      // Fetch all observation habits for all observations in parallel
+      // Fetch all observation habits for filtered observations in parallel
       const allObservationHabitsArrays = await Promise.all(
-        schoolObservations.map(obs => storage.getObservationHabitsByObservation(obs.id))
+        filteredObservationsForCategories.map(obs => storage.getObservationHabitsByObservation(obs.id))
       );
       
       // Flatten into a single array
@@ -2200,8 +2225,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
       
-      // Process each observation's habits
-      for (let i = 0; i < schoolObservations.length; i++) {
+      // Process each filtered observation's habits
+      for (let i = 0; i < filteredObservationsForCategories.length; i++) {
         const obsHabits = allObservationHabitsArrays[i];
         
         // Group by category for this observation
