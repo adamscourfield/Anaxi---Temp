@@ -111,7 +111,6 @@ export default function Dashboard() {
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
     queryKey: ["/api/dashboard/analytics", currentSchoolId],
     enabled: !!currentSchoolId,
-    staleTime: 0,
     queryFn: async () => {
       const response = await fetch(`/api/dashboard/analytics?schoolId=${currentSchoolId}`);
       if (!response.ok) throw new Error("Failed to fetch analytics");

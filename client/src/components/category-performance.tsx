@@ -16,8 +16,6 @@ interface CategoryPerformanceProps {
 }
 
 export function CategoryPerformance({ categories, onCategoryClick }: CategoryPerformanceProps) {
-  console.log('CategoryPerformance received categories:', categories);
-  
   return (
     <Card>
       <CardHeader>
@@ -27,7 +25,6 @@ export function CategoryPerformance({ categories, onCategoryClick }: CategoryPer
         <div className="space-y-3">
           {categories.map((category, idx) => {
             const percentage = (category.avgScore / category.maxScore) * 100;
-            console.log(`Category ${category.name}: avgScore=${category.avgScore}, maxScore=${category.maxScore}, percentage=${percentage}`);
             const TrendIcon =
               category.trend === "up"
                 ? TrendingUp
@@ -55,12 +52,9 @@ export function CategoryPerformance({ categories, onCategoryClick }: CategoryPer
                       <span className="text-sm text-muted-foreground">
                         {category.avgScore.toFixed(1)}/{category.maxScore}
                       </span>
-                      <div className={`flex items-center gap-1 ${trendColor}`}>
-                        <TrendIcon className="h-3 w-3" />
-                        <span className="text-xs font-medium">
-                          {category.trendValue}%
-                        </span>
-                      </div>
+                      <span className="text-sm font-medium">
+                        {percentage.toFixed(0)}%
+                      </span>
                     </div>
                   </div>
                   <div className="h-1.5 bg-background rounded-full overflow-visible">
