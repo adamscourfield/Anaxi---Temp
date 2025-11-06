@@ -2238,8 +2238,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const categoryPerformance = Object.entries(categoryScores).map(([name, data]) => ({
         name,
-        avgScore: data.totalScore / data.count,
-        maxScore: data.totalMaxScore / data.count,
+        avgScore: data.totalScore,
+        maxScore: data.totalMaxScore,
         trend: "stable" as const,
         trendValue: 0
       }));
