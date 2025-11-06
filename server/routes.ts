@@ -2175,35 +2175,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .slice(0, 5);
 
       // Calculate category performance (avg scores by category)
-      // We need to fetch observation habits for all observations
+      // Bulk-load all observation habits and categories for efficiency
       const categoryScores: Record<string, { totalScore: number; totalMaxScore: number; count: number }> = {};
       
-      for (const obs of schoolObservations) {
-        // Fetch observation habits for this observation
-        const obsHabits = await storage.getObservationHabitsByObservation(obs.id);
+      // Fetch all observation habits for all observations in parallel
+      const allObservationHabitsArrays = await Promise.all(
+        schoolObservations.map(obs => storage.getObservationHabitsByObservation(obs.id))
+      );
+      
+      // Flatten into a single array
+      const allObservationHabits = allObservationHabitsArrays.flat();
+      
+      // Get unique category IDs
+      const uniqueCategoryIds = [...new Set(allObservationHabits.map(h => h.categoryId))];
+      
+      // Bulk-load all categories and create a map
+      const categoryMap = new Map<string, string>();
+      await Promise.all(
+        uniqueCategoryIds.map(async (categoryId) => {
+          const category = await storage.getCategory(categoryId);
+          if (category) {
+            categoryMap.set(categoryId, category.name);
+          }
+        })
+      );
+      
+      // Process each observation's habits
+      for (let i = 0; i < schoolObservations.length; i++) {
+        const obsHabits = allObservationHabitsArrays[i];
         
-        // Group by category
-        const categoryMap = new Map<string, { score: number; maxScore: number }>();
+        // Group by category for this observation
+        const obsCategoryScores = new Map<string, { score: number; maxScore: number }>();
         
         for (const obsHabit of obsHabits) {
-          // Get the category to find its name
-          const category = await storage.getCategory(obsHabit.categoryId);
-          if (!category) continue;
+          const categoryName = categoryMap.get(obsHabit.categoryId);
+          if (!categoryName) continue;
           
-          const categoryName = category.name;
-          
-          if (!categoryMap.has(categoryName)) {
-            categoryMap.set(categoryName, { score: 0, maxScore: 0 });
+          if (!obsCategoryScores.has(categoryName)) {
+            obsCategoryScores.set(categoryName, { score: 0, maxScore: 0 });
           }
           
-          const catData = categoryMap.get(categoryName)!;
+          const catData = obsCategoryScores.get(categoryName)!;
           // Each habit has a maxScore of 1, and scores 1 if observed, 0 if not
           catData.score += obsHabit.observed ? 1 : 0;
           catData.maxScore += 1;
         }
         
         // Add to overall category scores
-        for (const [categoryName, data] of Array.from(categoryMap.entries())) {
+        for (const [categoryName, data] of Array.from(obsCategoryScores.entries())) {
           if (!categoryScores[categoryName]) {
             categoryScores[categoryName] = {
               totalScore: 0,
