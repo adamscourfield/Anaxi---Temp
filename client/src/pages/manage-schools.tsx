@@ -67,6 +67,7 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schools"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/my-memberships"] });
       setIsEditOpen(false);
       setEditingSchool(null);
       setEditSchoolName("");
