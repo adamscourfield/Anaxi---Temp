@@ -2267,6 +2267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           maxValue: 5,
           count: data.count
         }))
+        .filter(item => item.value >= 4.0) // Only show teachers scoring 4.0/5 (80%) or above
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
       
