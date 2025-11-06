@@ -2244,6 +2244,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trendValue: 0
       }));
 
+      console.log('Category Performance Debug:');
+      console.log('Total observations:', schoolObservations.length);
+      console.log('Total observation habits fetched:', allObservationHabits.length);
+      console.log('Unique categories:', uniqueCategoryIds.length);
+      console.log('Category scores:', JSON.stringify(categoryScores, null, 2));
+      console.log('Category performance output:', JSON.stringify(categoryPerformance, null, 2));
+
       res.json({
         observationTrend: last7Days,
         topPerformers,

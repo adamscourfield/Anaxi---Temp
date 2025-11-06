@@ -16,6 +16,8 @@ interface CategoryPerformanceProps {
 }
 
 export function CategoryPerformance({ categories, onCategoryClick }: CategoryPerformanceProps) {
+  console.log('CategoryPerformance received categories:', categories);
+  
   return (
     <Card>
       <CardHeader>
@@ -25,6 +27,7 @@ export function CategoryPerformance({ categories, onCategoryClick }: CategoryPer
         <div className="space-y-3">
           {categories.map((category, idx) => {
             const percentage = (category.avgScore / category.maxScore) * 100;
+            console.log(`Category ${category.name}: avgScore=${category.avgScore}, maxScore=${category.maxScore}, percentage=${percentage}`);
             const TrendIcon =
               category.trend === "up"
                 ? TrendingUp
