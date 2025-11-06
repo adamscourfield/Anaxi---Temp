@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [filterType, setFilterType] = useState<"day" | "teacher" | "category" | null>(null);
   const [filterValue, setFilterValue] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [categoryTimePeriod, setCategoryTimePeriod] = useState<"week" | "month" | "year">("month");
   const { currentSchoolId } = useSchool();
   const [, setLocation] = useLocation();
 
@@ -109,10 +110,10 @@ export default function Dashboard() {
   
   // Fetch analytics data from API
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ["/api/dashboard/analytics", currentSchoolId],
+    queryKey: ["/api/dashboard/analytics", currentSchoolId, categoryTimePeriod],
     enabled: !!currentSchoolId,
     queryFn: async () => {
-      const response = await fetch(`/api/dashboard/analytics?schoolId=${currentSchoolId}`);
+      const response = await fetch(`/api/dashboard/analytics?schoolId=${currentSchoolId}&categoryTimePeriod=${categoryTimePeriod}`);
       if (!response.ok) throw new Error("Failed to fetch analytics");
       return response.json();
     },
@@ -313,6 +314,8 @@ export default function Dashboard() {
           <CategoryPerformance 
             categories={categoryPerformance} 
             onCategoryClick={handleCategoryClick}
+            timePeriod={categoryTimePeriod}
+            onTimePeriodChange={setCategoryTimePeriod}
           />
         </TabsContent>
       </Tabs>

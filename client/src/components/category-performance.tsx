@@ -1,6 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface CategoryData {
   name: string;
@@ -13,13 +20,27 @@ interface CategoryData {
 interface CategoryPerformanceProps {
   categories: CategoryData[];
   onCategoryClick?: (categoryName: string) => void;
+  timePeriod: "week" | "month" | "year";
+  onTimePeriodChange: (period: "week" | "month" | "year") => void;
 }
 
-export function CategoryPerformance({ categories, onCategoryClick }: CategoryPerformanceProps) {
+export function CategoryPerformance({ categories, onCategoryClick, timePeriod, onTimePeriodChange }: CategoryPerformanceProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-lg">Performance by Category</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">Performance by Category</CardTitle>
+          <Select value={timePeriod} onValueChange={onTimePeriodChange}>
+            <SelectTrigger className="w-32" data-testid="select-category-time-period">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="week">Week</SelectItem>
+              <SelectItem value="month">Month</SelectItem>
+              <SelectItem value="year">Year</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-3">
