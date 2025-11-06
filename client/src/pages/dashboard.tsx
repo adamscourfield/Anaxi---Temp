@@ -121,7 +121,7 @@ export default function Dashboard() {
   const observationTrend = analytics?.observationTrend || [];
   const topPerformers = analytics?.topPerformers || [];
   const categoryPerformance = analytics?.categoryPerformance || [];
-  const teachingGroups = [];
+  const teachingGroups: any[] = [];
 
   // Get selected observation details
   const selectedObservation = selectedObservationId

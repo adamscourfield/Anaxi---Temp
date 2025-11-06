@@ -2106,6 +2106,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all observations for this school
       const schoolObservations = await storage.getObservationsBySchool(schoolId);
 
+      // Fetch all users for the school to get teacher names
+      const memberships = await storage.getMembershipsBySchool(schoolId);
+      const userIds = [...new Set(memberships.map(m => m.userId))];
+      const users = await Promise.all(
+        userIds.map(async (userId) => {
+          const u = await storage.getUser(userId);
+          return u;
+        })
+      );
+      const userMap = new Map<string, { firstName: string; lastName: string; email: string }>();
+      users.filter(u => u && !u.archived).forEach(u => {
+        if (u) {
+          userMap.set(u.id, {
+            firstName: u.first_name || '',
+            lastName: u.last_name || '',
+            email: u.email
+          });
+        }
+      });
+
       // Calculate observation trend by day of week (last 7 days)
       const now = new Date();
       const last7Days = [];
@@ -2128,11 +2148,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       for (const obs of schoolObservations) {
         if (!teacherScores[obs.teacherId]) {
+          const userData = userMap.get(obs.teacherId);
+          const teacherName = userData
+            ? `${userData.firstName} ${userData.lastName}`.trim() || userData.email
+            : "Unknown";
+          
           teacherScores[obs.teacherId] = {
             totalScore: 0,
             totalMaxScore: 0,
             count: 0,
-            name: obs.teacher?.name || "Unknown"
+            name: teacherName
           };
         }
         teacherScores[obs.teacherId].totalScore += obs.totalScore;
@@ -2150,20 +2175,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .slice(0, 5);
 
       // Calculate category performance (avg scores by category)
+      // We need to fetch observation habits for all observations
       const categoryScores: Record<string, { totalScore: number; totalMaxScore: number; count: number }> = {};
       
       for (const obs of schoolObservations) {
-        for (const cat of obs.categories || []) {
-          if (!categoryScores[cat.categoryName]) {
-            categoryScores[cat.categoryName] = {
+        // Fetch observation habits for this observation
+        const obsHabits = await storage.getObservationHabitsByObservation(obs.id);
+        
+        // Group by category
+        const categoryMap = new Map<string, { score: number; maxScore: number }>();
+        
+        for (const obsHabit of obsHabits) {
+          // Get the category to find its name
+          const category = await storage.getCategory(obsHabit.categoryId);
+          if (!category) continue;
+          
+          const categoryName = category.name;
+          
+          if (!categoryMap.has(categoryName)) {
+            categoryMap.set(categoryName, { score: 0, maxScore: 0 });
+          }
+          
+          const catData = categoryMap.get(categoryName)!;
+          // Each habit has a maxScore of 1, and scores 1 if observed, 0 if not
+          catData.score += obsHabit.observed ? 1 : 0;
+          catData.maxScore += 1;
+        }
+        
+        // Add to overall category scores
+        for (const [categoryName, data] of Array.from(categoryMap.entries())) {
+          if (!categoryScores[categoryName]) {
+            categoryScores[categoryName] = {
               totalScore: 0,
               totalMaxScore: 0,
               count: 0
             };
           }
-          categoryScores[cat.categoryName].totalScore += cat.score;
-          categoryScores[cat.categoryName].totalMaxScore += cat.maxScore;
-          categoryScores[cat.categoryName].count += 1;
+          categoryScores[categoryName].totalScore += data.score;
+          categoryScores[categoryName].totalMaxScore += data.maxScore;
+          categoryScores[categoryName].count += 1;
         }
       }
 
