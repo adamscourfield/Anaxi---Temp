@@ -1167,6 +1167,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 id: attendee.id,
                 name,
                 email: user.email,
+                userId: user.id,
                 attendanceStatus: attendee.attendanceStatus,
               };
             })
@@ -1252,6 +1253,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const meeting = await storage.createMeeting(validated);
+      
+      // Automatically add the creator as an attendee
+      try {
+        const userMemberships = await storage.getMembershipsByUser(user.id);
+        const creatorMembership = userMemberships.find(m => m.schoolId === validated.schoolId);
+        
+        if (creatorMembership) {
+          await storage.createMeetingAttendee({
+            meetingId: meeting.id,
+            membershipId: creatorMembership.id,
+            attendeeRole: "Organizer",
+            attendanceStatus: "attended",
+            isRequired: true,
+          });
+        }
+      } catch (error) {
+        console.error("[ERROR] Failed to add creator as attendee:", error);
+        // Don't fail the meeting creation if adding creator as attendee fails
+      }
       
       // Send email notifications to attendees (fire and forget - errors handled internally)
       void (async () => {
@@ -1394,6 +1414,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: attendee.id,
             name,
             email: attendeeUser.email,
+            userId: attendeeUser.id,
             role: membership.role,
             attendeeRole: attendee.attendeeRole,
             attendanceStatus: attendee.attendanceStatus,

@@ -775,22 +775,25 @@ export default function Meetings() {
                       </TableCell>
                       <TableCell className="font-medium" data-testid={`meeting-subject-${meeting.id}`}>{meeting.subject}</TableCell>
                       <TableCell data-testid={`meeting-attendees-${meeting.id}`}>
-                        {meeting.attendees && meeting.attendees.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {meeting.attendees.slice(0, 3).map((attendee: any, index: number) => (
-                              <Badge key={index} variant="secondary" className="text-xs">
-                                {attendee.name}
-                              </Badge>
-                            ))}
-                            {meeting.attendees.length > 3 && (
-                              <Badge variant="secondary" className="text-xs">
-                                +{meeting.attendees.length - 3}
-                              </Badge>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-muted-foreground text-sm">No attendees</span>
-                        )}
+                        {(() => {
+                          const filteredAttendees = meeting.attendees?.filter((a: any) => a.userId !== user?.id) || [];
+                          return filteredAttendees.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {filteredAttendees.slice(0, 3).map((attendee: any, index: number) => (
+                                <Badge key={index} variant="secondary" className="text-xs">
+                                  {attendee.name}
+                                </Badge>
+                              ))}
+                              {filteredAttendees.length > 3 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  +{filteredAttendees.length - 3}
+                                </Badge>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground text-sm">No attendees</span>
+                          );
+                        })()}
                       </TableCell>
                       <TableCell className="max-w-md truncate" data-testid={`meeting-details-${meeting.id}`}>
                         {meeting.details}

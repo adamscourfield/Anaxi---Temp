@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,11 +8,13 @@ import { Separator } from "@/components/ui/separator";
 import { ArrowLeft, Users, Calendar, CheckSquare, User } from "lucide-react";
 import { format } from "date-fns";
 import { useSchool } from "@/hooks/use-school";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function MeetingDetails() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { currentSchoolId } = useSchool();
+  const { user } = useAuth();
 
   const { data: meeting, isLoading } = useQuery({
     queryKey: ["/api/meetings", id],
@@ -28,6 +30,11 @@ export default function MeetingDetails() {
     queryKey: ["/api/meetings", id, "actions"],
     enabled: !!id,
   });
+
+  // Filter out current user from attendees
+  const filteredAttendees = useMemo(() => {
+    return attendees.filter((a: any) => a.userId !== user?.id);
+  }, [attendees, user?.id]);
 
   if (isLoading) {
     return (
@@ -146,13 +153,13 @@ export default function MeetingDetails() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="w-5 h-5" />
-                Attendees {attendees.length > 0 && `(${attendees.length})`}
+                Attendees {filteredAttendees.length > 0 && `(${filteredAttendees.length})`}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {attendees.length > 0 ? (
+              {filteredAttendees.length > 0 ? (
                 <div className="space-y-3">
-                  {attendees.map((attendee: any) => (
+                  {filteredAttendees.map((attendee: any) => (
                     <div
                       key={attendee.id}
                       className="flex items-center justify-between p-3 rounded-lg border"
