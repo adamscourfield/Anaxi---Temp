@@ -5,6 +5,10 @@ import { CategoryPerformance } from "@/components/category-performance";
 import { TeachingGroupsSection } from "@/components/teaching-groups-section";
 import { ObservationDetailsPanel } from "@/components/observation-details-panel";
 import { FilteredObservationsPanel } from "@/components/filtered-observations-panel";
+import { LowestPerformers } from "@/components/lowest-performers";
+import { QualityQuantityChart } from "@/components/quality-quantity-chart";
+import { QualitativeFeedbackSummary } from "@/components/qualitative-feedback-summary";
+import { StaffFilter } from "@/components/staff-filter";
 import { Eye, Users, ClipboardCheck, TrendingUp, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +33,9 @@ export default function Dashboard() {
   const [filterValue, setFilterValue] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryTimePeriod, setCategoryTimePeriod] = useState<"week" | "month" | "year">("month");
+  const [performersTimePeriod, setPerformersTimePeriod] = useState<"week" | "month" | "year" | "all">("all");
+  const [trendTimePeriod, setTrendTimePeriod] = useState<"week" | "month" | "year">("week");
+  const [selectedStaffIds, setSelectedStaffIds] = useState<string[]>([]);
   const { currentSchoolId } = useSchool();
   const [, setLocation] = useLocation();
 
@@ -110,10 +117,27 @@ export default function Dashboard() {
   
   // Fetch analytics data from API
   const { data: analytics, isLoading: analyticsLoading } = useQuery({
-    queryKey: ["/api/dashboard/analytics", currentSchoolId, categoryTimePeriod],
+    queryKey: [
+      "/api/dashboard/analytics", 
+      currentSchoolId, 
+      categoryTimePeriod, 
+      performersTimePeriod, 
+      trendTimePeriod,
+      selectedStaffIds
+    ],
     enabled: !!currentSchoolId,
     queryFn: async () => {
-      const response = await fetch(`/api/dashboard/analytics?schoolId=${currentSchoolId}&categoryTimePeriod=${categoryTimePeriod}`);
+      const params = new URLSearchParams({
+        schoolId: currentSchoolId!,
+        categoryTimePeriod,
+        performersTimePeriod,
+        trendTimePeriod,
+        includeLowest: "true",
+      });
+      
+      selectedStaffIds.forEach(id => params.append("staffIds", id));
+      
+      const response = await fetch(`/api/dashboard/analytics?${params.toString()}`);
       if (!response.ok) throw new Error("Failed to fetch analytics");
       return response.json();
     },
@@ -121,7 +145,9 @@ export default function Dashboard() {
 
   const observationTrend = analytics?.observationTrend || [];
   const topPerformers = analytics?.topPerformers || [];
+  const lowestPerformers = analytics?.lowestPerformers || [];
   const categoryPerformance = analytics?.categoryPerformance || [];
+  const qualitativeFeedback = analytics?.qualitativeFeedback || [];
   const teachingGroups: any[] = [];
 
   // Get selected observation details
@@ -297,26 +323,50 @@ export default function Dashboard() {
 
         <TabsContent value="analytics" className="space-y-6">
           <TeachingGroupsSection groups={teachingGroups} />
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <AnalyticsChart
-              title="Observation Activity"
+          
+          {/* Quality & Quantity Trend */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">Observation Trends</h2>
+              <StaffFilter 
+                users={users}
+                selectedIds={selectedStaffIds}
+                onSelectionChange={setSelectedStaffIds}
+              />
+            </div>
+            <QualityQuantityChart
               data={observationTrend}
-              showFilter
-              onDataPointClick={handleDayClick}
+              timePeriod={trendTimePeriod}
+              onTimePeriodChange={setTrendTimePeriod}
             />
+          </div>
+
+          {/* Top and Lowest Performers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <AnalyticsChart
               title="Top Performers"
               data={topPerformers}
               type="progress"
               onDataPointClick={handleTeacherClick}
             />
+            <LowestPerformers
+              data={lowestPerformers}
+              timePeriod={performersTimePeriod}
+              onTimePeriodChange={setPerformersTimePeriod}
+              onDataPointClick={handleTeacherClick}
+            />
           </div>
+
+          {/* Category Performance */}
           <CategoryPerformance 
             categories={categoryPerformance} 
             onCategoryClick={handleCategoryClick}
             timePeriod={categoryTimePeriod}
             onTimePeriodChange={setCategoryTimePeriod}
           />
+
+          {/* Qualitative Feedback */}
+          <QualitativeFeedbackSummary data={qualitativeFeedback} />
         </TabsContent>
       </Tabs>
 

@@ -2086,6 +2086,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const schoolId = req.query.schoolId as string;
       const categoryTimePeriod = (req.query.categoryTimePeriod as string) || "month";
+      const performersTimePeriod = (req.query.performersTimePeriod as string) || "all";
+      const includeLowest = req.query.includeLowest === "true";
+      const trendTimePeriod = (req.query.trendTimePeriod as string) || "week";
+      const staffIds = req.query.staffIds ? (Array.isArray(req.query.staffIds) ? req.query.staffIds : [req.query.staffIds]) : [];
       const user = req.user;
       
       if (!schoolId) {
@@ -2107,28 +2111,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all observations for this school
       const allObservations = await storage.getObservationsBySchool(schoolId);
       
-      // Filter observations by time period for category performance
+      // Helper function to filter observations by time period
       const now = new Date();
-      let categoryStartDate = new Date();
+      const getFilteredObservations = (timePeriod: string) => {
+        if (timePeriod === "all") return allObservations;
+        
+        let startDate = new Date();
+        switch (timePeriod) {
+          case "week":
+            startDate.setDate(now.getDate() - 7);
+            break;
+          case "month":
+            startDate.setMonth(now.getMonth() - 1);
+            break;
+          case "year":
+            startDate.setFullYear(now.getFullYear() - 1);
+            break;
+          default:
+            return allObservations;
+        }
+        
+        return allObservations.filter(obs => {
+          const obsDate = new Date(obs.date);
+          return obsDate >= startDate;
+        });
+      };
       
-      switch (categoryTimePeriod) {
-        case "week":
-          categoryStartDate.setDate(now.getDate() - 7);
-          break;
-        case "month":
-          categoryStartDate.setMonth(now.getMonth() - 1);
-          break;
-        case "year":
-          categoryStartDate.setFullYear(now.getFullYear() - 1);
-          break;
-      }
+      // Filter observations by time period for different analytics
+      const filteredObservationsForCategories = getFilteredObservations(categoryTimePeriod);
+      const filteredObservationsForPerformers = getFilteredObservations(performersTimePeriod);
+      const filteredObservationsForTrend = getFilteredObservations(trendTimePeriod);
       
-      const filteredObservationsForCategories = allObservations.filter(obs => {
-        const obsDate = new Date(obs.date);
-        return obsDate >= categoryStartDate;
-      });
+      // Apply staff filtering if provided
+      const trendObservations = staffIds.length > 0
+        ? filteredObservationsForTrend.filter(obs => 
+            staffIds.includes(obs.teacherId) || staffIds.includes(obs.observerId)
+          )
+        : filteredObservationsForTrend;
       
-      // Use all observations for other analytics (trend, top performers)
+      // Use all observations for qualitative feedback
       const schoolObservations = allObservations;
 
       // Fetch all users for the school to get teacher names
@@ -2151,26 +2172,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
 
-      // Calculate observation trend by day of week (last 7 days)
-      const last7Days = [];
-      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      // Calculate observation trend with quality scores
+      const getDaysCount = (timePeriod: string) => {
+        switch (timePeriod) {
+          case "week": return 7;
+          case "month": return 30;
+          case "year": return 12; // Will use months instead of days
+          default: return 7;
+        }
+      };
       
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date(now);
-        date.setDate(date.getDate() - i);
-        const dayName = dayNames[date.getDay()];
-        const count = schoolObservations.filter(obs => {
-          const obsDate = new Date(obs.date);
-          return obsDate.toDateString() === date.toDateString();
-        }).length;
-        
-        last7Days.push({ label: dayName, value: count });
+      const trendData = [];
+      const daysCount = getDaysCount(trendTimePeriod);
+      const isYearView = trendTimePeriod === "year";
+      
+      if (isYearView) {
+        // For year view, group by month
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        for (let i = 11; i >= 0; i--) {
+          const date = new Date(now);
+          date.setMonth(date.getMonth() - i);
+          const monthName = monthNames[date.getMonth()];
+          const monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+          const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+          
+          const monthObs = trendObservations.filter(obs => {
+            const obsDate = new Date(obs.date);
+            return obsDate >= monthStart && obsDate <= monthEnd;
+          });
+          
+          const avgQuality = monthObs.length > 0
+            ? (monthObs.reduce((sum, obs) => sum + (obs.totalScore / obs.totalMaxScore) * 5, 0) / monthObs.length)
+            : 0;
+          
+          trendData.push({
+            label: monthName,
+            value: monthObs.length,
+            quality: Number(avgQuality.toFixed(2))
+          });
+        }
+      } else {
+        // For week/month view, group by day
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        for (let i = daysCount - 1; i >= 0; i--) {
+          const date = new Date(now);
+          date.setDate(date.getDate() - i);
+          const dayName = dayNames[date.getDay()];
+          const label = trendTimePeriod === "week" ? dayName : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          
+          const dayObs = trendObservations.filter(obs => {
+            const obsDate = new Date(obs.date);
+            return obsDate.toDateString() === date.toDateString();
+          });
+          
+          const avgQuality = dayObs.length > 0
+            ? (dayObs.reduce((sum, obs) => sum + (obs.totalScore / obs.totalMaxScore) * 5, 0) / dayObs.length)
+            : 0;
+          
+          trendData.push({
+            label,
+            value: dayObs.length,
+            quality: Number(avgQuality.toFixed(2))
+          });
+        }
       }
 
-      // Calculate top performers (teachers with highest avg scores)
+      // Calculate top/lowest performers (teachers with highest/lowest avg scores)
       const teacherScores: Record<string, { totalScore: number; totalMaxScore: number; count: number; name: string }> = {};
       
-      for (const obs of schoolObservations) {
+      for (const obs of filteredObservationsForPerformers) {
         if (!teacherScores[obs.teacherId]) {
           const userData = userMap.get(obs.teacherId);
           const teacherName = userData
@@ -2190,13 +2260,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const topPerformers = Object.entries(teacherScores)
+        .filter(([_, data]) => data.count > 0) // Only include teachers with observations
         .map(([teacherId, data]) => ({
           label: data.name,
           value: (data.totalScore / data.totalMaxScore) * 5,
-          maxValue: 5
+          maxValue: 5,
+          count: data.count
         }))
         .sort((a, b) => b.value - a.value)
         .slice(0, 5);
+      
+      const lowestPerformers = includeLowest
+        ? Object.entries(teacherScores)
+            .filter(([_, data]) => data.count > 0)
+            .map(([teacherId, data]) => ({
+              label: data.name,
+              value: (data.totalScore / data.totalMaxScore) * 5,
+              maxValue: 5,
+              count: data.count
+            }))
+            .sort((a, b) => a.value - b.value)
+            .slice(0, 5)
+        : [];
 
       // Calculate category performance (avg scores by category)
       // Bulk-load all observation habits and categories for efficiency
@@ -2269,10 +2354,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trendValue: 0
       }));
 
+      // Aggregate qualitative feedback (latest 10 observations with feedback)
+      const qualitativeFeedback = schoolObservations
+        .filter(obs => obs.qualitativeFeedback && obs.qualitativeFeedback.trim().length > 0)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10)
+        .map(obs => {
+          const teacherData = userMap.get(obs.teacherId);
+          const observerData = userMap.get(obs.observerId);
+          return {
+            teacherName: teacherData ? `${teacherData.firstName} ${teacherData.lastName}`.trim() || teacherData.email : "Unknown",
+            observerName: observerData ? `${observerData.firstName} ${observerData.lastName}`.trim() || observerData.email : "Unknown",
+            date: obs.date,
+            feedback: obs.qualitativeFeedback
+          };
+        });
+
       res.json({
-        observationTrend: last7Days,
+        observationTrend: trendData,
         topPerformers,
-        categoryPerformance
+        lowestPerformers,
+        categoryPerformance,
+        qualitativeFeedback
       });
     } catch (error) {
       console.error("Error fetching dashboard analytics:", error);
