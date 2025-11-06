@@ -113,9 +113,6 @@ export function AppSidebar() {
       return isAdminOrCreator;
     }
 
-    // Creators see all menu items regardless of school feature flags
-    if (isCreator) return true;
-
     // Check feature flags for specific menu items
     // When currentSchool is null/loading, hide feature-gated items
     if (!currentSchool) {
@@ -138,9 +135,10 @@ export function AppSidebar() {
       return enabledFeatures.includes("absence_management");
     }
 
-    // Approve Leave requires "absence_management" feature AND canApproveLeaveRequests permission
+    // Approve Leave requires "absence_management" feature
+    // Creators see it if feature is enabled, regular users need the permission too
     if (item.title === "Approve Leave") {
-      return enabledFeatures.includes("absence_management") && (currentMembership?.canApproveLeaveRequests || false);
+      return enabledFeatures.includes("absence_management") && (isCreator || currentMembership?.canApproveLeaveRequests || false);
     }
 
     // All other items are visible
