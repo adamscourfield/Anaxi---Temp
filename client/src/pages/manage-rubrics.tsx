@@ -1,7 +1,8 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Upload, Pencil, Trash2 } from "lucide-react";
+import { Plus, Upload, Pencil, Trash2, Calendar, ArrowRight } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Accordion,
   AccordionContent,
@@ -50,9 +51,18 @@ const categoryFormSchema = z.object({
 
 type CategoryFormValues = z.infer<typeof categoryFormSchema>;
 
+const rollForwardFormSchema = z.object({
+  academicYear: z.string().min(1, "Academic year is required"),
+  activationDate: z.string().optional(),
+});
+
+type RollForwardFormValues = z.infer<typeof rollForwardFormSchema>;
+
 export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
+  const [rollForwardDialogOpen, setRollForwardDialogOpen] = useState(false);
+  const [selectedRubricId, setSelectedRubricId] = useState<string | null>(null);
   const [editingHabit, setEditingHabit] = useState<{
     habitId: string;
     categoryId: string;
@@ -87,8 +97,18 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     },
   });
 
-  // Get the first rubric (or create one if none exists)
-  const currentRubric = rubrics?.[0];
+  // Get the selected rubric or the first active rubric
+  const currentRubric = selectedRubricId 
+    ? rubrics?.find(r => r.id === selectedRubricId)
+    : rubrics?.find(r => r.status === "active") || rubrics?.[0];
+  
+  // Auto-select rubric when rubrics load
+  useEffect(() => {
+    if (rubrics && rubrics.length > 0 && !selectedRubricId) {
+      const activeRubric = rubrics.find(r => r.status === "active");
+      setSelectedRubricId(activeRubric?.id || rubrics[0].id);
+    }
+  }, [rubrics, selectedRubricId]);
   
   // Auto-create default rubric if none exists
   useEffect(() => {
@@ -195,6 +215,35 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     },
   });
 
+  // Roll forward rubric mutation
+  const rollForwardMutation = useMutation({
+    mutationFn: async (data: RollForwardFormValues) => {
+      if (!currentSchool?.id || !currentRubric?.id) throw new Error("No school or rubric selected");
+      const response = await apiRequest('POST', `/api/schools/${currentSchool.id}/rubrics/roll-forward`, {
+        sourceRubricId: currentRubric.id,
+        academicYear: data.academicYear,
+        activationDate: data.activationDate || null,
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/schools', currentSchool?.id, 'rubrics'] });
+      toast({
+        title: "Rubric rolled forward",
+        description: "New rubric created for the academic year",
+      });
+      setRollForwardDialogOpen(false);
+      rollForwardForm.reset();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to roll forward rubric",
+        variant: "destructive",
+      });
+    },
+  });
+
   const form = useForm<HabitFormValues>({
     resolver: zodResolver(habitFormSchema),
     defaultValues: {
@@ -206,6 +255,14 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     resolver: zodResolver(categoryFormSchema),
     defaultValues: {
       name: "",
+    },
+  });
+
+  const rollForwardForm = useForm<RollForwardFormValues>({
+    resolver: zodResolver(rollForwardFormSchema),
+    defaultValues: {
+      academicYear: "",
+      activationDate: "",
     },
   });
 
@@ -325,18 +382,44 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
 
   const isLoading = rubricsLoading || categoriesLoading;
 
+  const isArchived = currentRubric?.status === "archived";
+
   return (
     <div className={isEmbedded ? "space-y-6" : "p-6 space-y-8"}>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         {!isEmbedded && (
-          <div>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold tracking-tight">Manage Rubrics</h1>
             <p className="text-muted-foreground mt-1">
               Configure observation criteria for your school
             </p>
           </div>
         )}
-        <div className={`flex gap-2 ${isEmbedded ? "ml-auto" : ""}`}>
+        
+        {/* Rubric Switcher */}
+        {rubrics && rubrics.length > 1 && (
+          <div className="flex items-center gap-2">
+            <Select value={selectedRubricId || ""} onValueChange={setSelectedRubricId}>
+              <SelectTrigger className="w-[280px]" data-testid="select-rubric">
+                <SelectValue placeholder="Select academic year" />
+              </SelectTrigger>
+              <SelectContent>
+                {rubrics.map((rubric) => (
+                  <SelectItem key={rubric.id} value={rubric.id} data-testid={`select-rubric-${rubric.id}`}>
+                    <div className="flex items-center gap-2">
+                      <span>{rubric.academicYear || rubric.name}</span>
+                      {rubric.status === "active" && <Badge variant="default" className="text-xs">Active</Badge>}
+                      {rubric.status === "scheduled" && <Badge variant="secondary" className="text-xs">Scheduled</Badge>}
+                      {rubric.status === "archived" && <Badge variant="outline" className="text-xs">Archived</Badge>}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        <div className={`flex gap-2 ${isEmbedded && !rubrics ? "ml-auto" : ""}`}>
           <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-import-rubric">
@@ -383,7 +466,17 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
               </DialogFooter>
             </DialogContent>
           </Dialog>
-          <Button onClick={handleAddCategory} data-testid="button-add-category">
+          {!isArchived && (
+            <Button 
+              variant="outline" 
+              onClick={() => setRollForwardDialogOpen(true)} 
+              data-testid="button-roll-forward"
+            >
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Roll Forward
+            </Button>
+          )}
+          <Button onClick={handleAddCategory} disabled={isArchived} data-testid="button-add-category">
             <Plus className="h-4 w-4 mr-2" />
             Add Category
           </Button>
@@ -441,6 +534,7 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
                               variant="ghost"
                               className="h-7 w-7"
                               onClick={() => handleEditHabit(habit.id, category.id, habit.description)}
+                              disabled={isArchived}
                               data-testid={`button-edit-habit-${category.id}-${idx}`}
                             >
                               <Pencil className="h-3 w-3" />
@@ -450,6 +544,7 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
                               variant="ghost"
                               className="h-7 w-7"
                               onClick={() => handleDeleteHabit(habit.id)}
+                              disabled={isArchived}
                               data-testid={`button-delete-habit-${category.id}-${idx}`}
                             >
                               <Trash2 className="h-3 w-3" />
@@ -461,6 +556,7 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
                         variant="outline"
                         className="w-full mt-4"
                         onClick={() => handleAddHabit(category.id)}
+                        disabled={isArchived}
                         data-testid={`button-add-habit-${category.id}`}
                       >
                         <Plus className="h-4 w-4 mr-2" />
@@ -574,6 +670,75 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
                   {createHabitMutation.isPending || updateHabitMutation.isPending 
                     ? (editingHabit ? "Updating..." : "Adding...")
                     : (editingHabit ? "Update Habit" : "Add Habit")}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rollForwardDialogOpen} onOpenChange={setRollForwardDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Roll Forward Rubric</DialogTitle>
+            <DialogDescription>
+              Create a new rubric for the next academic year based on the current one
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...rollForwardForm}>
+            <form onSubmit={rollForwardForm.handleSubmit((data) => rollForwardMutation.mutate(data))} className="space-y-4">
+              <FormField
+                control={rollForwardForm.control}
+                name="academicYear"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Academic Year</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., 2025-2026"
+                        data-testid="input-academic-year"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={rollForwardForm.control}
+                name="activationDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Activation Date (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        data-testid="input-activation-date"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-sm text-muted-foreground">
+                      If set, the rubric will be scheduled for activation on this date. Leave empty to activate immediately.
+                    </p>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={() => setRollForwardDialogOpen(false)} 
+                  data-testid="button-cancel-roll-forward"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit-roll-forward"
+                  disabled={rollForwardMutation.isPending}
+                >
+                  {rollForwardMutation.isPending ? "Creating..." : "Roll Forward"}
                 </Button>
               </DialogFooter>
             </form>

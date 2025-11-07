@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, index } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -98,7 +98,12 @@ export const rubrics = pgTable("rubrics", {
   academicYear: varchar("academic_year"),
   activationDate: timestamp("activation_date"),
   status: varchar("status").notNull().default("active"),
-});
+}, (table) => ({
+  // Ensure only one active rubric per school
+  uniqueActiveRubric: uniqueIndex("unique_active_rubric_per_school")
+    .on(table.schoolId)
+    .where(sql`${table.status} = 'active'`),
+}));
 
 export const insertRubricSchema = createInsertSchema(rubrics).omit({ id: true });
 export type InsertRubric = z.infer<typeof insertRubricSchema>;

@@ -2950,6 +2950,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Roll forward rubric to new academic year
+  app.post("/api/schools/:schoolId/rubrics/roll-forward", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+      const { sourceRubricId, academicYear, activationDate } = req.body;
+
+      // Only Admin or Creator can roll forward rubrics
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can roll forward rubrics" });
+        }
+      }
+
+      // Validate required fields
+      if (!sourceRubricId || !academicYear) {
+        return res.status(400).json({ message: "sourceRubricId and academicYear are required" });
+      }
+
+      // Get source rubric
+      const sourceRubric = await storage.getRubric(sourceRubricId);
+      if (!sourceRubric) {
+        return res.status(404).json({ message: "Source rubric not found" });
+      }
+
+      if (sourceRubric.schoolId !== schoolId) {
+        return res.status(403).json({ message: "Source rubric does not belong to this school" });
+      }
+
+      // Determine status based on activation date
+      const now = new Date();
+      const activationDateObj = activationDate ? new Date(activationDate) : null;
+      const status = !activationDateObj || activationDateObj <= now ? "active" : "scheduled";
+
+      // If activating immediately, archive any currently active rubrics
+      if (status === "active") {
+        const allRubrics = await storage.getRubricsBySchool(schoolId);
+        for (const r of allRubrics) {
+          if (r.status === "active") {
+            await storage.updateRubric(r.id, { status: "archived" });
+          }
+        }
+      }
+
+      // Create new rubric
+      const newRubric = await storage.createRubric({
+        schoolId,
+        name: sourceRubric.name,
+        academicYear,
+        activationDate: activationDateObj,
+        status,
+      });
+
+      // Get all categories for source rubric
+      const sourceCategories = await storage.getCategoriesByRubric(sourceRubricId);
+
+      // Copy categories and habits
+      for (const sourceCategory of sourceCategories) {
+        const newCategory = await storage.createCategory({
+          rubricId: newRubric.id,
+          name: sourceCategory.name,
+          order: sourceCategory.order,
+        });
+
+        // Get habits for this category
+        const sourceHabits = await storage.getHabitsByCategory(sourceCategory.id);
+        
+        // Copy each habit
+        for (const sourceHabit of sourceHabits) {
+          await storage.createHabit({
+            categoryId: newCategory.id,
+            text: sourceHabit.text,
+            description: sourceHabit.description,
+            order: sourceHabit.order,
+          });
+        }
+      }
+
+      res.status(201).json(newRubric);
+    } catch (error) {
+      console.error("Error rolling forward rubric:", error);
+      res.status(500).json({ message: "Failed to roll forward rubric" });
+    }
+  });
+
+  // Get rubrics pending activation for a school
+  app.get("/api/schools/:schoolId/rubrics/pending-activation", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+
+      // Only Admin or Creator can check pending activations
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can check pending activations" });
+        }
+      }
+
+      // Get all rubrics for the school
+      const allRubrics = await storage.getRubricsBySchool(schoolId);
+      
+      // Filter for scheduled rubrics where activation date is today or in the past
+      const now = new Date();
+      const pendingRubrics = allRubrics.filter(rubric => 
+        rubric.status === "scheduled" && 
+        rubric.activationDate && 
+        new Date(rubric.activationDate) <= now
+      );
+
+      res.json(pendingRubrics);
+    } catch (error) {
+      console.error("Error fetching pending activations:", error);
+      res.status(500).json({ message: "Failed to fetch pending activations" });
+    }
+  });
+
+  // Activate a scheduled rubric
+  app.patch("/api/rubrics/:rubricId/activate", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { rubricId } = req.params;
+
+      // Get rubric to check school access
+      const rubric = await storage.getRubric(rubricId);
+      if (!rubric) {
+        return res.status(404).json({ message: "Rubric not found" });
+      }
+
+      // Only Admin or Creator can activate rubrics
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, rubric.schoolId);
+        if (!membership || membership.role !== "Admin") {
+          return res.status(403).json({ message: "Forbidden: Only Admins or Creators can activate rubrics" });
+        }
+      }
+
+      // Get all rubrics for this school
+      const allRubrics = await storage.getRubricsBySchool(rubric.schoolId);
+
+      // Archive any currently active rubrics
+      for (const r of allRubrics) {
+        if (r.id !== rubricId && r.status === "active") {
+          await storage.updateRubric(r.id, { status: "archived" });
+        }
+      }
+
+      // Activate this rubric
+      const updatedRubric = await storage.updateRubric(rubricId, { status: "active" });
+
+      res.json(updatedRubric);
+    } catch (error) {
+      console.error("Error activating rubric:", error);
+      res.status(500).json({ message: "Failed to activate rubric" });
+    }
+  });
+
   // Get categories with habits for a rubric
   app.get("/api/rubrics/:rubricId/categories", isAuthenticated, async (req: any, res) => {
     try {

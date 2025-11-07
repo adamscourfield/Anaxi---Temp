@@ -28,6 +28,7 @@ import Landing from "@/pages/landing";
 import ForgotPassword from "@/pages/forgot-password";
 import ResetPassword from "@/pages/reset-password";
 import SetPassword from "@/pages/set-password";
+import { RubricActivationModal } from "@/components/rubric-activation-modal";
 
 function Router() {
   return (
@@ -104,6 +105,7 @@ function AppContent() {
           </div>
         </SidebarProvider>
         <Toaster />
+        <RubricActivationModal />
       </TooltipProvider>
     </SchoolProvider>
   );
