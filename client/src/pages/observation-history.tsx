@@ -82,7 +82,7 @@ export default function ObservationHistory() {
   const canExport = isCreator || currentMembership?.role === "Leader" || currentMembership?.role === "Admin";
 
   // Map observations with teacher and observer names
-  const observationsWithNames = observations.map(obs => {
+  const observationsWithNames = observations.map((obs: any) => {
     const teacher = users.find(u => u.id === obs.teacherId);
     const observer = users.find(u => u.id === obs.observerId);
     
@@ -107,6 +107,7 @@ export default function ObservationHistory() {
       teacherInitials,
       observerName,
       categories,
+      classInfo: obs.classInfo || undefined,
     };
   });
 
@@ -127,7 +128,7 @@ export default function ObservationHistory() {
         format(new Date(obs.date), "yyyy-MM-dd"),
         obs.teacherName,
         obs.observerName,
-        obs.classGroup || "",
+        obs.classInfo || "",
         obs.totalScore.toString(),
         obs.totalMaxScore.toString(),
         `${percentage}%`,
@@ -202,7 +203,7 @@ export default function ObservationHistory() {
       observerName,
       date: new Date(observationDetails.date),
       lessonTopic: observationDetails.lessonTopic,
-      classInfo: observationDetails.classGroup,
+      classInfo: observationDetails.classInfo,
       categories: observationDetails.categories || [],
       qualitativeFeedback: observationDetails.qualitativeFeedback,
       totalScore: observationDetails.totalScore,

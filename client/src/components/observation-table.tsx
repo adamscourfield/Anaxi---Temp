@@ -19,7 +19,7 @@ interface ObservationData {
   date: Date;
   totalScore: number;
   totalMaxScore: number;
-  classGroup?: string;
+  classInfo?: string;
   categories?: Array<{ name: string }>;
 }
 
@@ -95,7 +95,7 @@ export function ObservationTable({ observations, onViewDetails }: ObservationTab
                   )}
                 </TableCell>
                 <TableCell data-testid={`cell-class-${obs.id}`}>
-                  {obs.classGroup || <span className="text-muted-foreground">-</span>}
+                  {obs.classInfo || <span className="text-muted-foreground">-</span>}
                 </TableCell>
                 <TableCell>
                   <Button

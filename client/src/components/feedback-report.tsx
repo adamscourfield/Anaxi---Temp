@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle } from "lucide-react";
+import { CheckCircle2, XCircle, FileText, GraduationCap } from "lucide-react";
 import { format } from "date-fns";
 
 interface Habit {
@@ -22,6 +22,9 @@ interface FeedbackReportProps {
   teacherInitials: string;
   observerName: string;
   date: Date;
+  lessonTopic?: string;
+  classInfo?: string;
+  qualitativeFeedback?: string;
   categories: CategoryFeedback[];
   totalScore: number;
   totalMaxScore: number;
@@ -32,6 +35,9 @@ export function FeedbackReport({
   teacherInitials,
   observerName,
   date,
+  lessonTopic,
+  classInfo,
+  qualitativeFeedback,
   categories,
   totalScore,
   totalMaxScore,
@@ -61,6 +67,47 @@ export function FeedbackReport({
           </div>
         </CardHeader>
       </Card>
+
+      {lessonTopic && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Lesson Topic</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm" data-testid="text-lesson-topic">{lessonTopic}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {classInfo && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-base">Class</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm" data-testid="text-class-info">{classInfo}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {qualitativeFeedback && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Feedback</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm whitespace-pre-wrap" data-testid="text-qualitative-feedback">
+              {qualitativeFeedback}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {categories.map((category, idx) => (
         <Card key={idx}>
