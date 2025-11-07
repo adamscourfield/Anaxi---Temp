@@ -95,6 +95,9 @@ export const rubrics = pgTable("rubrics", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   schoolId: varchar("school_id").notNull().references(() => schools.id),
   name: text("name").notNull(),
+  academicYear: varchar("academic_year"),
+  activationDate: timestamp("activation_date"),
+  status: varchar("status").notNull().default("active"),
 });
 
 export const insertRubricSchema = createInsertSchema(rubrics).omit({ id: true });
