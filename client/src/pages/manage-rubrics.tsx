@@ -18,6 +18,16 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -58,10 +68,20 @@ const rollForwardFormSchema = z.object({
 
 type RollForwardFormValues = z.infer<typeof rollForwardFormSchema>;
 
+const createRubricFormSchema = z.object({
+  name: z.string().min(1, "Rubric name is required"),
+  academicYear: z.string().optional(),
+  activationDate: z.string().optional(),
+});
+
+type CreateRubricFormValues = z.infer<typeof createRubricFormSchema>;
+
 export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [rollForwardDialogOpen, setRollForwardDialogOpen] = useState(false);
+  const [createRubricDialogOpen, setCreateRubricDialogOpen] = useState(false);
+  const [deleteCategoryId, setDeleteCategoryId] = useState<string | null>(null);
   const [selectedRubricId, setSelectedRubricId] = useState<string | null>(null);
   const [editingHabit, setEditingHabit] = useState<{
     habitId: string;
@@ -142,7 +162,28 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to create category",
+        description: "Failed to add category",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (categoryId: string) => {
+      await apiRequest('DELETE', `/api/categories/${categoryId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/rubrics', currentRubric?.id, 'categories'] });
+      toast({
+        title: "Category deleted",
+        description: "Category and all its habits have been deleted",
+      });
+      setDeleteCategoryId(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
         variant: "destructive",
       });
     },
@@ -216,6 +257,35 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
   });
 
   // Roll forward rubric mutation
+  const createRubricMutation = useMutation({
+    mutationFn: async (data: CreateRubricFormValues) => {
+      if (!currentSchool?.id) throw new Error("No school selected");
+      const response = await apiRequest('POST', `/api/schools/${currentSchool.id}/rubrics`, {
+        name: data.name,
+        academicYear: data.academicYear || null,
+        activationDate: data.activationDate || null,
+        status: data.activationDate && new Date(data.activationDate) > new Date() ? "scheduled" : "active",
+      });
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/schools', currentSchool?.id, 'rubrics'] });
+      toast({
+        title: "Rubric created",
+        description: "New rubric has been created successfully",
+      });
+      setCreateRubricDialogOpen(false);
+      createRubricForm.reset();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create rubric",
+        variant: "destructive",
+      });
+    },
+  });
+
   const rollForwardMutation = useMutation({
     mutationFn: async (data: RollForwardFormValues) => {
       if (!currentSchool?.id || !currentRubric?.id) throw new Error("No school or rubric selected");
@@ -261,6 +331,15 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
   const rollForwardForm = useForm<RollForwardFormValues>({
     resolver: zodResolver(rollForwardFormSchema),
     defaultValues: {
+      academicYear: "",
+      activationDate: "",
+    },
+  });
+
+  const createRubricForm = useForm<CreateRubricFormValues>({
+    resolver: zodResolver(createRubricFormSchema),
+    defaultValues: {
+      name: "",
       academicYear: "",
       activationDate: "",
     },
@@ -420,6 +499,14 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
         )}
 
         <div className={`flex gap-2 ${isEmbedded && !rubrics ? "ml-auto" : ""}`}>
+          <Button 
+            variant="outline" 
+            onClick={() => setCreateRubricDialogOpen(true)}
+            data-testid="button-create-rubric"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Create New Rubric
+          </Button>
           <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" data-testid="button-import-rubric">
@@ -509,12 +596,24 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
                   value={category.id}
                   data-testid={`accordion-category-${category.id}`}
                 >
-                  <AccordionTrigger>
-                    <div className="flex items-center gap-3">
+                  <AccordionTrigger className="hover:no-underline">
+                    <div className="flex items-center gap-3 flex-1">
                       <span className="font-semibold">{category.name}</span>
                       <Badge variant="secondary" className="text-xs">
                         {category.habits.length} habits
                       </Badge>
+                    </div>
+                    <div
+                      className={`h-7 w-7 mr-2 rounded-md flex items-center justify-center hover-elevate active-elevate-2 ${isArchived ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                      onClick={(e) => {
+                        if (!isArchived) {
+                          e.stopPropagation();
+                          setDeleteCategoryId(category.id);
+                        }
+                      }}
+                      data-testid={`button-delete-category-${category.id}`}
+                    >
+                      <Trash2 className="h-3 w-3" />
                     </div>
                   </AccordionTrigger>
                   <AccordionContent>
@@ -745,6 +844,114 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
           </Form>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={createRubricDialogOpen} onOpenChange={setCreateRubricDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create New Rubric</DialogTitle>
+            <DialogDescription>
+              Create a completely new rubric from scratch
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...createRubricForm}>
+            <form onSubmit={createRubricForm.handleSubmit((data) => createRubricMutation.mutate(data))} className="space-y-4">
+              <FormField
+                control={createRubricForm.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Rubric Name</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., Teaching Standards"
+                        data-testid="input-rubric-name"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={createRubricForm.control}
+                name="academicYear"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Academic Year (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="e.g., 2024-2025"
+                        data-testid="input-rubric-academic-year"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={createRubricForm.control}
+                name="activationDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Activation Date (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        data-testid="input-rubric-activation-date"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                    <p className="text-sm text-muted-foreground">
+                      If set, the rubric will be scheduled for activation on this date. Leave empty to activate immediately.
+                    </p>
+                  </FormItem>
+                )}
+              />
+              <DialogFooter>
+                <Button 
+                  type="button" 
+                  variant="ghost" 
+                  onClick={() => setCreateRubricDialogOpen(false)} 
+                  data-testid="button-cancel-create-rubric"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  data-testid="button-submit-create-rubric"
+                  disabled={createRubricMutation.isPending}
+                >
+                  {createRubricMutation.isPending ? "Creating..." : "Create Rubric"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deleteCategoryId} onOpenChange={(open) => !open && setDeleteCategoryId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this category? This will permanently delete the category and all its habits. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-delete-category">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteCategoryId && deleteCategoryMutation.mutate(deleteCategoryId)}
+              disabled={deleteCategoryMutation.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              data-testid="button-confirm-delete-category"
+            >
+              {deleteCategoryMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

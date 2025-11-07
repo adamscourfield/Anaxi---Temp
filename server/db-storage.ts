@@ -561,8 +561,17 @@ export class DbStorage implements IStorage {
   }
 
   async deleteCategory(id: string): Promise<boolean> {
-    const result = await db.delete(categories).where(eq(categories.id, id));
-    return result.rowCount !== null && result.rowCount > 0;
+    // Use transaction to ensure atomicity
+    const result = await db.transaction(async (tx) => {
+      // First delete all habits associated with this category
+      await tx.delete(habits).where(eq(habits.categoryId, id));
+      
+      // Then delete the category itself
+      const deleteResult = await tx.delete(categories).where(eq(categories.id, id));
+      return deleteResult.rowCount !== null && deleteResult.rowCount > 0;
+    });
+    
+    return result;
   }
 
   // Habits

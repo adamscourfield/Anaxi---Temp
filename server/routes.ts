@@ -2939,6 +2939,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const validated = insertRubricSchema.parse({ ...req.body, schoolId });
+      
+      // If creating an active rubric, archive any currently active rubrics
+      if (validated.status === "active") {
+        const allRubrics = await storage.getRubricsBySchool(schoolId);
+        for (const r of allRubrics) {
+          if (r.status === "active") {
+            await storage.updateRubric(r.id, { status: "archived" });
+          }
+        }
+      }
+      
       const rubric = await storage.createRubric(validated);
       res.status(201).json(rubric);
     } catch (error) {
