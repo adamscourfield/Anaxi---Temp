@@ -52,6 +52,9 @@ export default function BehaviourManagementPage() {
   const [csvData, setCsvData] = useState<{ headers: string[]; rows: string[][]; mappings: Record<string, string> } | null>(null);
   const [isCsvValid, setIsCsvValid] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [detailsDialogTitle, setDetailsDialogTitle] = useState("");
+  const [filteredDetailsOncalls, setFilteredDetailsOncalls] = useState<Array<Oncall & { student?: Student, requestedBy?: any, completedBy?: any }>>([]);
 
   // Get user's memberships to check permissions (even for Creators)
   const { data: userMemberships = [], isLoading: isLoadingMemberships } = useQuery<Array<SchoolMembership & { school?: any }>>({
@@ -338,6 +341,56 @@ export default function BehaviourManagementPage() {
     const dateObj = typeof date === "string" ? new Date(date) : date;
     const londonTime = toZonedTime(dateObj, "Europe/London");
     return format(londonTime, "dd/MM/yyyy HH:mm");
+  };
+
+  // Handler to show on-calls for a specific teacher
+  const showTeacherOncalls = (teacherName: string, userId: string) => {
+    const filtered = oncalls
+      .filter(o => o.completedById === userId && o.status === "completed")
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setFilteredDetailsOncalls(filtered);
+    setDetailsDialogTitle(`On-Calls Completed by ${teacherName}`);
+    setDetailsDialogOpen(true);
+  };
+
+  // Handler to show on-calls for a specific student
+  const showStudentOncalls = (studentName: string, studentId: string) => {
+    const filtered = oncalls
+      .filter(o => o.studentId === studentId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setFilteredDetailsOncalls(filtered);
+    setDetailsDialogTitle(`On-Calls for ${studentName}`);
+    setDetailsDialogOpen(true);
+  };
+
+  // Handler to show on-calls for a specific hour
+  const showHourOncalls = (hour: number) => {
+    const filtered = oncalls
+      .filter(o => {
+        const createdDate = new Date(o.createdAt);
+        const londonDate = toZonedTime(createdDate, 'Europe/London');
+        return londonDate.getHours() === hour;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setFilteredDetailsOncalls(filtered);
+    setDetailsDialogTitle(`On-Calls at ${hour}:00`);
+    setDetailsDialogOpen(true);
+  };
+
+  // Handler to show on-calls for a specific day of week
+  const showDayOncalls = (dayName: string) => {
+    const filtered = oncalls
+      .filter(o => {
+        const createdDate = new Date(o.createdAt);
+        const londonDate = toZonedTime(createdDate, 'Europe/London');
+        const dayIndex = londonDate.getDay();
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        return dayNames[dayIndex] === dayName;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    setFilteredDetailsOncalls(filtered);
+    setDetailsDialogTitle(`On-Calls on ${dayName}`);
+    setDetailsDialogOpen(true);
   };
 
   // Show loading while checking permissions
@@ -844,7 +897,12 @@ export default function BehaviourManagementPage() {
                           </TableHeader>
                           <TableBody>
                             {analyticsData.byCompleter.slice(0, 10).map((teacher, index) => (
-                              <TableRow key={teacher.userId || index} data-testid={`row-teacher-${index}`}>
+                              <TableRow 
+                                key={teacher.userId || index} 
+                                data-testid={`row-teacher-${index}`}
+                                className="cursor-pointer hover-elevate"
+                                onClick={() => showTeacherOncalls(teacher.name, teacher.userId)}
+                              >
                                 <TableCell className="font-medium">{teacher.name}</TableCell>
                                 <TableCell className="text-right">{teacher.count}</TableCell>
                               </TableRow>
@@ -880,7 +938,12 @@ export default function BehaviourManagementPage() {
                             {analyticsData.byStudent.slice(0, 10).map((student, index) => {
                               const total = student.open + student.completed;
                               return (
-                                <TableRow key={index} data-testid={`row-student-${index}`}>
+                                <TableRow 
+                                  key={index} 
+                                  data-testid={`row-student-${index}`}
+                                  className="cursor-pointer hover-elevate"
+                                  onClick={() => showStudentOncalls(student.name, student.studentId)}
+                                >
                                   <TableCell className="font-medium">{student.name}</TableCell>
                                   <TableCell className="text-right">{student.open}</TableCell>
                                   <TableCell className="text-right">{student.completed}</TableCell>
@@ -919,10 +982,11 @@ export default function BehaviourManagementPage() {
                                   <div className="w-full flex items-end justify-center h-full">
                                     {count > 0 && (
                                       <div
-                                        className="w-full bg-primary rounded-t min-h-[2px]"
+                                        className="w-full bg-primary rounded-t min-h-[2px] cursor-pointer hover-elevate"
                                         style={{ height: `${heightPercent}%` }}
                                         title={`${hour}:00 - ${count} on-calls`}
                                         data-testid={`bar-hour-${hour}`}
+                                        onClick={() => showHourOncalls(hour)}
                                       />
                                     )}
                                   </div>
@@ -962,10 +1026,11 @@ export default function BehaviourManagementPage() {
                                   <div className="w-full flex items-end justify-center h-full">
                                     {count > 0 && (
                                       <div
-                                        className="w-full bg-primary rounded-t min-h-[2px]"
+                                        className="w-full bg-primary rounded-t min-h-[2px] cursor-pointer hover-elevate"
                                         style={{ height: `${heightPercent}%` }}
                                         title={`${day} - ${count} on-calls`}
                                         data-testid={`bar-day-${day.toLowerCase()}`}
+                                        onClick={() => showDayOncalls(day)}
                                       />
                                     )}
                                   </div>
@@ -984,6 +1049,64 @@ export default function BehaviourManagementPage() {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Details Dialog */}
+        <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+          <DialogContent className="max-w-4xl max-h-[80vh]">
+            <DialogHeader>
+              <DialogTitle>{detailsDialogTitle}</DialogTitle>
+              <DialogDescription>
+                {filteredDetailsOncalls.length} on-call{filteredDetailsOncalls.length !== 1 ? "s" : ""} found
+              </DialogDescription>
+            </DialogHeader>
+            <div className="overflow-auto max-h-[60vh]" data-testid="dialog-oncall-details">
+              {filteredDetailsOncalls.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  No on-calls found for this selection
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Created At</TableHead>
+                      <TableHead>Student</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Requested By</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Completed By</TableHead>
+                      <TableHead>Completed At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredDetailsOncalls.map((oncall) => {
+                      const student = students.find(s => s.id === oncall.studentId);
+                      const requestedBy = allMemberships.find(m => m.userId === oncall.requestedById);
+                      const completedBy = oncall.completedById ? allMemberships.find(m => m.userId === oncall.completedById) : null;
+                      
+                      return (
+                        <TableRow key={oncall.id} data-testid={`detail-oncall-${oncall.id}`}>
+                          <TableCell className="text-sm">{formatDateTime(oncall.createdAt)}</TableCell>
+                          <TableCell className="font-medium">{student?.name || "Unknown"}</TableCell>
+                          <TableCell>{oncall.location}</TableCell>
+                          <TableCell className="max-w-xs truncate" title={oncall.description}>{oncall.description}</TableCell>
+                          <TableCell>{requestedBy?.user?.name || "Unknown"}</TableCell>
+                          <TableCell>
+                            <Badge variant={oncall.status === "completed" ? "default" : "secondary"}>
+                              {oncall.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{completedBy?.user?.name || "-"}</TableCell>
+                          <TableCell className="text-sm">{oncall.completedAt ? formatDateTime(oncall.completedAt) : "-"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

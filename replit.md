@@ -87,6 +87,12 @@ A comprehensive incident tracking system for schools with real-time notification
   - **Students with Most On-Calls**: Table with open/completed/total counts per student
   - **Time-of-Day Distribution**: Hourly histogram (0-23) showing when incidents occur
   - **Day-of-Week Distribution**: Weekly pattern analysis (Monday-Sunday)
+- **Interactive Drill-Down**: All analytics elements are clickable to view detailed on-call information
+  - Teacher rows: Show all completed on-calls by that teacher
+  - Student rows: Show all on-calls for that student
+  - Time chart bars: Show on-calls that occurred during that hour
+  - Day chart bars: Show on-calls that occurred on that day
+  - Details displayed in a dialog with full incident information, sorted by most recent first
 - **Summary Statistics**: Total, open, and completed on-call counts
 
 #### Permission Management UI
