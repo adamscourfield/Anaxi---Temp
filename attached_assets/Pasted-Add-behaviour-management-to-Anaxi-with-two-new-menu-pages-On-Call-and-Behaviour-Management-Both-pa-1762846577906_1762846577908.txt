@@ -1,0 +1,194 @@
+Add behaviour management to Anaxi with two new menu pages: On-Call and Behaviour Management. Both pages must be fully data-driven (no hard-coded values) and scoped per school/tenant.
+
+Page creation & visibility
+
+Create two pages:
+
+On-Call
+
+Behaviour Management
+
+Show these pages only if the current school has the Behaviour feature enabled (same mechanism as “Meeting” / “Absence Management” feature flags).
+
+On-Call page is visible to all users in schools with Behaviour enabled.
+
+Behaviour Management page is visible only to users who have Behaviour permission and whose school has Behaviour enabled.
+
+Data model (Bubble “Data types”)
+
+School
+
+name (text)
+
+features (list of option set values, includes “Behaviour”), or boolean has_behaviour (yes/no)
+
+User
+
+school (School)
+
+permissions (list of option set values) — include “Behaviour”
+
+Student
+
+school (School)
+
+name (text)
+
+send (yes/no)
+
+pp (yes/no)
+
+is_archived (yes/no, default no)
+
+OnCall
+
+school (School)
+
+status (text or option set: open, completed)
+
+student (Student) — nullable; retain record if student later archived
+
+location (text)
+
+description (text)
+
+requested_by (User)
+
+completed_by (User) — nullable
+
+completion_notes (text) — optional
+
+created_at (date/time)
+
+completed_at (date/time) — optional
+
+Privacy rules: Users can only access records where thing's school = current user's school. Behaviour page requires user permission “Behaviour”.
+
+On-Call page (all users in Behaviour-enabled schools)
+
+Form fields:
+
+Student (searchable dropdown over non-archived Students in the user’s school)
+
+Location (text)
+
+Description (short text)
+
+Submit button
+
+Submit workflow:
+
+Create OnCall (status=open, set school/student/location/description/requested_by).
+
+Notify all Users in the same school with Behaviour permission via email.
+
+Email includes: student name, location, description, requesting teacher, timestamp.
+
+Include a “Mark as complete” button linking to Behaviour Management page with URL param oncall_id=[OnCall unique id].
+
+Confirmation toast/message on success.
+
+Behaviour Management page (Behaviour-permission users only)
+A. Student management
+
+View table of Students (name, SEND, PP, active/archived).
+
+Add student manually (name, SEND yes/no, PP yes/no).
+
+CSV upload to add/update students:
+
+Columns: name, send (TRUE/FALSE), pp (TRUE/FALSE)
+
+Uploaded students are attached to current user’s school.
+
+Duplicate handling: if a non-archived student with same (school + name) exists, update SEND/PP; else create new.
+
+Archive/unarchive instead of hard delete:
+
+Archiving must not delete related OnCall records.
+
+B. On-Call management
+
+Table of OnCall records for the school:
+
+Columns: created_at, student, location, description, requested_by, status, completed_by, completed_at.
+
+Row actions:
+
+Mark as complete (opens a modal with “Notes” textarea). On save: set status=completed, completion_notes, completed_by, completed_at.
+
+If the page is opened with oncall_id URL param:
+
+Auto-select that OnCall row and open the completion modal.
+
+C. Analytics (filterable)
+
+Filters: Week / Month / Year (also allow custom date range), school-scoped, timezone Europe/London.
+
+Cards/tables:
+
+On-Calls by teacher (completers): count of completed OnCalls grouped by completed_by.
+
+Students with most On-Calls: count of OnCalls grouped by student (open + completed, with a toggle to include only open or only completed).
+
+Time-of-day distribution: histogram by hour (from created_at).
+
+Day-of-week distribution: counts by weekday (from created_at).
+
+All charts/tables must recompute from database using the filters (no hard-coded datasets).
+
+Permissions logic
+
+Behaviour page access: current user's permissions contains Behaviour and current user's school has Behaviour.
+
+A user can only be granted Behaviour permission if their school has Behaviour enabled (enforce in UI + in any workflow that mutates permissions).
+
+On-Call view/edit: Behaviour users can see all OnCalls for their school; non-Behaviour users cannot see the Behaviour page.
+
+On-Call creation: any user in a Behaviour-enabled school can submit.
+
+Notifications
+
+Recipient set: all users in the same school with Behaviour permission.
+
+Email content:
+
+Subject: “On-Call raised: [Student] at [Location]”
+
+Body: student, location, description, requested_by (name), created_at (school timezone), and a CTA: Mark as complete linking to Behaviour Management with oncall_id param.
+
+If email provider supports it, include a signed URL or at least the OnCall id; completion still requires Behaviour permission.
+
+Non-functional & guardrails
+
+Multi-tenant safety: enforce school scoping in privacy rules and all searches.
+
+No hard-coding: page visibility, menus, filters, and lists must pull from database/option sets.
+
+Auditability: never delete OnCall rows; use status + timestamps. Students use is_archived instead of delete.
+
+Performance: paginate tables; add server-side constraints (school, date range, status).
+
+Timezones: store UTC; display/aggregate using Europe/London for analytics.
+
+Accessibility/UX: searchable student selector; empty states; success/error toasts.
+
+Acceptance criteria (checklist)
+
+ Two menu items created; only appear when school has Behaviour enabled.
+
+ On-Call page visible to all users in Behaviour-enabled schools; form creates an OnCall and sends email to Behaviour users in that school.
+
+ Email contains details and a working “Mark as complete” deep link (oncall_id).
+
+ Behaviour Management page restricted to Behaviour-permission users; deep link opens the correct completion modal.
+
+ Student CRUD with archive (not delete); CSV import works and is school-scoped; duplicates update.
+
+ On-Call table shows all school OnCalls; completion flow records notes, completed_by, completed_at.
+
+ Analytics render correctly with Week/Month/Year filters and Europe/London timezone.
+
+ No hard-coded values; all lists and visibility driven by database and feature flags.
+
+ Privacy rules prevent cross-school access.
