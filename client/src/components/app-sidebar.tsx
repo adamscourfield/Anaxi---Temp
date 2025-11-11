@@ -8,6 +8,8 @@ import {
   Settings,
   Calendar,
   CheckSquare,
+  AlertCircle,
+  ShieldAlert,
 } from "lucide-react";
 import {
   Sidebar,
@@ -67,6 +69,18 @@ const menuItems = [
     color: "info",
   },
   {
+    title: "On-Call",
+    url: "/on-call",
+    icon: AlertCircle,
+    color: "info",
+  },
+  {
+    title: "Behaviour Management",
+    url: "/behaviour-management",
+    icon: ShieldAlert,
+    color: "teal",
+  },
+  {
     title: "App Management",
     url: "/management",
     icon: Settings,
@@ -117,7 +131,7 @@ export function AppSidebar() {
     // When currentSchool is null/loading, hide feature-gated items
     if (!currentSchool) {
       // Hide feature-specific items when loading
-      if (item.title === "Meetings" || item.title === "Request Leave" || item.title === "Approve Leave") {
+      if (item.title === "Meetings" || item.title === "Request Leave" || item.title === "Approve Leave" || item.title === "On-Call" || item.title === "Behaviour Management") {
         return false;
       }
       return true;
@@ -139,6 +153,16 @@ export function AppSidebar() {
     // Creators see it if feature is enabled, regular users need the permission too
     if (item.title === "Approve Leave") {
       return enabledFeatures.includes("absence_management") && (isCreator || currentMembership?.canApproveLeaveRequests || false);
+    }
+
+    // On-Call is always visible (all users can raise on-calls)
+    if (item.title === "On-Call") {
+      return true;
+    }
+
+    // Behaviour Management requires behaviour management permission
+    if (item.title === "Behaviour Management") {
+      return isCreator || currentMembership?.canManageBehaviour || false;
     }
 
     // All other items are visible
