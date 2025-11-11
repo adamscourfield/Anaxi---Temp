@@ -4,6 +4,7 @@ import { z } from "zod";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useSchool } from "@/hooks/use-school";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -24,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, ShieldX } from "lucide-react";
 
 const oncallFormSchema = z.object({
   studentId: z.string().min(1, "Please select a student"),
@@ -36,6 +37,7 @@ type OncallFormValues = z.infer<typeof oncallFormSchema>;
 
 export default function OnCallPage() {
   const { school } = useSchool();
+  const { user, membership } = useAuth();
   const { toast } = useToast();
 
   const form = useForm<OncallFormValues>({
@@ -82,8 +84,34 @@ export default function OnCallPage() {
     createOncallMutation.mutate(data);
   };
 
-  if (!school) {
-    return <div className="p-8">Loading school data...</div>;
+  if (!school || !user) {
+    return <div className="p-8">Loading...</div>;
+  }
+
+  // Check if school has behaviour feature enabled
+  const hasBehaviourFeature = school.enabled_features?.includes("behaviour");
+  
+  // Check if user has access to this school (Creator has access to all schools)
+  const hasSchoolAccess = user.global_role === "Creator" || membership?.schoolId === school.id;
+
+  if (!hasBehaviourFeature || !hasSchoolAccess) {
+    return (
+      <div className="h-full overflow-auto p-8">
+        <div className="max-w-2xl mx-auto">
+          <Card>
+            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+              <ShieldX className="h-16 w-16 text-muted-foreground mb-4" />
+              <h2 className="text-2xl font-semibold mb-2">Access Restricted</h2>
+              <p className="text-muted-foreground">
+                {!hasBehaviourFeature 
+                  ? "Behaviour management is not enabled for this school."
+                  : "You don't have access to this school."}
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
   }
 
   return (

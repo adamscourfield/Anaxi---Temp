@@ -18,8 +18,10 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { format } from "date-fns";
-import { Archive, ArchiveRestore, Plus, Upload, AlertCircle } from "lucide-react";
+import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
+import { Archive, ArchiveRestore, Plus, Upload, AlertCircle, ShieldX } from "lucide-react";
+import { useMemo } from "react";
 import type { Student, Oncall, SchoolMembership } from "@shared/schema";
 
 const addStudentSchema = z.object({
@@ -46,6 +48,7 @@ export default function BehaviourManagementPage() {
   const [completeOncallDialogOpen, setCompleteOncallDialogOpen] = useState(false);
   const [selectedOncallId, setSelectedOncallId] = useState<string | null>(null);
   const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [dateRange, setDateRange] = useState<"week" | "month" | "year" | "custom">("week");
 
   // Get user's memberships to check permissions
   const { data: userMemberships = [] } = useQuery<Array<SchoolMembership & { school?: any }>>({
@@ -55,6 +58,9 @@ export default function BehaviourManagementPage() {
 
   const currentMembership = userMemberships.find(m => m.schoolId === currentSchoolId);
   const canManageBehaviour = isCreator || currentMembership?.canManageBehaviour || false;
+  
+  // Check if school has behaviour feature enabled
+  const hasBehaviourFeature = currentSchool?.enabled_features?.includes("behaviour") || false;
 
   // Handle deep linking from URL parameter
   useEffect(() => {
@@ -77,6 +83,55 @@ export default function BehaviourManagementPage() {
   const { data: oncalls = [], isLoading: isLoadingOncalls } = useQuery<Array<Oncall & { student?: Student, requestedBy?: any, completedBy?: any }>>({
     queryKey: ["/api/schools", currentSchoolId, "oncalls"],
     enabled: !!currentSchoolId && canManageBehaviour,
+  });
+
+  // Calculate date range for analytics using Europe/London timezone
+  const { startDate, endDate } = useMemo(() => {
+    const timezone = "Europe/London";
+    const now = new Date();
+    const londonNow = toZonedTime(now, timezone);
+    
+    let daysToSubtract: number;
+    switch (dateRange) {
+      case "week":
+        daysToSubtract = 7;
+        break;
+      case "month":
+      case "custom": // For now, custom uses month logic
+        daysToSubtract = 30;
+        break;
+      case "year":
+        daysToSubtract = 365;
+        break;
+      default:
+        daysToSubtract = 7;
+    }
+    
+    const start = startOfDay(subDays(londonNow, daysToSubtract));
+    const end = endOfDay(londonNow);
+    
+    // Convert back to UTC for API
+    const startUTC = fromZonedTime(start, timezone);
+    const endUTC = fromZonedTime(end, timezone);
+    
+    return {
+      startDate: startUTC.toISOString(),
+      endDate: endUTC.toISOString(),
+    };
+  }, [dateRange]);
+
+  // Fetch analytics data
+  const { data: analyticsData, isLoading: isLoadingAnalytics } = useQuery<{
+    byCompleter: Array<{ name: string; count: number; userId: string }>;
+    byStudent: Array<{ name: string; open: number; completed: number }>;
+    timeOfDay: Array<{ hour: number; count: number }>;
+    dayOfWeek: Array<{ day: string; count: number }>;
+    totalOncalls: number;
+    openOncalls: number;
+    completedOncalls: number;
+  }>({
+    queryKey: ["/api/schools", currentSchoolId, "oncalls", "analytics", { startDate, endDate }],
+    enabled: !!currentSchoolId && canManageBehaviour && activeTab === "analytics",
   });
 
   // Form for adding student
@@ -258,22 +313,30 @@ export default function BehaviourManagementPage() {
 
   const formatDateTime = (date: Date | string) => {
     const dateObj = typeof date === "string" ? new Date(date) : date;
-    return format(dateObj, "dd/MM/yyyy HH:mm");
+    const londonTime = utcToZonedTime(dateObj, "Europe/London");
+    return format(londonTime, "dd/MM/yyyy HH:mm");
   };
 
-  if (!canManageBehaviour) {
+  if (!hasBehaviourFeature || !canManageBehaviour) {
     return (
       <div className="h-full flex items-center justify-center p-8">
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>Access Restricted</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <ShieldX className="h-5 w-5" />
+              Access Restricted
+            </CardTitle>
             <CardDescription>
-              You do not have permission to access the Behaviour Management page.
+              {!hasBehaviourFeature 
+                ? "Behaviour management is not enabled for this school."
+                : "You do not have permission to access the Behaviour Management page."}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Please contact your school administrator if you believe you should have access.
+              {!hasBehaviourFeature
+                ? "Please contact your school administrator to enable this feature."
+                : "Please contact your school administrator if you believe you should have access."}
             </p>
           </CardContent>
         </Card>
@@ -672,14 +735,14 @@ Bob Johnson,No,No`}
               </CardHeader>
               <CardContent>
                 <div className="flex gap-3">
-                  <Select defaultValue="week">
+                  <Select value={dateRange} onValueChange={(value) => setDateRange(value as typeof dateRange)}>
                     <SelectTrigger className="w-48" data-testid="select-date-range">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="week">This Week</SelectItem>
-                      <SelectItem value="month">This Month</SelectItem>
-                      <SelectItem value="year">This Year</SelectItem>
+                      <SelectItem value="week">Last 7 Days</SelectItem>
+                      <SelectItem value="month">Last 30 Days</SelectItem>
+                      <SelectItem value="year">Last 365 Days</SelectItem>
                       <SelectItem value="custom">Custom Range</SelectItem>
                     </SelectContent>
                   </Select>
@@ -687,59 +750,203 @@ Bob Johnson,No,No`}
               </CardContent>
             </Card>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle>On-Calls by Teacher</CardTitle>
-                  <CardDescription>Most on-calls raised by staff member</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <AlertCircle className="h-12 w-12 mb-4" />
-                    <p>Analytics coming soon</p>
-                  </div>
-                </CardContent>
-              </Card>
+            {isLoadingAnalytics ? (
+              <div className="text-center py-12 text-muted-foreground">Loading analytics...</div>
+            ) : (
+              <>
+                {/* Summary Stats */}
+                <div className="grid gap-6 md:grid-cols-3">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Total On-Calls</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold" data-testid="stat-total-oncalls">
+                        {analyticsData?.totalOncalls || 0}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Open On-Calls</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold" data-testid="stat-open-oncalls">
+                        {analyticsData?.openOncalls || 0}
+                      </div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-sm font-medium text-muted-foreground">Completed On-Calls</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-3xl font-bold" data-testid="stat-completed-oncalls">
+                        {analyticsData?.completedOncalls || 0}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Students with Most On-Calls</CardTitle>
-                  <CardDescription>Frequently involved students</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <AlertCircle className="h-12 w-12 mb-4" />
-                    <p>Analytics coming soon</p>
-                  </div>
-                </CardContent>
-              </Card>
+                {/* Visualizations */}
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* On-Calls by Teacher */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>On-Calls by Teacher</CardTitle>
+                      <CardDescription>Top 10 teachers who completed on-calls</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {!analyticsData?.byCompleter || analyticsData.byCompleter.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground" data-testid="empty-by-teacher">
+                          No completed on-calls in this period
+                        </div>
+                      ) : (
+                        <Table data-testid="table-by-teacher">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Teacher Name</TableHead>
+                              <TableHead className="text-right">Completed On-Calls</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {analyticsData.byCompleter.slice(0, 10).map((teacher, index) => (
+                              <TableRow key={teacher.userId || index} data-testid={`row-teacher-${index}`}>
+                                <TableCell className="font-medium">{teacher.name}</TableCell>
+                                <TableCell className="text-right">{teacher.count}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Time of Day Distribution</CardTitle>
-                  <CardDescription>When incidents occur most frequently</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <AlertCircle className="h-12 w-12 mb-4" />
-                    <p>Analytics coming soon</p>
-                  </div>
-                </CardContent>
-              </Card>
+                  {/* Students with Most On-Calls */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Students with Most On-Calls</CardTitle>
+                      <CardDescription>Top 10 students by total on-calls</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {!analyticsData?.byStudent || analyticsData.byStudent.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground" data-testid="empty-by-student">
+                          No on-calls in this period
+                        </div>
+                      ) : (
+                        <Table data-testid="table-by-student">
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Student Name</TableHead>
+                              <TableHead className="text-right">Open</TableHead>
+                              <TableHead className="text-right">Completed</TableHead>
+                              <TableHead className="text-right">Total</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {analyticsData.byStudent.slice(0, 10).map((student, index) => {
+                              const total = student.open + student.completed;
+                              return (
+                                <TableRow key={index} data-testid={`row-student-${index}`}>
+                                  <TableCell className="font-medium">{student.name}</TableCell>
+                                  <TableCell className="text-right">{student.open}</TableCell>
+                                  <TableCell className="text-right">{student.completed}</TableCell>
+                                  <TableCell className="text-right font-medium">{total}</TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Day of Week Distribution</CardTitle>
-                  <CardDescription>Incident patterns throughout the week</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                    <AlertCircle className="h-12 w-12 mb-4" />
-                    <p>Analytics coming soon</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  {/* Time of Day Distribution */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Time of Day Distribution</CardTitle>
+                      <CardDescription>When incidents occur most frequently</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {!analyticsData?.timeOfDay || analyticsData.timeOfDay.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground" data-testid="empty-time-of-day">
+                          No on-calls in this period
+                        </div>
+                      ) : (
+                        <div className="space-y-2" data-testid="chart-time-of-day">
+                          <div className="flex items-end justify-between gap-1 h-40">
+                            {Array.from({ length: 24 }, (_, hour) => {
+                              const data = analyticsData.timeOfDay.find(d => d.hour === hour);
+                              const count = data?.count || 0;
+                              const maxCount = Math.max(...analyticsData.timeOfDay.map(d => d.count), 1);
+                              const heightPercent = (count / maxCount) * 100;
+                              
+                              return (
+                                <div key={hour} className="flex flex-col items-center flex-1 gap-1">
+                                  <div className="w-full flex items-end justify-center" style={{ height: '100%' }}>
+                                    {count > 0 && (
+                                      <div
+                                        className="w-full bg-primary rounded-t"
+                                        style={{ height: `${heightPercent}%` }}
+                                        title={`${hour}:00 - ${count} on-calls`}
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">{hour}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="text-xs text-muted-foreground text-center pt-2">Hour of Day (0-23)</div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Day of Week Distribution */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Day of Week Distribution</CardTitle>
+                      <CardDescription>Incident patterns throughout the week</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {!analyticsData?.dayOfWeek || analyticsData.dayOfWeek.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground" data-testid="empty-day-of-week">
+                          No on-calls in this period
+                        </div>
+                      ) : (
+                        <div className="space-y-2" data-testid="chart-day-of-week">
+                          <div className="flex items-end justify-between gap-2 h-40">
+                            {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((day) => {
+                              const data = analyticsData.dayOfWeek.find(d => d.day === day);
+                              const count = data?.count || 0;
+                              const maxCount = Math.max(...analyticsData.dayOfWeek.map(d => d.count), 1);
+                              const heightPercent = (count / maxCount) * 100;
+                              
+                              return (
+                                <div key={day} className="flex flex-col items-center flex-1 gap-1">
+                                  <div className="w-full flex items-end justify-center" style={{ height: '100%' }}>
+                                    {count > 0 && (
+                                      <div
+                                        className="w-full bg-primary rounded-t"
+                                        style={{ height: `${heightPercent}%` }}
+                                        title={`${day} - ${count} on-calls`}
+                                      />
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">{day.substring(0, 3)}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="text-xs text-muted-foreground text-center pt-2">Day of Week</div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              </>
+            )}
           </TabsContent>
         </Tabs>
       </div>

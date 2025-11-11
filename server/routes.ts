@@ -3830,6 +3830,132 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analytics route for behaviour management
+  app.get("/api/schools/:schoolId/oncalls/analytics", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+      const { startDate, endDate } = req.query;
+
+      // Verify user has behaviour permission for this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership || !membership.canManageBehaviour) {
+          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
+        }
+      }
+
+      // Get all oncalls for the school
+      const allOncalls = await storage.getOncallsBySchool(schoolId);
+
+      // Filter by date range if provided
+      let filteredOncalls = allOncalls;
+      if (startDate && endDate) {
+        const start = new Date(startDate as string);
+        const end = new Date(endDate as string);
+        filteredOncalls = allOncalls.filter(oncall => {
+          const oncallDate = new Date(oncall.createdAt);
+          return oncallDate >= start && oncallDate <= end;
+        });
+      }
+
+      // Calculate analytics
+      const byCompleter: Record<string, { name: string; count: number; userId: string }> = {};
+      const byStudent: Record<string, { name: string; open: number; completed: number }> = {};
+      const timeOfDay: Record<number, number> = {};
+      const dayOfWeek: Record<string, number> = {
+        'Monday': 0,
+        'Tuesday': 0,
+        'Wednesday': 0,
+        'Thursday': 0,
+        'Friday': 0,
+        'Saturday': 0,
+        'Sunday': 0
+      };
+
+      for (const oncall of filteredOncalls) {
+        // By completer (only for completed oncalls)
+        if (oncall.status === "completed" && oncall.completedById) {
+          const completer = await storage.getUser(oncall.completedById);
+          const completerKey = oncall.completedById;
+          if (!byCompleter[completerKey]) {
+            byCompleter[completerKey] = {
+              name: completer ? `${completer.first_name} ${completer.last_name}` : "Unknown",
+              count: 0,
+              userId: oncall.completedById
+            };
+          }
+          byCompleter[completerKey].count++;
+        }
+
+        // By student
+        if (oncall.studentId) {
+          const student = await storage.getStudent(oncall.studentId);
+          const studentKey = oncall.studentId;
+          if (!byStudent[studentKey]) {
+            byStudent[studentKey] = {
+              name: student ? student.name : "Unknown",
+              open: 0,
+              completed: 0
+            };
+          }
+          if (oncall.status === "open") {
+            byStudent[studentKey].open++;
+          } else {
+            byStudent[studentKey].completed++;
+          }
+        }
+
+        // Time of day - using Europe/London timezone
+        const createdDate = new Date(oncall.createdAt);
+        const londonTimeString = createdDate.toLocaleString('en-GB', { 
+          timeZone: 'Europe/London',
+          hour: '2-digit',
+          hour12: false 
+        });
+        const hour = parseInt(londonTimeString.split(',')[1]?.trim().split(':')[0] || '0');
+        if (!timeOfDay[hour]) {
+          timeOfDay[hour] = 0;
+        }
+        timeOfDay[hour]++;
+
+        // Day of week - using Europe/London timezone
+        const dayName = createdDate.toLocaleString('en-GB', { 
+          timeZone: 'Europe/London',
+          weekday: 'long'
+        });
+        if (dayOfWeek.hasOwnProperty(dayName)) {
+          dayOfWeek[dayName]++;
+        }
+      }
+
+      // Convert to arrays for easier frontend consumption
+      const completerArray = Object.values(byCompleter).sort((a, b) => b.count - a.count);
+      const studentArray = Object.values(byStudent).sort((a, b) => (b.open + b.completed) - (a.open + a.completed));
+      const timeOfDayArray = Object.entries(timeOfDay).map(([hour, count]) => ({
+        hour: parseInt(hour),
+        count
+      })).sort((a, b) => a.hour - b.hour);
+      const dayOfWeekArray = Object.entries(dayOfWeek).map(([day, count]) => ({
+        day,
+        count
+      }));
+
+      res.json({
+        byCompleter: completerArray,
+        byStudent: studentArray,
+        timeOfDay: timeOfDayArray,
+        dayOfWeek: dayOfWeekArray,
+        totalOncalls: filteredOncalls.length,
+        openOncalls: filteredOncalls.filter(o => o.status === "open").length,
+        completedOncalls: filteredOncalls.filter(o => o.status === "completed").length,
+      });
+    } catch (error) {
+      console.error("Error fetching analytics:", error);
+      res.status(500).json({ message: "Failed to fetch analytics" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
