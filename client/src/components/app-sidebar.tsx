@@ -155,14 +155,14 @@ export function AppSidebar() {
       return enabledFeatures.includes("absence_management") && (isCreator || currentMembership?.canApproveLeaveRequests || false);
     }
 
-    // On-Call is always visible (all users can raise on-calls)
+    // On-Call requires "behaviour" feature to be enabled
     if (item.title === "On-Call") {
-      return true;
+      return enabledFeatures.includes("behaviour");
     }
 
-    // Behaviour Management requires behaviour management permission
+    // Behaviour Management requires "behaviour" feature and canManageBehaviour permission
     if (item.title === "Behaviour Management") {
-      return isCreator || currentMembership?.canManageBehaviour || false;
+      return enabledFeatures.includes("behaviour") && (isCreator || currentMembership?.canManageBehaviour || false);
     }
 
     // All other items are visible
