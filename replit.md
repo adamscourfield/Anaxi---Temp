@@ -89,12 +89,27 @@ A comprehensive incident tracking system for schools with real-time notification
   - **Day-of-Week Distribution**: Weekly pattern analysis (Monday-Sunday)
 - **Summary Statistics**: Total, open, and completed on-call counts
 
+#### Permission Management UI
+- **Location**: School Memberships page (`/memberships`)
+- **Access Control**: Admin or Creator role required
+- **Conditional Display**: "Behaviour Access" column and permission toggle only shown when school has behaviour feature enabled
+- **Visual Indicators**: "Manager" badge displayed in table for users with `canManageBehaviour` permission
+- **Edit Interface**: Switch component in membership edit dialog allows toggling behaviour management access
+- **Real-time Updates**: Table refreshes immediately after permission changes
+- **Validation**: Backend validates permission updates using Zod schema
+
 #### Technical Implementation
 - **Database Tables**: 
   - `students`: id, schoolId, name, send, pp, isArchived
   - `oncalls`: id, schoolId, studentId, status, location, description, requestedById, completedById, completionNotes, createdAt, completedAt
-- **API Routes**: RESTful endpoints for students, oncalls, CSV import, analytics
-- **Permission Middleware**: `requireFeature("behaviour")` checks feature flag on all routes
+  - `school_memberships.canManageBehaviour`: Boolean field controlling behaviour management access
+- **API Routes**: 
+  - RESTful endpoints for students, oncalls, CSV import, analytics
+  - PATCH `/api/memberships/:id` - Updates membership permissions including `canManageBehaviour`
+- **Permission Middleware**: `requireFeature("behaviour")` checks feature flag and extracts schoolId from on-call/student/analytics requests
 - **Email Integration**: Resend service for instant notifications with HTML templates
 - **CSV Parsing**: Client-side validation and duplicate handling
-- **Frontend**: Two pages - On-Call (incident submission) and Behaviour Management (three-tab admin interface)
+- **Frontend**: 
+  - On-Call page (incident submission)
+  - Behaviour Management page (three-tab admin interface)
+  - School Memberships page (permission management with conditional behaviour access controls)
