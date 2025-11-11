@@ -69,6 +69,7 @@ export const schoolMemberships = pgTable("school_memberships", {
   profilePicture: text("profile_picture"), // Optional: profile picture override for this school
   groupId: varchar("group_id").references(() => teachingGroups.id),
   canApproveLeaveRequests: boolean("can_approve_leave_requests").default(false).notNull(), // Permission to view and approve leave requests
+  canManageBehaviour: boolean("can_manage_behaviour").default(false).notNull(), // Permission to manage behaviour (access Behaviour Management page)
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -275,3 +276,38 @@ export const observationViewPermissions = pgTable("observation_view_permissions"
 export const insertObservationViewPermissionSchema = createInsertSchema(observationViewPermissions).omit({ id: true, createdAt: true });
 export type InsertObservationViewPermission = z.infer<typeof insertObservationViewPermissionSchema>;
 export type ObservationViewPermission = typeof observationViewPermissions.$inferSelect;
+
+// Students - for behaviour management
+export const students = pgTable("students", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  schoolId: varchar("school_id").notNull().references(() => schools.id),
+  name: text("name").notNull(),
+  send: boolean("send").default(false).notNull(), // Special Educational Needs and Disabilities
+  pp: boolean("pp").default(false).notNull(), // Pupil Premium
+  isArchived: boolean("is_archived").default(false).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const insertStudentSchema = createInsertSchema(students).omit({ id: true, createdAt: true, updatedAt: true });
+export type InsertStudent = z.infer<typeof insertStudentSchema>;
+export type Student = typeof students.$inferSelect;
+
+// On-Call incidents - for behaviour management
+export const oncalls = pgTable("oncalls", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  schoolId: varchar("school_id").notNull().references(() => schools.id),
+  studentId: varchar("student_id").references(() => students.id), // Nullable - retain record if student archived
+  status: text("status").notNull().default("open"), // "open" or "completed"
+  location: text("location").notNull(),
+  description: text("description").notNull(),
+  requestedById: varchar("requested_by_id").notNull().references(() => users.id),
+  completedById: varchar("completed_by_id").references(() => users.id), // Nullable until completed
+  completionNotes: text("completion_notes"), // Optional notes when completing
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  completedAt: timestamp("completed_at"), // Nullable until completed
+});
+
+export const insertOncallSchema = createInsertSchema(oncalls).omit({ id: true, createdAt: true });
+export type InsertOncall = z.infer<typeof insertOncallSchema>;
+export type Oncall = typeof oncalls.$inferSelect;

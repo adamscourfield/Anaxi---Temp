@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type ObservationHabit, type InsertObservationHabit, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction, type LeaveRequest, type InsertLeaveRequest, type ObservationViewPermission, type InsertObservationViewPermission, type Rubric, type InsertRubric, type Category, type InsertCategory, type CategoryWithHabits, type Habit, type InsertHabit } from "@shared/schema";
+import { type User, type InsertUser, type SchoolMembership, type InsertSchoolMembership, type School, type InsertSchool, type TeachingGroup, type InsertTeachingGroup, type Department, type InsertDepartment, type Conversation, type InsertConversation, type Observation, type InsertObservation, type ObservationHabit, type InsertObservationHabit, type Meeting, type InsertMeeting, type MeetingAttendee, type InsertMeetingAttendee, type MeetingAction, type InsertMeetingAction, type LeaveRequest, type InsertLeaveRequest, type ObservationViewPermission, type InsertObservationViewPermission, type Rubric, type InsertRubric, type Category, type InsertCategory, type CategoryWithHabits, type Habit, type InsertHabit, type Student, type InsertStudent, type Oncall, type InsertOncall } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 // modify the interface with any CRUD methods
@@ -112,6 +112,19 @@ export interface IStorage {
   createHabit(habit: InsertHabit): Promise<Habit>;
   updateHabit(id: string, updates: Partial<Habit>): Promise<Habit | undefined>;
   deleteHabit(id: string): Promise<boolean>;
+  
+  // Students
+  getStudentsBySchool(schoolId: string, includeArchived?: boolean): Promise<Student[]>;
+  getStudent(id: string): Promise<Student | undefined>;
+  getStudentByNameAndSchool(name: string, schoolId: string): Promise<Student | undefined>;
+  createStudent(student: InsertStudent): Promise<Student>;
+  updateStudent(id: string, updates: Partial<Student>): Promise<Student | undefined>;
+  
+  // On-Calls
+  getOncallsBySchool(schoolId: string): Promise<Oncall[]>;
+  getOncall(id: string): Promise<Oncall | undefined>;
+  createOncall(oncall: InsertOncall): Promise<Oncall>;
+  updateOncall(id: string, updates: Partial<Oncall>): Promise<Oncall | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -507,6 +520,44 @@ export class MemStorage implements IStorage {
 
   async deleteHabit(id: string): Promise<boolean> {
     throw new Error("Habits not implemented in MemStorage");
+  }
+  
+  // Students - Not implemented in MemStorage (use DbStorage)
+  async getStudentsBySchool(schoolId: string, includeArchived?: boolean): Promise<Student[]> {
+    throw new Error("Students not implemented in MemStorage");
+  }
+
+  async getStudent(id: string): Promise<Student | undefined> {
+    throw new Error("Students not implemented in MemStorage");
+  }
+
+  async getStudentByNameAndSchool(name: string, schoolId: string): Promise<Student | undefined> {
+    throw new Error("Students not implemented in MemStorage");
+  }
+
+  async createStudent(student: InsertStudent): Promise<Student> {
+    throw new Error("Students not implemented in MemStorage");
+  }
+
+  async updateStudent(id: string, updates: Partial<Student>): Promise<Student | undefined> {
+    throw new Error("Students not implemented in MemStorage");
+  }
+  
+  // On-Calls - Not implemented in MemStorage (use DbStorage)
+  async getOncallsBySchool(schoolId: string): Promise<Oncall[]> {
+    throw new Error("On-calls not implemented in MemStorage");
+  }
+
+  async getOncall(id: string): Promise<Oncall | undefined> {
+    throw new Error("On-calls not implemented in MemStorage");
+  }
+
+  async createOncall(oncall: InsertOncall): Promise<Oncall> {
+    throw new Error("On-calls not implemented in MemStorage");
+  }
+
+  async updateOncall(id: string, updates: Partial<Oncall>): Promise<Oncall | undefined> {
+    throw new Error("On-calls not implemented in MemStorage");
   }
 }
 

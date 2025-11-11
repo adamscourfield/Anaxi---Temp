@@ -34,6 +34,10 @@ import {
   type InsertHabit,
   type ObservationHabit,
   type InsertObservationHabit,
+  type Student,
+  type InsertStudent,
+  type Oncall,
+  type InsertOncall,
   users,
   schoolMemberships,
   schools,
@@ -50,6 +54,8 @@ import {
   rubrics,
   categories,
   habits,
+  students,
+  oncalls,
 } from "@shared/schema";
 import { type IStorage } from "./storage";
 
@@ -601,5 +607,72 @@ export class DbStorage implements IStorage {
   async deleteHabit(id: string): Promise<boolean> {
     const result = await db.delete(habits).where(eq(habits.id, id));
     return result.rowCount !== null && result.rowCount > 0;
+  }
+  
+  // Students
+  async getStudentsBySchool(schoolId: string, includeArchived: boolean = false): Promise<Student[]> {
+    const conditions = includeArchived 
+      ? [eq(students.schoolId, schoolId)]
+      : [eq(students.schoolId, schoolId), eq(students.isArchived, false)];
+    
+    return await db.select()
+      .from(students)
+      .where(and(...conditions))
+      .orderBy(asc(students.name));
+  }
+
+  async getStudent(id: string): Promise<Student | undefined> {
+    const [student] = await db.select().from(students).where(eq(students.id, id));
+    return student;
+  }
+
+  async getStudentByNameAndSchool(name: string, schoolId: string): Promise<Student | undefined> {
+    const [student] = await db.select()
+      .from(students)
+      .where(and(
+        eq(students.name, name),
+        eq(students.schoolId, schoolId),
+        eq(students.isArchived, false)
+      ));
+    return student;
+  }
+
+  async createStudent(student: InsertStudent): Promise<Student> {
+    const [created] = await db.insert(students).values(student).returning();
+    return created;
+  }
+
+  async updateStudent(id: string, updates: Partial<Student>): Promise<Student | undefined> {
+    const [updated] = await db.update(students)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(students.id, id))
+      .returning();
+    return updated;
+  }
+  
+  // On-Calls
+  async getOncallsBySchool(schoolId: string): Promise<Oncall[]> {
+    return await db.select()
+      .from(oncalls)
+      .where(eq(oncalls.schoolId, schoolId))
+      .orderBy(desc(oncalls.createdAt));
+  }
+
+  async getOncall(id: string): Promise<Oncall | undefined> {
+    const [oncall] = await db.select().from(oncalls).where(eq(oncalls.id, id));
+    return oncall;
+  }
+
+  async createOncall(oncall: InsertOncall): Promise<Oncall> {
+    const [created] = await db.insert(oncalls).values(oncall).returning();
+    return created;
+  }
+
+  async updateOncall(id: string, updates: Partial<Oncall>): Promise<Oncall | undefined> {
+    const [updated] = await db.update(oncalls)
+      .set(updates)
+      .where(eq(oncalls.id, id))
+      .returning();
+    return updated;
   }
 }
