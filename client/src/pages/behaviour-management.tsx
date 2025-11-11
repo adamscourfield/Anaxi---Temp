@@ -143,7 +143,15 @@ export default function BehaviourManagementPage() {
     openOncalls: number;
     completedOncalls: number;
   }>({
-    queryKey: ["/api/schools", currentSchoolId, "oncalls", "analytics", { startDate, endDate }],
+    queryKey: ["/api/schools", currentSchoolId, "oncalls", "analytics", startDate, endDate],
+    queryFn: async () => {
+      const url = `/api/schools/${currentSchoolId}/oncalls/analytics?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}`;
+      const response = await fetch(url, { credentials: "include" });
+      if (!response.ok) {
+        throw new Error(`${response.status}: ${response.statusText}`);
+      }
+      return response.json();
+    },
     enabled: !!currentSchoolId && canManageBehaviour && activeTab === "analytics",
   });
 
