@@ -3532,10 +3532,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { schoolId } = req.params;
       const includeArchived = req.query.includeArchived === "true";
 
-      // Verify user has behaviour permission (even Creators need this)
+      // Verify user has access to this school
+      // All users in behaviour-enabled schools can VIEW students (to raise on-calls)
+      // Only users with canManageBehaviour can MANAGE students
       const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
-      if (!membership || !membership.canManageBehaviour) {
-        return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
+      if (!membership) {
+        return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
       }
 
       const students = await storage.getStudentsBySchool(schoolId, includeArchived);
