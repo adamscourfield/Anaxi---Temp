@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -25,8 +26,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { AlertCircle, ShieldX } from "lucide-react";
+import { AlertCircle, ShieldX, ChevronsUpDown, Check } from "lucide-react";
 import type { Student } from "@shared/schema";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 const oncallFormSchema = z.object({
   studentId: z.string().min(1, "Please select a student"),
@@ -40,6 +44,7 @@ export default function OnCallPage() {
   const { currentSchool: school } = useSchool();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [studentSearchOpen, setStudentSearchOpen] = useState(false);
 
   const form = useForm<OncallFormValues>({
     resolver: zodResolver(oncallFormSchema),
@@ -130,30 +135,60 @@ export default function OnCallPage() {
                   control={form.control}
                   name="studentId"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>Student</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={isLoadingStudents}
-                      >
-                        <FormControl>
-                          <SelectTrigger data-testid="select-student">
-                            <SelectValue placeholder="Select a student..." />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {students.map((student: any) => (
-                            <SelectItem
-                              key={student.id}
-                              value={student.id}
-                              data-testid={`student-option-${student.id}`}
+                      <Popover open={studentSearchOpen} onOpenChange={setStudentSearchOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              disabled={isLoadingStudents}
+                              className={cn(
+                                "justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                              data-testid="select-student"
                             >
-                              {student.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                              {field.value
+                                ? students.find((student) => student.id === field.value)?.name
+                                : "Select a student..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[400px] p-0">
+                          <Command>
+                            <CommandInput placeholder="Search students..." />
+                            <CommandList>
+                              <CommandEmpty>No student found.</CommandEmpty>
+                              <CommandGroup>
+                                {students.map((student) => (
+                                  <CommandItem
+                                    key={student.id}
+                                    value={student.name}
+                                    onSelect={() => {
+                                      form.setValue("studentId", student.id);
+                                      setStudentSearchOpen(false);
+                                    }}
+                                    data-testid={`student-option-${student.id}`}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        student.id === field.value
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      )}
+                                    />
+                                    {student.name}
+                                  </CommandItem>
+                                ))}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}

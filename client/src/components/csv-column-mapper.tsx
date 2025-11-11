@@ -12,6 +12,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 
 interface CsvColumnMapperProps {
   onFileLoad: (data: { headers: string[]; rows: string[][]; mappings: Record<string, string> }) => void;
@@ -25,15 +26,32 @@ export function CsvColumnMapper({ onFileLoad, requiredFields, onValidationChange
   const [csvRows, setCsvRows] = useState<string[][]>([]);
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const [previewRows, setPreviewRows] = useState<string[][]>([]);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
 
     setFile(selectedFile);
+    setIsProcessing(true);
+    setUploadProgress(0);
+    
     const reader = new FileReader();
+    
+    // Track progress during file read
+    reader.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percentLoaded = Math.round((event.loaded / event.total) * 100);
+        setUploadProgress(percentLoaded);
+      }
+    };
+    
     reader.onload = (event) => {
       const text = event.target?.result as string;
+      
+      // Set to 100% after reading completes
+      setUploadProgress(100);
       
       // Parse CSV using Papa Parse for robust handling of quotes, commas, and line endings
       const result = Papa.parse<string[]>(text, {
@@ -42,11 +60,15 @@ export function CsvColumnMapper({ onFileLoad, requiredFields, onValidationChange
 
       if (result.errors && result.errors.length > 0) {
         console.error("CSV parsing errors:", result.errors);
+        setIsProcessing(false);
         return;
       }
 
       const data = result.data;
-      if (!data || data.length === 0) return;
+      if (!data || data.length === 0) {
+        setIsProcessing(false);
+        return;
+      }
 
       const headers = data[0].map(h => (typeof h === 'string' ? h.trim() : String(h)));
       const rows = data.slice(1);
@@ -67,7 +89,14 @@ export function CsvColumnMapper({ onFileLoad, requiredFields, onValidationChange
         }
       });
       setMappings(autoMappings);
+      setIsProcessing(false);
     };
+    
+    reader.onerror = () => {
+      setIsProcessing(false);
+      setUploadProgress(0);
+    };
+    
     reader.readAsText(selectedFile);
   };
 
@@ -112,8 +141,18 @@ export function CsvColumnMapper({ onFileLoad, requiredFields, onValidationChange
           onChange={handleFileChange}
           data-testid="input-csv-file"
           className="mt-2"
+          disabled={isProcessing}
         />
-        {file && (
+        {isProcessing && (
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center justify-between text-sm text-muted-foreground">
+              <span>Processing CSV file...</span>
+              <span>{uploadProgress}%</span>
+            </div>
+            <Progress value={uploadProgress} className="h-2" />
+          </div>
+        )}
+        {file && !isProcessing && (
           <p className="text-sm text-muted-foreground mt-2">
             Selected: {file.name} ({csvRows.length} rows)
           </p>
