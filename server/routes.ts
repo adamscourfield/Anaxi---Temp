@@ -3532,11 +3532,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { schoolId } = req.params;
       const includeArchived = req.query.includeArchived === "true";
 
-      // Verify user has access to this school
+      // Verify user has behaviour permission
       if (user.global_role !== "Creator") {
         const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
-        if (!membership) {
-          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        if (!membership || !membership.canManageBehaviour) {
+          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
         }
       }
 
@@ -3699,11 +3699,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user;
       const { schoolId } = req.params;
 
-      // Verify user has access to this school
+      // Verify user has behaviour permission
       if (user.global_role !== "Creator") {
         const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
-        if (!membership) {
-          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        if (!membership || !membership.canManageBehaviour) {
+          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
         }
       }
 
