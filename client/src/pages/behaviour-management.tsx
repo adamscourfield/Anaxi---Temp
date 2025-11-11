@@ -55,6 +55,7 @@ export default function BehaviourManagementPage() {
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [detailsDialogTitle, setDetailsDialogTitle] = useState("");
   const [filteredDetailsOncalls, setFilteredDetailsOncalls] = useState<Array<Oncall & { student?: Student, requestedBy?: any, completedBy?: any }>>([]);
+  const [oncallStatusFilter, setOncallStatusFilter] = useState<"all" | "open" | "completed">("all");
 
   // Get user's memberships to check permissions (even for Creators)
   const { data: userMemberships = [], isLoading: isLoadingMemberships } = useQuery<Array<SchoolMembership & { school?: any }>>({
@@ -103,6 +104,22 @@ export default function BehaviourManagementPage() {
     queryKey: ["/api/schools", currentSchoolId, "oncalls"],
     enabled: !!currentSchoolId && canManageBehaviour,
   });
+
+  // Filter oncalls based on status and calculate counts
+  const { filteredOncalls, openCount, completedCount } = useMemo(() => {
+    const openOncalls = oncalls.filter(o => o.status === "open");
+    const completedOncalls = oncalls.filter(o => o.status === "completed");
+    
+    let filtered = oncalls;
+    if (oncallStatusFilter === "open") filtered = openOncalls;
+    if (oncallStatusFilter === "completed") filtered = completedOncalls;
+    
+    return {
+      filteredOncalls: filtered,
+      openCount: openOncalls.length,
+      completedCount: completedOncalls.length,
+    };
+  }, [oncalls, oncallStatusFilter]);
 
   // Calculate date range for analytics using Europe/London timezone
   const { startDate, endDate } = useMemo(() => {
@@ -684,11 +701,34 @@ export default function BehaviourManagementPage() {
           </TabsContent>
 
           <TabsContent value="oncalls" className="space-y-4 mt-6">
+            <div className="flex gap-2 mb-4">
+              <Button
+                variant={oncallStatusFilter === "all" ? "default" : "outline"}
+                onClick={() => setOncallStatusFilter("all")}
+                data-testid="filter-oncalls-all"
+              >
+                All ({oncalls.length})
+              </Button>
+              <Button
+                variant={oncallStatusFilter === "open" ? "default" : "outline"}
+                onClick={() => setOncallStatusFilter("open")}
+                data-testid="filter-oncalls-open"
+              >
+                Open ({openCount})
+              </Button>
+              <Button
+                variant={oncallStatusFilter === "completed" ? "default" : "outline"}
+                onClick={() => setOncallStatusFilter("completed")}
+                data-testid="filter-oncalls-completed"
+              >
+                Completed ({completedCount})
+              </Button>
+            </div>
             <Card>
               <CardHeader>
                 <CardTitle>On-Call Incidents</CardTitle>
                 <CardDescription>
-                  {oncalls.length} incident{oncalls.length !== 1 ? "s" : ""} recorded
+                  {filteredOncalls.length} {oncallStatusFilter !== "all" && `${oncallStatusFilter} `}incident{filteredOncalls.length !== 1 ? "s" : ""} {filteredOncalls.length !== oncalls.length && `of ${oncalls.length} total`}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -697,6 +737,10 @@ export default function BehaviourManagementPage() {
                 ) : oncalls.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     No on-call incidents recorded yet.
+                  </div>
+                ) : filteredOncalls.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No {oncallStatusFilter} incidents found.
                   </div>
                 ) : (
                   <Table data-testid="table-oncalls">
@@ -714,7 +758,7 @@ export default function BehaviourManagementPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {oncalls.map((oncall) => (
+                      {filteredOncalls.map((oncall) => (
                         <TableRow key={oncall.id}>
                           <TableCell>{formatDateTime(oncall.createdAt)}</TableCell>
                           <TableCell>{oncall.student?.name || "Unknown"}</TableCell>

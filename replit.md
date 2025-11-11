@@ -75,6 +75,7 @@ A comprehensive incident tracking system for schools with real-time notification
 - **Status Workflow**: Open → Completed with completion notes
 - **Real-time Email Notifications**: Automatic emails to all behaviour-permission users in the school when an on-call is raised, including deep link to completion modal
 - **Deep Linking**: URL parameter `?oncall_id=xyz` auto-opens completion modal
+- **Status Filtering**: Filter on-calls by All, Open, or Completed with real-time count badges
 - **Access Levels**: 
   - Raise On-Call: All users in behaviour-enabled schools
   - Manage/Complete: Only users with `canManageBehaviour` permission
