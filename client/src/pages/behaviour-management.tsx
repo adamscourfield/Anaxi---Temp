@@ -159,7 +159,7 @@ export default function BehaviourManagementPage() {
   // Fetch analytics data
   const { data: analyticsData, isLoading: isLoadingAnalytics } = useQuery<{
     byCompleter: Array<{ name: string; count: number; userId: string }>;
-    byStudent: Array<{ name: string; open: number; completed: number }>;
+    byStudent: Array<{ name: string; open: number; completed: number; studentId: string }>;
     timeOfDay: Array<{ hour: number; count: number }>;
     dayOfWeek: Array<{ day: string; count: number }>;
     totalOncalls: number;
@@ -1124,23 +1124,27 @@ export default function BehaviourManagementPage() {
                   </TableHeader>
                   <TableBody>
                     {filteredDetailsOncalls.map((oncall) => {
-                      const student = students.find(s => s.id === oncall.studentId);
-                      const requestedBy = allMemberships.find(m => m.userId === oncall.requestedById);
-                      const completedBy = oncall.completedById ? allMemberships.find(m => m.userId === oncall.completedById) : null;
-                      
                       return (
                         <TableRow key={oncall.id} data-testid={`detail-oncall-${oncall.id}`}>
                           <TableCell className="text-sm">{formatDateTime(oncall.createdAt)}</TableCell>
-                          <TableCell className="font-medium">{student?.name || "Unknown"}</TableCell>
+                          <TableCell className="font-medium">{oncall.student?.name || "Unknown"}</TableCell>
                           <TableCell>{oncall.location}</TableCell>
                           <TableCell className="max-w-xs truncate" title={oncall.description}>{oncall.description}</TableCell>
-                          <TableCell>{requestedBy?.user?.name || "Unknown"}</TableCell>
+                          <TableCell>
+                            {oncall.requestedBy
+                              ? `${oncall.requestedBy.first_name} ${oncall.requestedBy.last_name}`
+                              : "Unknown"}
+                          </TableCell>
                           <TableCell>
                             <Badge variant={oncall.status === "completed" ? "default" : "secondary"}>
                               {oncall.status}
                             </Badge>
                           </TableCell>
-                          <TableCell>{completedBy?.user?.name || "-"}</TableCell>
+                          <TableCell>
+                            {oncall.completedBy
+                              ? `${oncall.completedBy.first_name} ${oncall.completedBy.last_name}`
+                              : "-"}
+                          </TableCell>
                           <TableCell className="text-sm">{oncall.completedAt ? formatDateTime(oncall.completedAt) : "-"}</TableCell>
                         </TableRow>
                       );

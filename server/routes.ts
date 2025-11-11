@@ -3870,7 +3870,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate analytics
       const byCompleter: Record<string, { name: string; count: number; userId: string }> = {};
-      const byStudent: Record<string, { name: string; open: number; completed: number }> = {};
+      const byStudent: Record<string, { name: string; open: number; completed: number; studentId: string }> = {};
       const timeOfDay: Record<number, number> = {};
       const dayOfWeek: Record<string, number> = {
         'Monday': 0,
@@ -3903,7 +3903,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             byStudent[studentKey] = {
               name: oncall.student.name,
               open: 0,
-              completed: 0
+              completed: 0,
+              studentId: oncall.studentId
             };
           }
           if (oncall.status === "open") {
