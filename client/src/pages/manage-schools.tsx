@@ -498,6 +498,21 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
                     Absence Management
                   </Label>
                 </div>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="feature-behaviour"
+                    checked={editEnabledFeatures.includes("behaviour")}
+                    onCheckedChange={() => toggleFeature("behaviour")}
+                    data-testid="checkbox-feature-behaviour"
+                  />
+                  <Label 
+                    htmlFor="feature-behaviour" 
+                    className="text-sm font-normal cursor-pointer"
+                  >
+                    Behaviour Management
+                  </Label>
+                </div>
               </div>
             </div>
           </div>
