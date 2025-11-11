@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { UserPlus, Trash2, Edit } from "lucide-react";
 
 interface MembershipWithUser extends SchoolMembership {
@@ -41,11 +42,14 @@ interface MembershipWithUser extends SchoolMembership {
 
 export default function ManageMemberships() {
   const { toast } = useToast();
-  const { currentSchoolId, hasNoSchools } = useSchool();
+  const { currentSchoolId, currentSchool, hasNoSchools } = useSchool();
   const { user, isCreator } = useAuth();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editingMembership, setEditingMembership] = useState<SchoolMembership | null>(null);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  
+  // Check if behaviour feature is enabled for this school
+  const behaviourEnabled = currentSchool?.enabled_features?.includes("behaviour") ?? false;
   
   // Check if user is Admin in current school
   const { data: currentMembership } = useQuery<SchoolMembership>({
@@ -131,8 +135,8 @@ export default function ManageMemberships() {
 
   // Update membership mutation
   const updateMembershipMutation = useMutation({
-    mutationFn: async ({ id, role }: { id: string; role: string }) => {
-      return apiRequest("PATCH", `/api/memberships/${id}`, { role });
+    mutationFn: async ({ id, role, canManageBehaviour }: { id: string; role: string; canManageBehaviour?: boolean }) => {
+      return apiRequest("PATCH", `/api/memberships/${id}`, { role, canManageBehaviour });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schools", currentSchoolId, "memberships"] });
@@ -194,6 +198,7 @@ export default function ManageMemberships() {
     updateMembershipMutation.mutate({
       id: editingMembership.id,
       role: editingMembership.role,
+      canManageBehaviour: editingMembership.canManageBehaviour,
     });
   };
 
@@ -305,6 +310,7 @@ export default function ManageMemberships() {
                 <TableHead>Email</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Role</TableHead>
+                {behaviourEnabled && <TableHead>Behaviour Access</TableHead>}
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -322,6 +328,15 @@ export default function ManageMemberships() {
                       {membership.role}
                     </Badge>
                   </TableCell>
+                  {behaviourEnabled && (
+                    <TableCell>
+                      {membership.canManageBehaviour && (
+                        <Badge variant="outline" data-testid={`badge-behaviour-${membership.id}`}>
+                          Manager
+                        </Badge>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <div className="flex gap-2">
                       <Button
@@ -385,6 +400,25 @@ export default function ManageMemberships() {
                 </SelectContent>
               </Select>
             </div>
+            {behaviourEnabled && (
+              <div className="flex items-center justify-between space-x-2">
+                <div className="space-y-0.5">
+                  <Label htmlFor="can-manage-behaviour">Behaviour Management Access</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Allow this user to manage students and complete on-call incidents
+                  </p>
+                </div>
+                <Switch
+                  id="can-manage-behaviour"
+                  checked={editingMembership?.canManageBehaviour ?? false}
+                  onCheckedChange={(checked) =>
+                    editingMembership &&
+                    setEditingMembership({ ...editingMembership, canManageBehaviour: checked })
+                  }
+                  data-testid="switch-can-manage-behaviour"
+                />
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button
