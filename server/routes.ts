@@ -136,6 +136,13 @@ function requireFeature(featureName: string) {
             schoolId = leaveRequest.schoolId;
           }
         }
+        // For on-calls
+        else if (req.path.includes('/oncalls/')) {
+          const oncall = await storage.getOncall(req.params.id);
+          if (oncall) {
+            schoolId = oncall.schoolId;
+          }
+        }
         // For meetings and meeting sub-resources (attendees, actions)
         else if (req.path.includes('/meetings/')) {
           const meeting = await storage.getMeeting(req.params.id);
