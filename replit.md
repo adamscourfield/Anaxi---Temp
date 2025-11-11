@@ -1,7 +1,7 @@
 # Anaxi - Teacher Observation Platform
 
 ## Overview
-Anaxi is a professional teacher observation and development platform for schools. It facilitates peer observations using custom rubrics, provides structured feedback via habit-based checklists, and tracks professional development for educators. The platform supports multiple schools with role-based workflows for observers and teachers, emphasizing clarity and efficiency. Key features include a robust user archiving system, comprehensive password reset functionality, department management with associated meetings, granular observation view permissions, and academic year rubric management with scheduled activation and roll-forward capabilities. The system is designed to streamline data management by consolidating teachers and users into a single entity, supporting multi-school assignments.
+Anaxi is a professional teacher observation and development platform for schools. It facilitates peer observations using custom rubrics, provides structured feedback via habit-based checklists, and tracks professional development for educators. The platform supports multiple schools with role-based workflows for observers and teachers, emphasizing clarity and efficiency. Key features include a robust user archiving system, comprehensive password reset functionality, department management with associated meetings, granular observation view permissions, academic year rubric management with scheduled activation and roll-forward capabilities, and a comprehensive **Behaviour Management System** for incident tracking with real-time email notifications and analytics. The system is designed to streamline data management by consolidating teachers and users into a single entity, supporting multi-school assignments.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -12,7 +12,7 @@ Preferred communication style: Simple, everyday language.
 The frontend uses **React** with **TypeScript** and **Vite**. UI/Styling is built with **shadcn/ui**, **Radix UI** primitives, and **Tailwind CSS**, featuring a warm gradient design and light/dark mode. **Wouter** handles client-side routing, while **TanStack Query** manages server state. Authentication and school-specific data are managed via custom React hooks. The design follows a component-based pattern with compound components and custom hooks.
 
 ### Backend
-The backend is a **Node.js** application with **Express** and **TypeScript**, exposing a **RESTful API**. It uses **PostgreSQL-backed session management** via `connect-pg-simple`. Authentication is email/password-based with **bcrypt hashing** and secure session configuration, implementing role-based access control (Teacher, Leader, Admin, Creator). Public registration is disabled; new user onboarding is email-based with secure password setup links. The system supports a **multi-school architecture** with data isolation. Core data models include `users`, `schools`, `school_memberships`, `departments`, `observation_view_permissions`, and `password_setup_token`. Departments are school-scoped entities with CRUD operations. **Observation View Permissions** provide granular access control based on user roles and school assignments.
+The backend is a **Node.js** application with **Express** and **TypeScript**, exposing a **RESTful API**. It uses **PostgreSQL-backed session management** via `connect-pg-simple`. Authentication is email/password-based with **bcrypt hashing** and secure session configuration, implementing role-based access control (Teacher, Leader, Admin, Creator). Public registration is disabled; new user onboarding is email-based with secure password setup links. The system supports a **multi-school architecture** with data isolation. Core data models include `users`, `schools`, `school_memberships`, `departments`, `observation_view_permissions`, `password_setup_token`, `students`, and `oncalls`. Departments are school-scoped entities with CRUD operations. **Observation View Permissions** provide granular access control based on user roles and school assignments. **Behaviour Management** is feature-flagged per school with granular `canManageBehaviour` permission at the membership level.
 
 ### Data Architecture
 **Drizzle ORM** manages interactions with a **Neon serverless PostgreSQL database**. The schema is defined with type-safety using **Zod validation**, and **Drizzle Kit** is used for migrations. `@neondatabase/serverless` provides connection pooling.
@@ -49,7 +49,52 @@ The design system features a warm gradient foundation (peachy/salmon to white), 
 - **Zod**: Schema validation.
 - **TanStack Query**: Server state management.
 - **date-fns**: Date manipulation.
+- **date-fns-tz**: Timezone conversions (Europe/London for behaviour analytics).
+
+### Email Notifications
+- **Resend**: Email delivery service for on-call notifications.
 
 ### Typography & Assets
 - **Lufga Font**: Custom typography (CDN).
 - **Lucide React**: Icon library.
+
+## Key Features
+
+### Behaviour Management System
+A comprehensive incident tracking system for schools with real-time notifications and analytics. **Feature-flagged per school** (`enabled_features` array includes "behaviour") with granular permission control (`canManageBehaviour` on memberships).
+
+#### Student Management
+- **Student Records**: Name, SEND status, Pupil Premium status, archive status
+- **CRUD Operations**: Create, update, archive/unarchive students
+- **CSV Import**: Bulk import with duplicate detection and automatic update
+- **Access Control**: Restricted to users with `canManageBehaviour` permission
+- **Data Isolation**: All student data is school-scoped
+
+#### On-Call Incidents
+- **Incident Tracking**: Location, description, student association, timestamps
+- **Status Workflow**: Open → Completed with completion notes
+- **Real-time Email Notifications**: Automatic emails to all behaviour-permission users in the school when an on-call is raised, including deep link to completion modal
+- **Deep Linking**: URL parameter `?oncall_id=xyz` auto-opens completion modal
+- **Access Levels**: 
+  - Raise On-Call: All users in behaviour-enabled schools
+  - Manage/Complete: Only users with `canManageBehaviour` permission
+
+#### Analytics Dashboard
+- **Date Range Filtering**: Week, Month, Year, Custom
+- **Europe/London Timezone**: All analytics calculations use Europe/London timezone for consistency
+- **Visualizations**:
+  - **On-Calls by Teacher**: Table showing completed on-calls per staff member
+  - **Students with Most On-Calls**: Table with open/completed/total counts per student
+  - **Time-of-Day Distribution**: Hourly histogram (0-23) showing when incidents occur
+  - **Day-of-Week Distribution**: Weekly pattern analysis (Monday-Sunday)
+- **Summary Statistics**: Total, open, and completed on-call counts
+
+#### Technical Implementation
+- **Database Tables**: 
+  - `students`: id, schoolId, name, send, pp, isArchived
+  - `oncalls`: id, schoolId, studentId, status, location, description, requestedById, completedById, completionNotes, createdAt, completedAt
+- **API Routes**: RESTful endpoints for students, oncalls, CSV import, analytics
+- **Permission Middleware**: `requireFeature("behaviour")` checks feature flag on all routes
+- **Email Integration**: Resend service for instant notifications with HTML templates
+- **CSV Parsing**: Client-side validation and duplicate handling
+- **Frontend**: Two pages - On-Call (incident submission) and Behaviour Management (three-tab admin interface)

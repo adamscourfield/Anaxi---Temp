@@ -313,7 +313,7 @@ export default function BehaviourManagementPage() {
 
   const formatDateTime = (date: Date | string) => {
     const dateObj = typeof date === "string" ? new Date(date) : date;
-    const londonTime = utcToZonedTime(dateObj, "Europe/London");
+    const londonTime = toZonedTime(dateObj, "Europe/London");
     return format(londonTime, "dd/MM/yyyy HH:mm");
   };
 
