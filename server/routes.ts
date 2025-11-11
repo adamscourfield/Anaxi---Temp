@@ -109,11 +109,16 @@ function requireRole(allowedRoles: Role[]) {
 function requireFeature(featureName: string) {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Determine schoolId from query params, body, or existing leave request/meeting
+      // Determine schoolId from query params, body, route params, or existing leave request/meeting
       let schoolId: string | undefined;
       
-      // Try to get schoolId from query params first
-      schoolId = req.query.schoolId as string;
+      // Try to get schoolId from route params first (for /api/schools/:schoolId/* patterns)
+      schoolId = (req.params as any).schoolId;
+      
+      // If not in route params, try query params
+      if (!schoolId) {
+        schoolId = req.query.schoolId as string;
+      }
       
       // If not in query, try request body
       if (!schoolId && req.body && req.body.schoolId) {

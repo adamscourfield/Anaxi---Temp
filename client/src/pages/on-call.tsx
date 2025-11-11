@@ -26,6 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { AlertCircle, ShieldX } from "lucide-react";
+import type { Student } from "@shared/schema";
 
 const oncallFormSchema = z.object({
   studentId: z.string().min(1, "Please select a student"),
@@ -36,8 +37,8 @@ const oncallFormSchema = z.object({
 type OncallFormValues = z.infer<typeof oncallFormSchema>;
 
 export default function OnCallPage() {
-  const { school } = useSchool();
-  const { user, membership } = useAuth();
+  const { currentSchool: school } = useSchool();
+  const { user } = useAuth();
   const { toast } = useToast();
 
   const form = useForm<OncallFormValues>({
@@ -50,18 +51,14 @@ export default function OnCallPage() {
   });
 
   // Fetch students for this school (non-archived only)
-  const { data: students = [], isLoading: isLoadingStudents } = useQuery({
+  const { data: students = [], isLoading: isLoadingStudents } = useQuery<Student[]>({
     queryKey: ["/api/schools", school?.id, "students"],
     enabled: !!school?.id,
   });
 
   const createOncallMutation = useMutation({
     mutationFn: async (data: OncallFormValues) => {
-      return apiRequest(`/api/schools/${school?.id}/oncalls`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", `/api/schools/${school?.id}/oncalls`, data);
     },
     onSuccess: () => {
       toast({
@@ -90,11 +87,8 @@ export default function OnCallPage() {
 
   // Check if school has behaviour feature enabled
   const hasBehaviourFeature = school.enabled_features?.includes("behaviour");
-  
-  // Check if user has access to this school (Creator has access to all schools)
-  const hasSchoolAccess = user.global_role === "Creator" || membership?.schoolId === school.id;
 
-  if (!hasBehaviourFeature || !hasSchoolAccess) {
+  if (!hasBehaviourFeature) {
     return (
       <div className="h-full overflow-auto p-8">
         <div className="max-w-2xl mx-auto">
@@ -103,9 +97,7 @@ export default function OnCallPage() {
               <ShieldX className="h-16 w-16 text-muted-foreground mb-4" />
               <h2 className="text-2xl font-semibold mb-2">Access Restricted</h2>
               <p className="text-muted-foreground">
-                {!hasBehaviourFeature 
-                  ? "Behaviour management is not enabled for this school."
-                  : "You don't have access to this school."}
+                Behaviour management is not enabled for this school.
               </p>
             </CardContent>
           </Card>
