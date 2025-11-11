@@ -415,9 +415,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const updated = await storage.updateMembership(id, req.body);
+      // Validate update payload
+      const updateSchema = z.object({
+        role: z.string().optional(),
+        displayName: z.string().optional(),
+        profilePicture: z.string().optional(),
+        groupId: z.string().optional(),
+        canApproveLeaveRequests: z.boolean().optional(),
+        canManageBehaviour: z.boolean().optional(),
+      });
+
+      const validatedData = updateSchema.parse(req.body);
+      const updated = await storage.updateMembership(id, validatedData);
       res.json(updated);
     } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid request data", errors: error.errors });
+      }
       console.error("Error updating membership:", error);
       res.status(500).json({ message: "Failed to update membership" });
     }
