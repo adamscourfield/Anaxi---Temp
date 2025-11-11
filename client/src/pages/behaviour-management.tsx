@@ -765,27 +765,23 @@ export default function BehaviourManagementPage() {
           </TabsContent>
 
           <TabsContent value="analytics" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analytics Filter</CardTitle>
-                <CardDescription>Select a date range to view analytics</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex gap-3">
-                  <Select value={dateRange} onValueChange={(value) => setDateRange(value as typeof dateRange)}>
-                    <SelectTrigger className="w-48" data-testid="select-date-range">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="week">Last 7 Days</SelectItem>
-                      <SelectItem value="month">Last 30 Days</SelectItem>
-                      <SelectItem value="year">Last 365 Days</SelectItem>
-                      <SelectItem value="custom">Custom Range</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Analytics</h2>
+                <p className="text-sm text-muted-foreground">Behaviour incident analytics and trends</p>
+              </div>
+              <Select value={dateRange} onValueChange={(value) => setDateRange(value as typeof dateRange)}>
+                <SelectTrigger className="w-40" data-testid="select-date-range">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="week">Last 7 Days</SelectItem>
+                  <SelectItem value="month">Last 30 Days</SelectItem>
+                  <SelectItem value="year">Last 365 Days</SelectItem>
+                  <SelectItem value="custom">Custom Range</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
             {isLoadingAnalytics ? (
               <div className="text-center py-12 text-muted-foreground">Loading analytics...</div>
