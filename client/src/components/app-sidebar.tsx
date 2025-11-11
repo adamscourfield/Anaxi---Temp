@@ -149,10 +149,9 @@ export function AppSidebar() {
       return enabledFeatures.includes("absence_management");
     }
 
-    // Approve Leave requires "absence_management" feature
-    // Creators see it if feature is enabled, regular users need the permission too
+    // Approve Leave requires "absence_management" feature and canApproveLeaveRequests permission (even for Creators)
     if (item.title === "Approve Leave") {
-      return enabledFeatures.includes("absence_management") && (isCreator || currentMembership?.canApproveLeaveRequests || false);
+      return enabledFeatures.includes("absence_management") && (currentMembership?.canApproveLeaveRequests || false);
     }
 
     // On-Call requires "behaviour" feature to be enabled

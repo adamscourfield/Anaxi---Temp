@@ -90,10 +90,10 @@ export default function ApproveLeave() {
   const [responseNotes, setResponseNotes] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Fetch user's memberships to find schools where they can approve leave requests
-  const { data: leaderMemberships = [] } = useQuery<Array<SchoolMembership & { school?: School }>>({
+  // Fetch user's memberships to find schools where they can approve leave requests (even for Creators)
+  const { data: leaderMemberships = [], isLoading: isLoadingMemberships } = useQuery<Array<SchoolMembership & { school?: School }>>({
     queryKey: ["/api/my-approver-memberships"],
-    enabled: !!user && !isCreator,
+    enabled: !!user,
     queryFn: async () => {
       const response = await fetch("/api/my-memberships");
       if (!response.ok) throw new Error("Failed to fetch memberships");
@@ -222,18 +222,21 @@ export default function ApproveLeave() {
     return statusMatch && searchMatch;
   });
 
-  // Check authorization - user must have approval permission in current school or be creator
-  const isAuthorized = isCreator || (currentMembership && currentMembership.canApproveLeaveRequests);
-
-  if (!currentSchoolId) {
+  // Wait for memberships to load before checking permissions
+  if (isLoadingMemberships || !currentSchoolId) {
     return (
       <div className="p-6">
         <div className="text-center text-muted-foreground py-12">
-          Please select a school from the dropdown above to view leave requests.
+          {!currentSchoolId 
+            ? "Please select a school from the dropdown above to view leave requests."
+            : "Loading..."}
         </div>
       </div>
     );
   }
+
+  // Check authorization - user must have approval permission in current school (even Creators)
+  const isAuthorized = currentMembership && currentMembership.canApproveLeaveRequests;
 
   if (!isAuthorized) {
     return (

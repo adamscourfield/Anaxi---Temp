@@ -1873,34 +1873,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Membership not found" });
       }
       
-      // Verify user has permission to update
-      let userMembership;
-      if (user.global_role !== "Creator") {
-        const userMemberships = await storage.getMembershipsByUser(user.id);
-        userMembership = userMemberships.find(m => m.schoolId === requestMembership.schoolId);
-        
-        if (!userMembership) {
-          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
-        }
-        
-        // Only users with approve permission can approve/deny
-        if (!userMembership.canApproveLeaveRequests) {
-          return res.status(403).json({ message: "Forbidden: You don't have permission to approve or deny leave requests" });
-        }
+      // Verify user has permission to update (even Creators need this)
+      const userMemberships = await storage.getMembershipsByUser(user.id);
+      const userMembership = userMemberships.find(m => m.schoolId === requestMembership.schoolId);
+      
+      if (!userMembership) {
+        return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+      }
+      
+      // Only users with approve permission can approve/deny
+      if (!userMembership.canApproveLeaveRequests) {
+        return res.status(403).json({ message: "Forbidden: You don't have permission to approve or deny leave requests" });
       }
       
       // If status is being changed to approved or denied, set approvedBy
       const finalUpdates = { ...updates };
       if (updates.status && (updates.status.includes("approved") || updates.status === "denied")) {
-        // If approvedBy not provided in updates, determine it from the authenticated user
-        if (!updates.approvedBy) {
-          if (userMembership) {
-            finalUpdates.approvedBy = userMembership.id;
-          } else if (user.global_role === "Creator") {
-            // For creators without membership in this school, leave approvedBy null
-            // The frontend will handle this appropriately when displaying
-            finalUpdates.approvedBy = null;
-          }
+        // If approvedBy not provided in updates, use the authenticated user's membership
+        if (!updates.approvedBy && userMembership) {
+          finalUpdates.approvedBy = userMembership.id;
         }
       }
       
