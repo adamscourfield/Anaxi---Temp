@@ -919,13 +919,14 @@ export default function BehaviourManagementPage() {
                               const heightPercent = (count / maxCount) * 100;
                               
                               return (
-                                <div key={hour} className="flex flex-col items-center flex-1 gap-1">
-                                  <div className="w-full flex items-end justify-center" style={{ height: '100%' }}>
+                                <div key={hour} className="flex flex-col items-center flex-1 gap-1 h-full">
+                                  <div className="w-full flex items-end justify-center h-full">
                                     {count > 0 && (
                                       <div
-                                        className="w-full bg-primary rounded-t"
+                                        className="w-full bg-primary rounded-t min-h-[2px]"
                                         style={{ height: `${heightPercent}%` }}
                                         title={`${hour}:00 - ${count} on-calls`}
+                                        data-testid={`bar-hour-${hour}`}
                                       />
                                     )}
                                   </div>
@@ -961,13 +962,14 @@ export default function BehaviourManagementPage() {
                               const heightPercent = (count / maxCount) * 100;
                               
                               return (
-                                <div key={day} className="flex flex-col items-center flex-1 gap-1">
-                                  <div className="w-full flex items-end justify-center" style={{ height: '100%' }}>
+                                <div key={day} className="flex flex-col items-center flex-1 gap-1 h-full">
+                                  <div className="w-full flex items-end justify-center h-full">
                                     {count > 0 && (
                                       <div
-                                        className="w-full bg-primary rounded-t"
+                                        className="w-full bg-primary rounded-t min-h-[2px]"
                                         style={{ height: `${heightPercent}%` }}
                                         title={`${day} - ${count} on-calls`}
+                                        data-testid={`bar-day-${day.toLowerCase()}`}
                                       />
                                     )}
                                   </div>
