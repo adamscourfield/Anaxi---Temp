@@ -54,7 +54,7 @@ export default function BehaviourManagementPage() {
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
 
   // Get user's memberships to check permissions
-  const { data: userMemberships = [] } = useQuery<Array<SchoolMembership & { school?: any }>>({
+  const { data: userMemberships = [], isLoading: isLoadingMemberships } = useQuery<Array<SchoolMembership & { school?: any }>>({
     queryKey: ["/api/my-memberships"],
     enabled: !!user && !isCreator,
   });
@@ -64,6 +64,9 @@ export default function BehaviourManagementPage() {
   
   // Check if school has behaviour feature enabled
   const hasBehaviourFeature = currentSchool?.enabled_features?.includes("behaviour") || false;
+  
+  // Wait for memberships to load before checking permissions (unless user is Creator)
+  const isCheckingPermissions = !isCreator && isLoadingMemberships;
 
   // Handle deep linking from URL parameter
   useEffect(() => {
@@ -335,6 +338,16 @@ export default function BehaviourManagementPage() {
     return format(londonTime, "dd/MM/yyyy HH:mm");
   };
 
+  // Show loading while checking permissions
+  if (isCheckingPermissions || !currentSchool) {
+    return (
+      <div className="h-full flex items-center justify-center p-8">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  // Check permissions after data has loaded
   if (!hasBehaviourFeature || !canManageBehaviour) {
     return (
       <div className="h-full flex items-center justify-center p-8">
@@ -358,14 +371,6 @@ export default function BehaviourManagementPage() {
             </p>
           </CardContent>
         </Card>
-      </div>
-    );
-  }
-
-  if (!currentSchool) {
-    return (
-      <div className="h-full flex items-center justify-center p-8">
-        <div className="text-lg">Loading...</div>
       </div>
     );
   }
