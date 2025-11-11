@@ -3495,6 +3495,341 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Student routes - for behaviour management
+  
+  // Get all students for a school
+  app.get("/api/schools/:schoolId/students", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+      const includeArchived = req.query.includeArchived === "true";
+
+      // Verify user has access to this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+
+      const students = await storage.getStudentsBySchool(schoolId, includeArchived);
+      res.json(students);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+
+  // Create a student
+  app.post("/api/schools/:schoolId/students", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+
+      // Verify user has behaviour permission
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership || !membership.canManageBehaviour) {
+          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
+        }
+      }
+
+      const studentData = { ...req.body, schoolId };
+      const student = await storage.createStudent(studentData);
+      res.status(201).json(student);
+    } catch (error) {
+      console.error("Error creating student:", error);
+      res.status(500).json({ message: "Failed to create student" });
+    }
+  });
+
+  // Update a student
+  app.patch("/api/students/:id", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+
+      // Get the student to verify school access
+      const student = await storage.getStudent(id);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // Verify user has behaviour permission for this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, student.schoolId);
+        if (!membership || !membership.canManageBehaviour) {
+          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
+        }
+      }
+
+      const updated = await storage.updateStudent(id, req.body);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating student:", error);
+      res.status(500).json({ message: "Failed to update student" });
+    }
+  });
+
+  // Toggle archive status for a student
+  app.patch("/api/students/:id/archive", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+
+      // Get the student to verify school access
+      const student = await storage.getStudent(id);
+      if (!student) {
+        return res.status(404).json({ message: "Student not found" });
+      }
+
+      // Verify user has behaviour permission for this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, student.schoolId);
+        if (!membership || !membership.canManageBehaviour) {
+          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
+        }
+      }
+
+      const updated = await storage.updateStudent(id, { isArchived: !student.isArchived });
+      res.json(updated);
+    } catch (error) {
+      console.error("Error archiving student:", error);
+      res.status(500).json({ message: "Failed to archive student" });
+    }
+  });
+
+  // Import students from CSV
+  app.post("/api/schools/:schoolId/students/import-csv", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+      const { csvData } = req.body;
+
+      // Verify user has behaviour permission
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership || !membership.canManageBehaviour) {
+          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
+        }
+      }
+
+      // Parse CSV data (expecting array of {name, send, pp})
+      const results = {
+        created: 0,
+        updated: 0,
+        errors: [] as string[]
+      };
+
+      for (const row of csvData) {
+        try {
+          const { name, send, pp } = row;
+          
+          if (!name || name.trim() === "") {
+            results.errors.push(`Skipped row with empty name`);
+            continue;
+          }
+
+          // Check if student already exists (non-archived)
+          const existing = await storage.getStudentByNameAndSchool(name.trim(), schoolId);
+          
+          if (existing) {
+            // Update existing student
+            await storage.updateStudent(existing.id, {
+              send: send === "TRUE" || send === true,
+              pp: pp === "TRUE" || pp === true
+            });
+            results.updated++;
+          } else {
+            // Create new student
+            await storage.createStudent({
+              schoolId,
+              name: name.trim(),
+              send: send === "TRUE" || send === true,
+              pp: pp === "TRUE" || pp === true,
+              isArchived: false
+            });
+            results.created++;
+          }
+        } catch (rowError: any) {
+          results.errors.push(`Error processing row: ${rowError.message}`);
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Error importing students:", error);
+      res.status(500).json({ message: "Failed to import students" });
+    }
+  });
+
+  // On-Call routes - for behaviour management
+  
+  // Get all on-calls for a school
+  app.get("/api/schools/:schoolId/oncalls", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+
+      // Verify user has access to this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+
+      const oncalls = await storage.getOncallsBySchool(schoolId);
+      res.json(oncalls);
+    } catch (error) {
+      console.error("Error fetching on-calls:", error);
+      res.status(500).json({ message: "Failed to fetch on-calls" });
+    }
+  });
+
+  // Get a single on-call
+  app.get("/api/oncalls/:id", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+
+      const oncall = await storage.getOncall(id);
+      if (!oncall) {
+        return res.status(404).json({ message: "On-call not found" });
+      }
+
+      // Verify user has access to this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, oncall.schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+
+      res.json(oncall);
+    } catch (error) {
+      console.error("Error fetching on-call:", error);
+      res.status(500).json({ message: "Failed to fetch on-call" });
+    }
+  });
+
+  // Create an on-call (and send email notifications)
+  app.post("/api/schools/:schoolId/oncalls", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+
+      // Verify user has access to this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+      }
+
+      const oncallData = {
+        ...req.body,
+        schoolId,
+        requestedById: user.id,
+        status: "open"
+      };
+
+      const oncall = await storage.createOncall(oncallData);
+
+      // Send email notifications to all users with behaviour permission in this school
+      try {
+        const memberships = await storage.getMembershipsBySchool(schoolId);
+        const behaviourUsers = memberships.filter(m => m.canManageBehaviour);
+        
+        // Get user details for each membership
+        const recipientEmails: string[] = [];
+        for (const membership of behaviourUsers) {
+          const recipientUser = await storage.getUser(membership.userId);
+          if (recipientUser && recipientUser.email) {
+            recipientEmails.push(recipientUser.email);
+          }
+        }
+
+        if (recipientEmails.length > 0 && resend) {
+          // Get student name if available
+          let studentName = "Unknown Student";
+          if (oncall.studentId) {
+            const student = await storage.getStudent(oncall.studentId);
+            if (student) {
+              studentName = student.name;
+            }
+          }
+
+          const school = await storage.getSchool(schoolId);
+          const schoolName = school?.name || "School";
+
+          // Get base URL for deep link
+          const baseUrl = process.env.REPL_SLUG 
+            ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+            : "http://localhost:5000";
+
+          await resend.emails.send({
+            from: "Anaxi <noreply@anaxi.app>",
+            to: recipientEmails,
+            subject: `On-Call raised: ${studentName} at ${oncall.location}`,
+            html: `
+              <h2>New On-Call Incident</h2>
+              <p><strong>School:</strong> ${schoolName}</p>
+              <p><strong>Student:</strong> ${studentName}</p>
+              <p><strong>Location:</strong> ${oncall.location}</p>
+              <p><strong>Description:</strong> ${oncall.description}</p>
+              <p><strong>Requested by:</strong> ${user.first_name} ${user.last_name}</p>
+              <p><strong>Time:</strong> ${new Date().toLocaleString('en-GB', { timeZone: 'Europe/London' })}</p>
+              <p><a href="${baseUrl}/behaviour-management?oncall_id=${oncall.id}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Mark as Complete</a></p>
+            `
+          });
+        }
+      } catch (emailError) {
+        console.error("Error sending on-call notification emails:", emailError);
+        // Don't fail the request if email fails
+      }
+
+      res.status(201).json(oncall);
+    } catch (error) {
+      console.error("Error creating on-call:", error);
+      res.status(500).json({ message: "Failed to create on-call" });
+    }
+  });
+
+  // Complete an on-call
+  app.patch("/api/oncalls/:id/complete", isAuthenticated, requireFeature("behaviour"), async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+      const { completionNotes } = req.body;
+
+      const oncall = await storage.getOncall(id);
+      if (!oncall) {
+        return res.status(404).json({ message: "On-call not found" });
+      }
+
+      // Verify user has behaviour permission for this school
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, oncall.schoolId);
+        if (!membership || !membership.canManageBehaviour) {
+          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
+        }
+      }
+
+      const updated = await storage.updateOncall(id, {
+        status: "completed",
+        completedById: user.id,
+        completedAt: new Date(),
+        completionNotes
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error completing on-call:", error);
+      res.status(500).json({ message: "Failed to complete on-call" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
