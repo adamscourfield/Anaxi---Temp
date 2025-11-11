@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
-import { Archive, ArchiveRestore, Plus, Upload, AlertCircle, ShieldX } from "lucide-react";
+import { Archive, ArchiveRestore, Plus, Upload, AlertCircle, ShieldX, Search } from "lucide-react";
 import { useMemo } from "react";
 import type { Student, Oncall, SchoolMembership } from "@shared/schema";
 import { CsvColumnMapper } from "@/components/csv-column-mapper";
@@ -51,6 +51,7 @@ export default function BehaviourManagementPage() {
   const [dateRange, setDateRange] = useState<"week" | "month" | "year" | "custom">("week");
   const [csvData, setCsvData] = useState<{ headers: string[]; rows: string[][]; mappings: Record<string, string> } | null>(null);
   const [isCsvValid, setIsCsvValid] = useState(false);
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
 
   // Get user's memberships to check permissions
   const { data: userMemberships = [] } = useQuery<Array<SchoolMembership & { school?: any }>>({
@@ -80,6 +81,16 @@ export default function BehaviourManagementPage() {
     queryKey: ["/api/schools", currentSchoolId, "students"],
     enabled: !!currentSchoolId && canManageBehaviour,
   });
+
+  // Filter students based on search query
+  const filteredStudents = useMemo(() => {
+    if (!studentSearchQuery.trim()) return students;
+    
+    const query = studentSearchQuery.toLowerCase();
+    return students.filter(student => 
+      student.name.toLowerCase().includes(query)
+    );
+  }, [students, studentSearchQuery]);
 
   // Fetch oncalls
   const { data: oncalls = [], isLoading: isLoadingOncalls } = useQuery<Array<Oncall & { student?: Student, requestedBy?: any, completedBy?: any }>>({
@@ -507,10 +518,25 @@ export default function BehaviourManagementPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Students</CardTitle>
-                <CardDescription>
-                  {students.length} student{students.length !== 1 ? "s" : ""} in the system
-                </CardDescription>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Students</CardTitle>
+                    <CardDescription>
+                      {filteredStudents.length} {filteredStudents.length !== students.length ? `of ${students.length}` : ""} student{students.length !== 1 ? "s" : ""} 
+                      {filteredStudents.length !== students.length && " (filtered)"}
+                    </CardDescription>
+                  </div>
+                  <div className="relative w-64">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      placeholder="Search students..."
+                      value={studentSearchQuery}
+                      onChange={(e) => setStudentSearchQuery(e.target.value)}
+                      className="pl-9"
+                      data-testid="input-search-students"
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent>
                 {isLoadingStudents ? (
@@ -518,6 +544,10 @@ export default function BehaviourManagementPage() {
                 ) : students.length === 0 ? (
                   <div className="text-center py-8 text-muted-foreground">
                     No students found. Add a student to get started.
+                  </div>
+                ) : filteredStudents.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No students match your search query.
                   </div>
                 ) : (
                   <Table data-testid="table-students">
@@ -531,7 +561,7 @@ export default function BehaviourManagementPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {students.map((student) => (
+                      {filteredStudents.map((student) => (
                         <TableRow key={student.id}>
                           <TableCell className="font-medium">{student.name}</TableCell>
                           <TableCell>
