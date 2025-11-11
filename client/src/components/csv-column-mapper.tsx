@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Papa from "papaparse";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,18 +26,6 @@ export function CsvColumnMapper({ onFileLoad, requiredFields, onValidationChange
   const [mappings, setMappings] = useState<Record<string, string>>({});
   const [previewRows, setPreviewRows] = useState<string[][]>([]);
 
-  const parseCSV = (text: string) => {
-    const lines = text.split("\n").filter(line => line.trim());
-    if (lines.length === 0) return { headers: [], rows: [] };
-
-    const headers = lines[0].split(",").map(h => h.trim().replace(/^"/, '').replace(/"$/, ''));
-    const rows = lines.slice(1).map(line => 
-      line.split(",").map(cell => cell.trim().replace(/^"/, '').replace(/"$/, ''))
-    );
-
-    return { headers, rows };
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -45,7 +34,22 @@ export function CsvColumnMapper({ onFileLoad, requiredFields, onValidationChange
     const reader = new FileReader();
     reader.onload = (event) => {
       const text = event.target?.result as string;
-      const { headers, rows } = parseCSV(text);
+      
+      // Parse CSV using Papa Parse for robust handling of quotes, commas, and line endings
+      const result = Papa.parse<string[]>(text, {
+        skipEmptyLines: true,
+      });
+
+      if (result.errors && result.errors.length > 0) {
+        console.error("CSV parsing errors:", result.errors);
+        return;
+      }
+
+      const data = result.data;
+      if (!data || data.length === 0) return;
+
+      const headers = data[0].map(h => (typeof h === 'string' ? h.trim() : String(h)));
+      const rows = data.slice(1);
       
       setCsvHeaders(headers);
       setCsvRows(rows);

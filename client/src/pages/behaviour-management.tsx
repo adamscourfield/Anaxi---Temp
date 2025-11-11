@@ -23,6 +23,7 @@ import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import { Archive, ArchiveRestore, Plus, Upload, AlertCircle, ShieldX } from "lucide-react";
 import { useMemo } from "react";
 import type { Student, Oncall, SchoolMembership } from "@shared/schema";
+import { CsvColumnMapper } from "@/components/csv-column-mapper";
 
 const addStudentSchema = z.object({
   name: z.string().min(1, "Name is required"),
@@ -47,8 +48,9 @@ export default function BehaviourManagementPage() {
   const [importCsvDialogOpen, setImportCsvDialogOpen] = useState(false);
   const [completeOncallDialogOpen, setCompleteOncallDialogOpen] = useState(false);
   const [selectedOncallId, setSelectedOncallId] = useState<string | null>(null);
-  const [csvFile, setCsvFile] = useState<File | null>(null);
   const [dateRange, setDateRange] = useState<"week" | "month" | "year" | "custom">("week");
+  const [csvData, setCsvData] = useState<{ headers: string[]; rows: string[][]; mappings: Record<string, string> } | null>(null);
+  const [isCsvValid, setIsCsvValid] = useState(false);
 
   // Get user's memberships to check permissions
   const { data: userMemberships = [] } = useQuery<Array<SchoolMembership & { school?: any }>>({
@@ -155,11 +157,7 @@ export default function BehaviourManagementPage() {
   // Add student mutation
   const addStudentMutation = useMutation({
     mutationFn: async (data: AddStudentFormValues) => {
-      return apiRequest(`/api/schools/${currentSchoolId}/students`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      return apiRequest("POST", `/api/schools/${currentSchoolId}/students`, data);
     },
     onSuccess: () => {
       toast({
@@ -181,9 +179,7 @@ export default function BehaviourManagementPage() {
   // Archive/Unarchive student mutation
   const archiveStudentMutation = useMutation({
     mutationFn: async (studentId: string) => {
-      return apiRequest(`/api/students/${studentId}/archive`, {
-        method: "PATCH",
-      });
+      return apiRequest("PATCH", `/api/students/${studentId}/archive`);
     },
     onSuccess: () => {
       toast({
@@ -203,17 +199,14 @@ export default function BehaviourManagementPage() {
   // Import CSV mutation
   const importCsvMutation = useMutation({
     mutationFn: async (csvData: Array<{ name: string; send: boolean; pp: boolean }>) => {
-      return apiRequest(`/api/schools/${currentSchoolId}/students/import-csv`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ csvData }),
-      });
+      return apiRequest("POST", `/api/schools/${currentSchoolId}/students/import-csv`, { csvData });
     },
     onSuccess: () => {
       toast({
         title: "Students imported successfully",
       });
-      setCsvFile(null);
+      setCsvData(null);
+      setIsCsvValid(false);
       setImportCsvDialogOpen(false);
       queryClient.invalidateQueries({ queryKey: ["/api/schools", currentSchoolId, "students"] });
     },
@@ -229,11 +222,7 @@ export default function BehaviourManagementPage() {
   // Complete oncall mutation
   const completeOncallMutation = useMutation({
     mutationFn: async ({ id, completionNotes }: { id: string; completionNotes: string }) => {
-      return apiRequest(`/api/oncalls/${id}/complete`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ completionNotes }),
-      });
+      return apiRequest("PATCH", `/api/oncalls/${id}/complete`, { completionNotes });
     },
     onSuccess: () => {
       toast({
@@ -253,46 +242,56 @@ export default function BehaviourManagementPage() {
     },
   });
 
-  // Handle CSV file upload
-  const handleCsvUpload = async () => {
-    if (!csvFile) {
+  // Handle CSV file upload with column mapping
+  const handleCsvUpload = () => {
+    if (!csvData || !isCsvValid) {
       toast({
-        title: "Please select a CSV file",
+        title: "Please upload and map a valid CSV file",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      const text = await csvFile.text();
-      const lines = text.split("\n").filter(line => line.trim());
-      const csvData: Array<{ name: string; send: boolean; pp: boolean }> = [];
+      const { rows, mappings } = csvData;
+      
+      // Helper function to normalize boolean values
+      const parseBoolean = (value: string): boolean => {
+        if (!value) return false;
+        const normalized = value.trim().toLowerCase().replace(/['"]/g, '');
+        return ['yes', 'true', '1', 'y'].includes(normalized);
+      };
 
-      // Skip header row, parse data rows
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(",").map(v => v.trim());
-        if (values.length >= 3) {
-          csvData.push({
-            name: values[0],
-            send: values[1].toLowerCase() === "yes" || values[1] === "true" || values[1] === "1",
-            pp: values[2].toLowerCase() === "yes" || values[2] === "true" || values[2] === "1",
-          });
-        }
-      }
+      // Build the student data from mapped columns
+      const studentData: Array<{ name: string; send: boolean; pp: boolean }> = rows.map(row => {
+        const getColumnValue = (fieldKey: string): string => {
+          const headerName = mappings[fieldKey];
+          if (!headerName) return '';
+          const headerIndex = csvData.headers.indexOf(headerName);
+          return headerIndex >= 0 ? (row[headerIndex] || '') : '';
+        };
 
-      if (csvData.length === 0) {
+        return {
+          name: getColumnValue('name').trim(),
+          send: parseBoolean(getColumnValue('send')),
+          pp: parseBoolean(getColumnValue('pp')),
+        };
+      }).filter(student => student.name); // Only include rows with a name
+
+      if (studentData.length === 0) {
         toast({
           title: "No valid data found in CSV",
+          description: "Please ensure at least one row has a student name",
           variant: "destructive",
         });
         return;
       }
 
-      importCsvMutation.mutate(csvData);
+      importCsvMutation.mutate(studentData);
     } catch (error) {
       toast({
-        title: "Failed to parse CSV file",
-        description: "Please ensure the file is valid",
+        title: "Failed to process CSV file",
+        description: "Please ensure the file is properly mapped",
         variant: "destructive",
       });
     }
@@ -464,31 +463,23 @@ export default function BehaviourManagementPage() {
                     Import CSV
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Import Students from CSV</DialogTitle>
                     <DialogDescription>
-                      Upload a CSV file with student data. The file should have three columns: Name, SEND, PP.
+                      Upload a CSV file and map the columns to import student data. Required field: Student Name. Optional fields: SEND, PP.
                     </DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4">
-                    <div className="bg-muted p-4 rounded-md">
-                      <p className="text-sm font-medium mb-2">CSV Format Example:</p>
-                      <pre className="text-xs">
-{`Name,SEND,PP
-John Smith,Yes,No
-Jane Doe,No,Yes
-Bob Johnson,No,No`}
-                      </pre>
-                    </div>
-                    <div>
-                      <Input
-                        type="file"
-                        accept=".csv"
-                        onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
-                        data-testid="input-csv-file"
-                      />
-                    </div>
+                  <div className="space-y-4 py-4">
+                    <CsvColumnMapper
+                      requiredFields={[
+                        { key: "name", label: "Student Name", required: true },
+                        { key: "send", label: "SEND", required: false },
+                        { key: "pp", label: "PP (Pupil Premium)", required: false },
+                      ]}
+                      onFileLoad={(data) => setCsvData(data)}
+                      onValidationChange={(isValid) => setIsCsvValid(isValid)}
+                    />
                   </div>
                   <DialogFooter>
                     <Button
@@ -496,14 +487,15 @@ Bob Johnson,No,No`}
                       variant="outline"
                       onClick={() => {
                         setImportCsvDialogOpen(false);
-                        setCsvFile(null);
+                        setCsvData(null);
+                        setIsCsvValid(false);
                       }}
                     >
                       Cancel
                     </Button>
                     <Button
                       onClick={handleCsvUpload}
-                      disabled={!csvFile || importCsvMutation.isPending}
+                      disabled={!isCsvValid || importCsvMutation.isPending}
                       data-testid="button-confirm-import-csv"
                     >
                       {importCsvMutation.isPending ? "Importing..." : "Import"}
