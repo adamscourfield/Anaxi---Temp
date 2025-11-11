@@ -62,6 +62,15 @@ export default function BehaviourManagementPage() {
   const currentMembership = userMemberships.find(m => m.schoolId === currentSchoolId);
   const canManageBehaviour = isCreator || currentMembership?.canManageBehaviour || false;
   
+  // Debug logging
+  console.log("[Behaviour Management] Permission Check:", {
+    isCreator,
+    currentSchoolId,
+    currentMembership,
+    canManageBehaviour,
+    isLoadingMemberships,
+  });
+  
   // Check if school has behaviour feature enabled
   const hasBehaviourFeature = currentSchool?.enabled_features?.includes("behaviour") || false;
   
