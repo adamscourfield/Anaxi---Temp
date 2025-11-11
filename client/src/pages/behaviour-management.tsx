@@ -153,7 +153,9 @@ export default function BehaviourManagementPage() {
       if (!response.ok) {
         throw new Error(`${response.status}: ${response.statusText}`);
       }
-      return response.json();
+      const data = await response.json();
+      console.log("[Analytics Data]", data);
+      return data;
     },
     enabled: !!currentSchoolId && canManageBehaviour && activeTab === "analytics",
   });
