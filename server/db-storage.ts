@@ -651,16 +651,81 @@ export class DbStorage implements IStorage {
   }
   
   // On-Calls
-  async getOncallsBySchool(schoolId: string): Promise<Oncall[]> {
-    return await db.select()
+  async getOncallsBySchool(schoolId: string): Promise<any[]> {
+    const requestedByAlias = db.select().from(users).as('requestedByUser');
+    const completedByAlias = db.select().from(users).as('completedByUser');
+    
+    const results = await db.select({
+      id: oncalls.id,
+      schoolId: oncalls.schoolId,
+      studentId: oncalls.studentId,
+      status: oncalls.status,
+      location: oncalls.location,
+      description: oncalls.description,
+      requestedById: oncalls.requestedById,
+      completedById: oncalls.completedById,
+      completionNotes: oncalls.completionNotes,
+      createdAt: oncalls.createdAt,
+      completedAt: oncalls.completedAt,
+      student: students,
+      requestedBy: users,
+    })
       .from(oncalls)
+      .leftJoin(students, eq(oncalls.studentId, students.id))
+      .leftJoin(users, eq(oncalls.requestedById, users.id))
       .where(eq(oncalls.schoolId, schoolId))
       .orderBy(desc(oncalls.createdAt));
+
+    // Fetch completedBy users separately for each oncall
+    const resultsWithCompletedBy = await Promise.all(
+      results.map(async (oncall) => {
+        let completedBy = null;
+        if (oncall.completedById) {
+          completedBy = await this.getUser(oncall.completedById);
+        }
+        return {
+          ...oncall,
+          completedBy,
+        };
+      })
+    );
+
+    return resultsWithCompletedBy;
   }
 
-  async getOncall(id: string): Promise<Oncall | undefined> {
-    const [oncall] = await db.select().from(oncalls).where(eq(oncalls.id, id));
-    return oncall;
+  async getOncall(id: string): Promise<any | undefined> {
+    const [result] = await db.select({
+      id: oncalls.id,
+      schoolId: oncalls.schoolId,
+      studentId: oncalls.studentId,
+      status: oncalls.status,
+      location: oncalls.location,
+      description: oncalls.description,
+      requestedById: oncalls.requestedById,
+      completedById: oncalls.completedById,
+      completionNotes: oncalls.completionNotes,
+      createdAt: oncalls.createdAt,
+      completedAt: oncalls.completedAt,
+      student: students,
+      requestedBy: users,
+    })
+      .from(oncalls)
+      .leftJoin(students, eq(oncalls.studentId, students.id))
+      .leftJoin(users, eq(oncalls.requestedById, users.id))
+      .where(eq(oncalls.id, id));
+
+    if (!result) return undefined;
+
+    // Fetch completedBy user if exists
+    let completedBy = null;
+    if (result.completedById) {
+      completedBy = await this.getUser(result.completedById);
+    }
+
+    return {
+      ...result,
+      completedBy,
+    };
   }
 
   async createOncall(oncall: InsertOncall): Promise<Oncall> {
