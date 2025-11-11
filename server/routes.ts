@@ -6,6 +6,8 @@ import { db } from "./db";
 import { sql, desc } from "drizzle-orm";
 import { insertSchoolSchema, insertSchoolMembershipSchema, insertTeachingGroupSchema, insertDepartmentSchema, insertConversationSchema, insertMeetingSchema, insertMeetingAttendeeSchema, insertMeetingActionSchema, insertLeaveRequestSchema, insertObservationSchema, insertRubricSchema, insertCategorySchema, insertHabitSchema, meetingActions } from "@shared/schema";
 import { z } from "zod";
+import { toZonedTime } from "date-fns-tz";
+import { getHours, getDay } from "date-fns";
 // Referenced from blueprint:javascript_object_storage
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
 import { ObjectPermission } from "./objectAcl";
@@ -3880,12 +3882,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const oncall of filteredOncalls) {
         // By completer (only for completed oncalls)
-        if (oncall.status === "completed" && oncall.completedById) {
-          const completer = await storage.getUser(oncall.completedById);
+        if (oncall.status === "completed" && oncall.completedBy) {
           const completerKey = oncall.completedById;
           if (!byCompleter[completerKey]) {
             byCompleter[completerKey] = {
-              name: completer ? `${completer.first_name} ${completer.last_name}` : "Unknown",
+              name: `${oncall.completedBy.first_name} ${oncall.completedBy.last_name}`,
               count: 0,
               userId: oncall.completedById
             };
@@ -3893,13 +3894,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           byCompleter[completerKey].count++;
         }
 
-        // By student
-        if (oncall.studentId) {
-          const student = await storage.getStudent(oncall.studentId);
+        // By student - use joined data from getOncallsBySchool
+        if (oncall.studentId && oncall.student) {
           const studentKey = oncall.studentId;
           if (!byStudent[studentKey]) {
             byStudent[studentKey] = {
-              name: student ? student.name : "Unknown",
+              name: oncall.student.name,
               open: 0,
               completed: 0
             };
@@ -3911,24 +3911,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
 
-        // Time of day - using Europe/London timezone
+        // Time of day - using Europe/London timezone with date-fns-tz
         const createdDate = new Date(oncall.createdAt);
-        const londonTimeString = createdDate.toLocaleString('en-GB', { 
-          timeZone: 'Europe/London',
-          hour: '2-digit',
-          hour12: false 
-        });
-        const hour = parseInt(londonTimeString.split(',')[1]?.trim().split(':')[0] || '0');
+        const londonDate = toZonedTime(createdDate, 'Europe/London');
+        const hour = getHours(londonDate);
         if (!timeOfDay[hour]) {
           timeOfDay[hour] = 0;
         }
         timeOfDay[hour]++;
 
         // Day of week - using Europe/London timezone
-        const dayName = createdDate.toLocaleString('en-GB', { 
-          timeZone: 'Europe/London',
-          weekday: 'long'
-        });
+        const dayIndex = getDay(londonDate);
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const dayName = dayNames[dayIndex];
         if (dayOfWeek.hasOwnProperty(dayName)) {
           dayOfWeek[dayName]++;
         }
