@@ -58,8 +58,8 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [assignedSchools, setAssignedSchools] = useState<string[]>([]);
-  // Map of schoolId -> { membershipId, canApproveLeaveRequests }
-  const [membershipPermissions, setMembershipPermissions] = useState<Record<string, { membershipId: string; canApproveLeaveRequests: boolean }>>({});
+  // Map of schoolId -> { membershipId, canApproveLeaveRequests, canManageBehaviour }
+  const [membershipPermissions, setMembershipPermissions] = useState<Record<string, { membershipId: string; canApproveLeaveRequests: boolean; canManageBehaviour: boolean }>>({});
 
   // Observation permissions state
   const [isObsPermOpen, setIsObsPermOpen] = useState(false);
@@ -234,16 +234,17 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
 
   // Update membership permission mutation
   const updateMembershipPermissionMutation = useMutation({
-    mutationFn: async (data: { membershipId: string; canApproveLeaveRequests: boolean }) => {
+    mutationFn: async (data: { membershipId: string; canApproveLeaveRequests?: boolean; canManageBehaviour?: boolean }) => {
       return await apiRequest("PATCH", `/api/memberships/${data.membershipId}`, {
-        canApproveLeaveRequests: data.canApproveLeaveRequests,
+        ...(data.canApproveLeaveRequests !== undefined && { canApproveLeaveRequests: data.canApproveLeaveRequests }),
+        ...(data.canManageBehaviour !== undefined && { canManageBehaviour: data.canManageBehaviour }),
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
       toast({
         title: "Permission updated",
-        description: "Leave request approval permission has been updated successfully.",
+        description: "Permission has been updated successfully.",
       });
     },
     onError: (error: any) => {
@@ -511,11 +512,12 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       setAssignedSchools(schoolIds);
       
       // Populate membership permissions with existing values
-      const permissions: Record<string, { membershipId: string; canApproveLeaveRequests: boolean }> = {};
+      const permissions: Record<string, { membershipId: string; canApproveLeaveRequests: boolean; canManageBehaviour: boolean }> = {};
       memberships.forEach(m => {
         permissions[m.schoolId] = {
           membershipId: m.id,
           canApproveLeaveRequests: m.canApproveLeaveRequests || false,
+          canManageBehaviour: m.canManageBehaviour || false,
         };
       });
       setMembershipPermissions(permissions);
@@ -571,6 +573,28 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     updateMembershipPermissionMutation.mutate({
       membershipId: permission.membershipId,
       canApproveLeaveRequests: newValue,
+    });
+  };
+
+  const toggleBehaviourPermission = (schoolId: string) => {
+    const permission = membershipPermissions[schoolId];
+    if (!permission) return;
+    
+    const newValue = !permission.canManageBehaviour;
+    
+    // Optimistically update local state
+    setMembershipPermissions(prev => ({
+      ...prev,
+      [schoolId]: {
+        ...prev[schoolId],
+        canManageBehaviour: newValue,
+      },
+    }));
+    
+    // Call mutation to update on backend
+    updateMembershipPermissionMutation.mutate({
+      membershipId: permission.membershipId,
+      canManageBehaviour: newValue,
     });
   };
 
@@ -1143,7 +1167,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                     </div>
                     
                     {isAssigned && permission && (
-                      <div className="ml-6 pl-4 border-l-2 border-border">
+                      <div className="ml-6 pl-4 border-l-2 border-border space-y-2">
                         <div className="flex items-center space-x-2">
                           <Checkbox
                             id={`permission-${school.id}`}
@@ -1158,6 +1182,23 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                             Can approve leave requests
                           </label>
                         </div>
+                        
+                        {school.enabled_features?.includes("behaviour") && (
+                          <div className="flex items-center space-x-2">
+                            <Checkbox
+                              id={`behaviour-permission-${school.id}`}
+                              checked={permission.canManageBehaviour}
+                              onCheckedChange={() => toggleBehaviourPermission(school.id)}
+                              data-testid={`checkbox-behaviour-permission-${school.id}`}
+                            />
+                            <label
+                              htmlFor={`behaviour-permission-${school.id}`}
+                              className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                            >
+                              Can manage behaviour
+                            </label>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
