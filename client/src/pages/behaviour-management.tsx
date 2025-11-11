@@ -394,7 +394,7 @@ export default function BehaviourManagementPage() {
             <TabsTrigger value="analytics" data-testid="tab-analytics">Analytics</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="students" className="space-y-4">
+          <TabsContent value="students" className="space-y-4 mt-6">
             <div className="flex gap-3">
               <Dialog open={addStudentDialogOpen} onOpenChange={setAddStudentDialogOpen}>
                 <DialogTrigger asChild>
@@ -630,7 +630,7 @@ export default function BehaviourManagementPage() {
             </Card>
           </TabsContent>
 
-          <TabsContent value="oncalls" className="space-y-4">
+          <TabsContent value="oncalls" className="space-y-4 mt-6">
             <Card>
               <CardHeader>
                 <CardTitle>On-Call Incidents</CardTitle>
@@ -764,7 +764,7 @@ export default function BehaviourManagementPage() {
             </Dialog>
           </TabsContent>
 
-          <TabsContent value="analytics" className="space-y-4">
+          <TabsContent value="analytics" className="space-y-4 mt-6">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold tracking-tight">Analytics</h2>
