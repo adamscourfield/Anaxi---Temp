@@ -722,8 +722,21 @@ export class DbStorage implements IStorage {
       completedBy = await this.getUser(result.completedById);
     }
 
+    // Return with explicit top-level properties for backward compatibility
     return {
-      ...result,
+      id: result.id,
+      schoolId: result.schoolId,
+      studentId: result.studentId,
+      status: result.status,
+      location: result.location,
+      description: result.description,
+      requestedById: result.requestedById,
+      completedById: result.completedById,
+      completionNotes: result.completionNotes,
+      createdAt: result.createdAt,
+      completedAt: result.completedAt,
+      student: result.student,
+      requestedBy: result.requestedBy,
       completedBy,
     };
   }
