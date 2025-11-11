@@ -100,10 +100,10 @@ export function AppSidebar() {
   const { user, isCreator, isAdminOrCreator } = useAuth();
   const { currentSchool, currentSchoolId } = useSchool();
 
-  // Get user's memberships to determine permissions for current school
+  // Get user's memberships to determine permissions for current school (even for Creators)
   const { data: userMemberships = [] } = useQuery<Array<SchoolMembership & { school?: any }>>({
     queryKey: ["/api/my-memberships"],
-    enabled: !!user && !isCreator,
+    enabled: !!user,
   });
 
   // Find membership for current school
@@ -160,9 +160,9 @@ export function AppSidebar() {
       return enabledFeatures.includes("behaviour");
     }
 
-    // Behaviour Management requires "behaviour" feature and canManageBehaviour permission
+    // Behaviour Management requires "behaviour" feature and canManageBehaviour permission (even for Creators)
     if (item.title === "Behaviour Management") {
-      return enabledFeatures.includes("behaviour") && (isCreator || currentMembership?.canManageBehaviour || false);
+      return enabledFeatures.includes("behaviour") && (currentMembership?.canManageBehaviour || false);
     }
 
     // All other items are visible

@@ -3532,12 +3532,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { schoolId } = req.params;
       const includeArchived = req.query.includeArchived === "true";
 
-      // Verify user has behaviour permission
-      if (user.global_role !== "Creator") {
-        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
-        if (!membership || !membership.canManageBehaviour) {
-          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
-        }
+      // Verify user has behaviour permission (even Creators need this)
+      const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+      if (!membership || !membership.canManageBehaviour) {
+        return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
       }
 
       const students = await storage.getStudentsBySchool(schoolId, includeArchived);
@@ -3554,12 +3552,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user;
       const { schoolId } = req.params;
 
-      // Verify user has behaviour permission
-      if (user.global_role !== "Creator") {
-        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
-        if (!membership || !membership.canManageBehaviour) {
-          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
-        }
+      // Verify user has behaviour permission (even Creators need this)
+      const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+      if (!membership || !membership.canManageBehaviour) {
+        return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
       }
 
       const studentData = { ...req.body, schoolId };
@@ -3583,12 +3579,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Student not found" });
       }
 
-      // Verify user has behaviour permission for this school
-      if (user.global_role !== "Creator") {
-        const membership = await storage.getMembershipByUserAndSchool(user.id, student.schoolId);
-        if (!membership || !membership.canManageBehaviour) {
-          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
-        }
+      // Verify user has behaviour permission for this school (even Creators need this)
+      const membership = await storage.getMembershipByUserAndSchool(user.id, student.schoolId);
+      if (!membership || !membership.canManageBehaviour) {
+        return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
       }
 
       const updated = await storage.updateStudent(id, req.body);
@@ -3699,12 +3693,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const user = req.user;
       const { schoolId } = req.params;
 
-      // Verify user has behaviour permission
-      if (user.global_role !== "Creator") {
-        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
-        if (!membership || !membership.canManageBehaviour) {
-          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
-        }
+      // Verify user has behaviour permission (even Creators need this)
+      const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+      if (!membership || !membership.canManageBehaviour) {
+        return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
       }
 
       const oncalls = await storage.getOncallsBySchool(schoolId);
@@ -3836,12 +3828,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "On-call not found" });
       }
 
-      // Verify user has behaviour permission for this school
-      if (user.global_role !== "Creator") {
-        const membership = await storage.getMembershipByUserAndSchool(user.id, oncall.schoolId);
-        if (!membership || !membership.canManageBehaviour) {
-          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
-        }
+      // Verify user has behaviour permission for this school (even Creators need this)
+      const membership = await storage.getMembershipByUserAndSchool(user.id, oncall.schoolId);
+      if (!membership || !membership.canManageBehaviour) {
+        return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
       }
 
       const updated = await storage.updateOncall(id, {
@@ -3865,12 +3855,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { schoolId } = req.params;
       const { startDate, endDate } = req.query;
 
-      // Verify user has behaviour permission for this school
-      if (user.global_role !== "Creator") {
-        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
-        if (!membership || !membership.canManageBehaviour) {
-          return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
-        }
+      // Verify user has behaviour permission for this school (even Creators need this)
+      const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+      if (!membership || !membership.canManageBehaviour) {
+        return res.status(403).json({ message: "Forbidden: You don't have behaviour management permission" });
       }
 
       // Get all oncalls for the school

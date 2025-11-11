@@ -53,29 +53,20 @@ export default function BehaviourManagementPage() {
   const [isCsvValid, setIsCsvValid] = useState(false);
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
 
-  // Get user's memberships to check permissions
+  // Get user's memberships to check permissions (even for Creators)
   const { data: userMemberships = [], isLoading: isLoadingMemberships } = useQuery<Array<SchoolMembership & { school?: any }>>({
     queryKey: ["/api/my-memberships"],
-    enabled: !!user && !isCreator,
+    enabled: !!user,
   });
 
   const currentMembership = userMemberships.find(m => m.schoolId === currentSchoolId);
-  const canManageBehaviour = isCreator || currentMembership?.canManageBehaviour || false;
-  
-  // Debug logging
-  console.log("[Behaviour Management] Permission Check:", {
-    isCreator,
-    currentSchoolId,
-    currentMembership,
-    canManageBehaviour,
-    isLoadingMemberships,
-  });
+  const canManageBehaviour = currentMembership?.canManageBehaviour || false;
   
   // Check if school has behaviour feature enabled
   const hasBehaviourFeature = currentSchool?.enabled_features?.includes("behaviour") || false;
   
-  // Wait for memberships to load before checking permissions (unless user is Creator)
-  const isCheckingPermissions = !isCreator && isLoadingMemberships;
+  // Wait for memberships to load before checking permissions
+  const isCheckingPermissions = isLoadingMemberships;
 
   // Handle deep linking from URL parameter
   useEffect(() => {
