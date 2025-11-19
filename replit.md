@@ -11,6 +11,13 @@ Preferred communication style: Simple, everyday language.
 ### Frontend
 The frontend uses **React** with **TypeScript** and **Vite**. UI/Styling is built with **shadcn/ui**, **Radix UI** primitives, and **Tailwind CSS**, featuring a warm gradient design and light/dark mode. **Wouter** handles client-side routing, while **TanStack Query** manages server state. Authentication and school-specific data are managed via custom React hooks. The design follows a component-based pattern with compound components and custom hooks.
 
+#### Meetings Page Features (Updated)
+- **Conversation Filter**: Filter meetings by type including "Conversations" (meetings with type="Conversation")
+- **User/Attendee Filter**: Filter meetings by involvement of a particular person
+- **Conversations**: Now implemented as meetings with type="Conversation" instead of using deprecated conversations table with rating field
+- **Rating Removed**: Rating functionality completely removed from conversation creation flow
+- **Known Issue**: Backend validation should be enhanced to ensure conversations always have attendees (currently relies on frontend validation)
+
 ### Backend
 The backend is a **Node.js** application with **Express** and **TypeScript**, exposing a **RESTful API**. It uses **PostgreSQL-backed session management** via `connect-pg-simple`. Authentication is email/password-based with **bcrypt hashing** and secure session configuration, implementing role-based access control (Teacher, Leader, Admin, Creator). Public registration is disabled; new user onboarding is email-based with secure password setup links. The system supports a **multi-school architecture** with data isolation. Core data models include `users`, `schools`, `school_memberships`, `departments`, `observation_view_permissions`, `password_setup_token`, `students`, and `oncalls`. Departments are school-scoped entities with CRUD operations. **Observation View Permissions** provide granular access control based on user roles and school assignments. **Behaviour Management** is feature-flagged per school with granular `canManageBehaviour` permission at the membership level.
 

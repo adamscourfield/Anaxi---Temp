@@ -173,11 +173,16 @@ export default function Meetings() {
       // Add attendees (for meetings) or single staff member (for conversations)
       if (formType === "conversation" && data.meeting.staffMemberId) {
         // For conversations, add the single staff member as an attendee
-        await apiRequest("POST", `/api/meetings/${meetingId}/attendees`, {
-          membershipId: data.meeting.staffMemberId,
-          attendanceStatus: "pending",
-          isRequired: true,
-        });
+        try {
+          await apiRequest("POST", `/api/meetings/${meetingId}/attendees`, {
+            membershipId: data.meeting.staffMemberId,
+            attendanceStatus: "pending",
+            isRequired: true,
+          });
+        } catch (error) {
+          console.error("Failed to add staff member to conversation:", error);
+          throw new Error("Failed to add staff member to conversation");
+        }
       } else if (formType === "meeting" && data.attendees.length > 0) {
         // For meetings, add all selected attendees
         const attendeeResults = await Promise.allSettled(
@@ -247,6 +252,15 @@ export default function Meetings() {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Validate staff member for conversations
+    if (formType === "conversation" && !formData.staffMemberId) {
+      toast({
+        title: "Error",
+        description: "Please select a staff member for the conversation",
         variant: "destructive",
       });
       return;
