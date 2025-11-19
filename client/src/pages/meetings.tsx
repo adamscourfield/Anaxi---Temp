@@ -78,7 +78,6 @@ export default function Meetings() {
     type: "Line Management",
     subject: "",
     details: "",
-    rating: "",
     staffMemberId: "", // For conversations - single staff member
     departmentId: "", // For department meetings
   });
@@ -129,7 +128,7 @@ export default function Meetings() {
     },
   });
 
-  const { data: meetings = [], isLoading: meetingsLoading } = useQuery<Meeting[]>({
+  const { data: meetings = [], isLoading: meetingsLoading } = useQuery<any[]>({
     queryKey: ["/api/meetings", currentSchoolId],
     queryFn: async () => {
       const response = await fetch(`/api/meetings?schoolId=${currentSchoolId}`);
@@ -144,15 +143,17 @@ export default function Meetings() {
       // Build the correct data structure based on form type
       let meetingPayload;
       if (formType === "conversation") {
-        // Conversations have: subject, details, rating (no type field)
+        // Conversations are meetings with type="Conversation"
         meetingPayload = {
+          type: "Conversation",
           subject: data.meeting.subject,
           details: data.meeting.details,
-          rating: data.meeting.rating,
           schoolId: currentSchoolId,
+          organizerId: user?.id,
+          departmentId: null,
         };
       } else {
-        // Meetings have: type, subject, details (no rating field, no minutes)
+        // Meetings have: type, subject, details
         meetingPayload = {
           type: data.meeting.type,
           subject: data.meeting.subject,
@@ -233,7 +234,7 @@ export default function Meetings() {
   });
 
   const resetForm = () => {
-    setFormData({ type: "Line Management", subject: "", details: "", rating: "", staffMemberId: "", departmentId: "" });
+    setFormData({ type: "Line Management", subject: "", details: "", staffMemberId: "", departmentId: "" });
     setSelectedAttendees([]);
     setActionItems([]);
     setNewAction({ description: "", assignedToMembershipId: "", dueDate: "" });
@@ -246,15 +247,6 @@ export default function Meetings() {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-    // Validate rating for conversations
-    if (formType === "conversation" && !formData.rating) {
-      toast({
-        title: "Error",
-        description: "Please select a rating for the conversation",
         variant: "destructive",
       });
       return;
@@ -307,7 +299,7 @@ export default function Meetings() {
   const filteredMeetings = meetings.filter((meeting) => {
     // Filter by type (including conversations)
     if (filterType !== "all") {
-      if (filterType === "Conversation" && meeting.type) return false; // Conversations have no type
+      if (filterType === "Conversation" && meeting.type !== "Conversation") return false;
       if (filterType !== "Conversation" && meeting.type !== filterType) return false;
     }
     
@@ -319,12 +311,6 @@ export default function Meetings() {
     
     return true;
   });
-
-  const ratingColors = {
-    "Best Practice": "bg-success/10 text-success border-success/20",
-    "Neutral": "bg-muted text-muted-foreground border-border",
-    "Concern": "bg-destructive/10 text-destructive border-destructive/20",
-  };
 
   const getTeacherName = (membershipId: string) => {
     const teacher = teachers.find((t) => t.id === membershipId);
@@ -508,24 +494,6 @@ export default function Meetings() {
 
                 {formType === "conversation" && (
                   <>
-                    <div className="space-y-2">
-                      <Label htmlFor="rating">Rating</Label>
-                      <Select
-                        value={formData.rating}
-                        onValueChange={(value) =>
-                          setFormData({ ...formData, rating: value })
-                        }
-                      >
-                        <SelectTrigger data-testid="select-rating">
-                          <SelectValue placeholder="Select rating" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Best Practice">Best Practice</SelectItem>
-                          <SelectItem value="Neutral">Neutral</SelectItem>
-                          <SelectItem value="Concern">Concern</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
                     <div className="space-y-2">
                       <Label htmlFor="staffMember">Staff Member</Label>
                       <Popover>
