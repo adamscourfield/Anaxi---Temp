@@ -68,6 +68,7 @@ export default function Meetings() {
   const [, setLocation] = useLocation();
   const [formType, setFormType] = useState<FormType>(null);
   const [filterType, setFilterType] = useState<string>("all");
+  const [filterUser, setFilterUser] = useState<string>("all");
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [attendeeSearchOpen, setAttendeeSearchOpen] = useState(false);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
@@ -304,8 +305,19 @@ export default function Meetings() {
   };
 
   const filteredMeetings = meetings.filter((meeting) => {
-    if (filterType === "all") return true;
-    return meeting.type === filterType;
+    // Filter by type (including conversations)
+    if (filterType !== "all") {
+      if (filterType === "Conversation" && meeting.type) return false; // Conversations have no type
+      if (filterType !== "Conversation" && meeting.type !== filterType) return false;
+    }
+    
+    // Filter by user/attendee
+    if (filterUser !== "all") {
+      const attendeeIds = meeting.attendees?.map((a: any) => a.membershipId) || [];
+      if (!attendeeIds.includes(filterUser)) return false;
+    }
+    
+    return true;
   });
 
   const ratingColors = {
@@ -722,16 +734,30 @@ export default function Meetings() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>All Meetings</CardTitle>
-            <div className="flex gap-2 items-center">
+            <div className="flex gap-2 items-center flex-wrap">
               <Select value={filterType} onValueChange={setFilterType}>
                 <SelectTrigger className="w-48" data-testid="select-filter-type">
                   <SelectValue placeholder="Filter by type" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="Conversation">Conversations</SelectItem>
                   <SelectItem value="Line Management">Line Management</SelectItem>
                   <SelectItem value="Department">Department</SelectItem>
                   <SelectItem value="Leadership">Leadership</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select value={filterUser} onValueChange={setFilterUser}>
+                <SelectTrigger className="w-48" data-testid="select-filter-user">
+                  <SelectValue placeholder="Filter by person" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All People</SelectItem>
+                  {teachers.map((teacher) => (
+                    <SelectItem key={teacher.id} value={teacher.id}>
+                      {teacher.firstName} {teacher.lastName}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
