@@ -243,6 +243,10 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
       queryClient.invalidateQueries({ queryKey: ["/api/my-memberships"] });
+      queryClient.invalidateQueries({ predicate: (query) => {
+        const key = query.queryKey;
+        return Array.isArray(key) && key[0] === "/api/users" && key[2] === "memberships";
+      }});
       toast({
         title: "Permission updated",
         description: "Permission has been updated successfully.",
