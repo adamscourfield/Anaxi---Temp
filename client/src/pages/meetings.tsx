@@ -71,6 +71,7 @@ export default function Meetings() {
   const [filterUser, setFilterUser] = useState<string>("all");
   const [selectedAttendees, setSelectedAttendees] = useState<string[]>([]);
   const [attendeeSearchOpen, setAttendeeSearchOpen] = useState(false);
+  const [peopleFilterOpen, setPeopleFilterOpen] = useState(false);
   const [actionItems, setActionItems] = useState<ActionItem[]>([]);
   const [newAction, setNewAction] = useState({ description: "", assignedToMembershipId: "", dueDate: "" });
 
@@ -729,19 +730,64 @@ export default function Meetings() {
                   <SelectItem value="Leadership">Leadership</SelectItem>
                 </SelectContent>
               </Select>
-              <Select value={filterUser} onValueChange={setFilterUser}>
-                <SelectTrigger className="w-48" data-testid="select-filter-user">
-                  <SelectValue placeholder="Filter by person" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All People</SelectItem>
-                  {teachers.map((teacher) => (
-                    <SelectItem key={teacher.id} value={teacher.id}>
-                      {teacher.firstName} {teacher.lastName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={peopleFilterOpen} onOpenChange={setPeopleFilterOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={peopleFilterOpen}
+                    className="w-48 justify-between"
+                    data-testid="button-filter-user"
+                  >
+                    <span className="truncate">
+                      {filterUser === "all" ? "All People" : getTeacherName(filterUser)}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search people..." data-testid="input-search-filter-user" />
+                    <CommandList>
+                      <CommandEmpty>No person found.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          value="all"
+                          onSelect={() => {
+                            setFilterUser("all");
+                            setPeopleFilterOpen(false);
+                          }}
+                          data-testid="command-item-filter-all"
+                        >
+                          <Check
+                            className={`mr-2 h-4 w-4 ${filterUser === "all" ? "opacity-100" : "opacity-0"}`}
+                          />
+                          All People
+                        </CommandItem>
+                        {teachers.map((teacher) => (
+                          <CommandItem
+                            key={teacher.id}
+                            value={teacher.id}
+                            keywords={[teacher.firstName, teacher.lastName, teacher.email]}
+                            onSelect={(value) => {
+                              setFilterUser(value);
+                              setPeopleFilterOpen(false);
+                            }}
+                            data-testid={`command-item-filter-${teacher.id}`}
+                          >
+                            <Check
+                              className={`mr-2 h-4 w-4 ${filterUser === teacher.id ? "opacity-100" : "opacity-0"}`}
+                            />
+                            <div className="flex flex-col">
+                              <span className="text-sm">{teacher.firstName} {teacher.lastName}</span>
+                              <span className="text-xs text-muted-foreground">{teacher.role}</span>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardHeader>

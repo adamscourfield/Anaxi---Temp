@@ -13,7 +13,7 @@ The frontend uses **React** with **TypeScript** and **Vite**. UI/Styling is buil
 
 #### Meetings Page Features (Updated)
 - **Conversation Filter**: Filter meetings by type including "Conversations" (meetings with type="Conversation")
-- **User/Attendee Filter**: Filter meetings by involvement of a particular person
+- **User/Attendee Filter**: Filter meetings by involvement of a particular person with searchable dropdown (searches by first name, last name, or email)
 - **Conversations**: Now implemented as meetings with type="Conversation" instead of using deprecated conversations table with rating field
 - **Rating Removed**: Rating functionality completely removed from conversation creation flow
 - **Known Issue**: Backend validation should be enhanced to ensure conversations always have attendees (currently relies on frontend validation)
