@@ -21,7 +21,7 @@ export default function Landing() {
             <img src={anaxiLogo} alt="Anaxi" className="h-20 w-20" />
           </div>
           <h1 className="text-4xl font-bold mb-2">Anaxi</h1>
-          <p className="text-muted-foreground">Professional Teacher Observation Platform</p>
+          <p className="text-muted-foreground">Future Education</p>
         </div>
 
         {/* Login Form */}
