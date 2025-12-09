@@ -2523,23 +2523,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : averageScore;
       const scoreChange = prevAvgScore > 0 && validObservations.length > 0 ? ((averageScore - prevAvgScore) / prevAvgScore) * 100 : 0;
 
-      // Observation trend (group by time interval)
-      const trendMap = new Map<string, { count: number; totalScore: number; totalMax: number }>();
+      // Observation trend (group by week for all time periods)
+      // Helper to get week start date (Monday)
+      const getWeekStart = (date: Date): Date => {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1); // Monday as start
+        return new Date(d.setDate(diff));
+      };
+      
+      const getWeekLabel = (date: Date): string => {
+        const weekStart = getWeekStart(date);
+        return weekStart.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      };
+      
+      const getWeekSortKey = (date: Date): number => {
+        return getWeekStart(date).getTime();
+      };
+
+      const trendMap = new Map<string, { count: number; totalScore: number; totalMax: number; sortKey: number }>();
       for (const obs of filteredObservations) {
         const date = new Date(obs.date);
-        let label: string;
-        if (timePeriod === "week") {
-          label = date.toLocaleDateString('en-US', { weekday: 'short' });
-        } else if (timePeriod === "month") {
-          label = `Week ${Math.ceil(date.getDate() / 7)}`;
-        } else if (timePeriod === "year") {
-          label = date.toLocaleDateString('en-US', { month: 'short' });
-        } else {
-          label = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
-        }
+        const label = getWeekLabel(date);
+        const sortKey = getWeekSortKey(date);
         
         if (!trendMap.has(label)) {
-          trendMap.set(label, { count: 0, totalScore: 0, totalMax: 0 });
+          trendMap.set(label, { count: 0, totalScore: 0, totalMax: 0, sortKey });
         }
         const entry = trendMap.get(label)!;
         entry.count++;
@@ -2551,9 +2560,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .map(([label, data]) => ({
           label,
           value: data.count,
-          quality: data.totalMax > 0 ? (data.totalScore / data.totalMax) * 5 : 0
+          quality: data.totalMax > 0 ? (data.totalScore / data.totalMax) * 5 : 0,
+          sortKey: data.sortKey
         }))
-        .slice(-12); // Limit to last 12 data points
+        .sort((a, b) => a.sortKey - b.sortKey)
+        .slice(-24) // Limit to last 24 weeks
+        .map(({ label, value, quality }) => ({ label, value, quality }));
 
       // Top and lowest performers
       const teacherScores: Record<string, { totalScore: number; totalMax: number; count: number; name: string }> = {};
