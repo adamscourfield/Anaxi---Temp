@@ -391,30 +391,25 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {hasObservations && (
-              <Card data-testid="card-observations-detail">
+              <Card data-testid="card-observations-detail" className="border-l-4 border-l-blue-500">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-lg">Observations</CardTitle>
-                    <CardDescription>Recent activity and quick actions</CardDescription>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                      <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Observations</CardTitle>
+                      <CardDescription>Recent activity and quick actions</CardDescription>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    {isLeaderOrAbove && (
-                      <Link href="/history">
-                        <Button size="sm" variant="outline" data-testid="button-view-analytics">
-                          <BarChart3 className="h-4 w-4 mr-1" />
-                          Analytics
-                        </Button>
-                      </Link>
-                    )}
-                    <Link href="/observe">
-                      <Button size="sm" data-testid="button-new-observation">
-                        <Plus className="h-4 w-4 mr-1" />
-                        New
-                      </Button>
-                    </Link>
-                  </div>
+                  <Link href="/observe">
+                    <Button size="sm" data-testid="button-new-observation">
+                      <Plus className="h-4 w-4 mr-1" />
+                      New
+                    </Button>
+                  </Link>
                 </CardHeader>
                 <CardContent>
                   {recentObsLoading ? (
@@ -462,11 +457,16 @@ export default function Dashboard() {
             )}
 
             {hasMeetings && (
-              <Card data-testid="card-meetings-detail">
+              <Card data-testid="card-meetings-detail" className="border-l-4 border-l-purple-500">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-lg">Meetings & Actions</CardTitle>
-                    <CardDescription>Upcoming meetings and your action items</CardDescription>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                      <MessageSquare className="h-5 w-5 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Meetings & Actions</CardTitle>
+                      <CardDescription>Upcoming meetings and your action items</CardDescription>
+                    </div>
                   </div>
                   <Link href="/meetings">
                     <Button size="sm" data-testid="button-new-meeting">
@@ -546,11 +546,16 @@ export default function Dashboard() {
             )}
 
             {hasLeave && (
-              <Card data-testid="card-leave-detail">
+              <Card data-testid="card-leave-detail" className="border-l-4 border-l-emerald-500">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-lg">{canApproveLeave ? "Leave Approvals" : "Leave Requests"}</CardTitle>
-                    <CardDescription>{canApproveLeave ? "Pending requests requiring your review" : "Your leave request status"}</CardDescription>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                      <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">{canApproveLeave ? "Leave Approvals" : "Leave Requests"}</CardTitle>
+                      <CardDescription>{canApproveLeave ? "Pending requests requiring your review" : "Your leave request status"}</CardDescription>
+                    </div>
                   </div>
                   <Link href={canApproveLeave ? "/approve-leave" : "/leave-requests"}>
                     <Button size="sm" data-testid="button-manage-leave">
@@ -602,28 +607,23 @@ export default function Dashboard() {
             )}
 
             {hasBehaviour && (
-              <Card data-testid="card-behaviour-detail">
+              <Card data-testid="card-behaviour-detail" className="border-l-4 border-l-amber-500">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-lg">Behaviour Management</CardTitle>
-                    <CardDescription>{canManageBehaviour ? "Open on-call incidents" : "Report behaviour incidents"}</CardDescription>
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                      <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg">Behaviour Management</CardTitle>
+                      <CardDescription>{canManageBehaviour ? "Open on-call incidents" : "Report behaviour incidents"}</CardDescription>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    {canManageBehaviour && (
-                      <Link href="/behaviour-management">
-                        <Button size="sm" variant="outline" data-testid="button-behaviour-analytics">
-                          <BarChart3 className="h-4 w-4 mr-1" />
-                          Analytics
-                        </Button>
-                      </Link>
-                    )}
-                    <Link href="/on-call">
-                      <Button size="sm" data-testid="button-raise-oncall">
-                        <Plus className="h-4 w-4 mr-1" />
-                        On-Call
-                      </Button>
-                    </Link>
-                  </div>
+                  <Link href="/on-call">
+                    <Button size="sm" data-testid="button-raise-oncall">
+                      <Plus className="h-4 w-4 mr-1" />
+                      On-Call
+                    </Button>
+                  </Link>
                 </CardHeader>
                 <CardContent>
                   {canManageBehaviour ? (
@@ -670,18 +670,19 @@ export default function Dashboard() {
           </div>
 
           {isLeaderOrAbove && (staffBirthdays.length > 0 || studentBirthdays.length > 0) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {staffBirthdays.length > 0 && (
-                <Card data-testid="card-staff-birthdays">
+                <Card data-testid="card-staff-birthdays" className="border-l-4 border-l-pink-500">
                   <CardHeader className="flex flex-row items-center justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Cake className="h-5 w-5" />
-                        Staff Birthdays
-                      </CardTitle>
-                      <CardDescription>Upcoming in the next 2 weeks</CardDescription>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-pink-100 dark:bg-pink-900/30">
+                        <Cake className="h-5 w-5 text-pink-600 dark:text-pink-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Staff Birthdays</CardTitle>
+                        <CardDescription>Upcoming in the next 2 weeks</CardDescription>
+                      </div>
                     </div>
-                    <Users className="h-5 w-5 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     {staffBirthdaysLoading ? (
@@ -711,16 +712,17 @@ export default function Dashboard() {
               )}
 
               {studentBirthdays.length > 0 && hasBehaviour && (
-                <Card data-testid="card-student-birthdays">
+                <Card data-testid="card-student-birthdays" className="border-l-4 border-l-cyan-500">
                   <CardHeader className="flex flex-row items-center justify-between gap-2">
-                    <div>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Cake className="h-5 w-5" />
-                        Student Birthdays
-                      </CardTitle>
-                      <CardDescription>Upcoming in the next 2 weeks</CardDescription>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
+                        <GraduationCap className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg">Student Birthdays</CardTitle>
+                        <CardDescription>Upcoming in the next 2 weeks</CardDescription>
+                      </div>
                     </div>
-                    <GraduationCap className="h-5 w-5 text-muted-foreground" />
                   </CardHeader>
                   <CardContent>
                     {studentBirthdaysLoading ? (
