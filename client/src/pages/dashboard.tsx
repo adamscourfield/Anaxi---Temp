@@ -393,16 +393,11 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {hasObservations && (
-              <Card data-testid="card-observations-detail" className="border-l-4 border-l-blue-500">
+              <Card data-testid="card-observations-detail">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                      <Eye className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">Observations</CardTitle>
-                      <CardDescription>Recent activity and quick actions</CardDescription>
-                    </div>
+                  <div>
+                    <CardTitle className="text-lg">Observations</CardTitle>
+                    <CardDescription>Recent activity and quick actions</CardDescription>
                   </div>
                   <Link href="/observe">
                     <Button size="sm" data-testid="button-new-observation">
@@ -420,7 +415,7 @@ export default function Dashboard() {
                   ) : recentObservations.length === 0 ? (
                     <p className="text-muted-foreground text-sm">No observations yet. Start by creating one!</p>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {recentObservations.slice(0, 4).map((obs: any) => (
                         <Link key={obs.id} href={`/history?observationId=${obs.id}`}>
                           <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`observation-item-${obs.id}`}>
@@ -457,16 +452,11 @@ export default function Dashboard() {
             )}
 
             {hasMeetings && (
-              <Card data-testid="card-meetings-detail" className="border-l-4 border-l-purple-500">
+              <Card data-testid="card-meetings-detail">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                      <MessageSquare className="h-5 w-5 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">Meetings & Actions</CardTitle>
-                      <CardDescription>Upcoming meetings and your action items</CardDescription>
-                    </div>
+                  <div>
+                    <CardTitle className="text-lg">Meetings & Actions</CardTitle>
+                    <CardDescription>Upcoming meetings and your action items</CardDescription>
                   </div>
                   <Link href="/meetings">
                     <Button size="sm" data-testid="button-new-meeting">
@@ -480,7 +470,7 @@ export default function Dashboard() {
                     {upcomingMeetings.length > 0 && (
                       <div>
                         <h4 className="text-sm font-medium mb-2">Upcoming Meetings</h4>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {upcomingMeetings.map((meeting: any) => (
                             <Link key={meeting.id} href={`/meetings?meetingId=${meeting.id}`}>
                               <div className="flex items-center justify-between p-2 rounded-lg border hover-elevate cursor-pointer" data-testid={`meeting-item-${meeting.id}`}>
@@ -504,7 +494,7 @@ export default function Dashboard() {
                     {myActions.filter((a: any) => a.status === "open").length > 0 && (
                       <div>
                         <h4 className="text-sm font-medium mb-2">My Action Items</h4>
-                        <div className="space-y-2">
+                        <div className="space-y-3">
                           {myActions.filter((a: any) => a.status === "open").slice(0, 3).map((action: any) => {
                             const isOverdue = action.dueDate && new Date(action.dueDate) < new Date();
                             return (
@@ -546,16 +536,11 @@ export default function Dashboard() {
             )}
 
             {hasLeave && (
-              <Card data-testid="card-leave-detail" className="border-l-4 border-l-emerald-500">
+              <Card data-testid="card-leave-detail">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                      <Calendar className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">{canApproveLeave ? "Leave Approvals" : "Leave Requests"}</CardTitle>
-                      <CardDescription>{canApproveLeave ? "Pending requests requiring your review" : "Your leave request status"}</CardDescription>
-                    </div>
+                  <div>
+                    <CardTitle className="text-lg">{canApproveLeave ? "Leave Approvals" : "Leave Requests"}</CardTitle>
+                    <CardDescription>{canApproveLeave ? "Pending requests requiring your review" : "Your leave request status"}</CardDescription>
                   </div>
                   <Link href={canApproveLeave ? "/approve-leave" : "/leave-requests"}>
                     <Button size="sm" data-testid="button-manage-leave">
@@ -567,7 +552,7 @@ export default function Dashboard() {
                   {leaveLoading ? (
                     <Skeleton className="h-20 w-full" />
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).slice(0, 3).map((request: any) => (
                         <Link key={request.id} href={canApproveLeave ? `/approve-leave?requestId=${request.id}` : `/leave-requests?requestId=${request.id}`}>
                           <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`leave-item-${request.id}`}>
@@ -607,16 +592,11 @@ export default function Dashboard() {
             )}
 
             {hasBehaviour && (
-              <Card data-testid="card-behaviour-detail" className="border-l-4 border-l-amber-500">
+              <Card data-testid="card-behaviour-detail">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                      <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg">Behaviour Management</CardTitle>
-                      <CardDescription>{canManageBehaviour ? "Open on-call incidents" : "Report behaviour incidents"}</CardDescription>
-                    </div>
+                  <div>
+                    <CardTitle className="text-lg">Behaviour Management</CardTitle>
+                    <CardDescription>{canManageBehaviour ? "Open on-call incidents" : "Report behaviour incidents"}</CardDescription>
                   </div>
                   <Link href="/on-call">
                     <Button size="sm" data-testid="button-raise-oncall">
@@ -630,7 +610,7 @@ export default function Dashboard() {
                     oncallsLoading ? (
                       <Skeleton className="h-20 w-full" />
                     ) : openOncalls.length > 0 ? (
-                      <div className="space-y-3">
+                      <div className="space-y-4">
                         {openOncalls.map((oncall: any) => (
                           <Link key={oncall.id} href={`/behaviour-management?oncall_id=${oncall.id}`}>
                             <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`oncall-item-${oncall.id}`}>
@@ -672,24 +652,20 @@ export default function Dashboard() {
           {isLeaderOrAbove && (staffBirthdays.length > 0 || studentBirthdays.length > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {staffBirthdays.length > 0 && (
-                <Card data-testid="card-staff-birthdays" className="border-l-4 border-l-pink-500">
-                  <CardHeader className="flex flex-row items-center justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-pink-100 dark:bg-pink-900/30">
-                        <Cake className="h-5 w-5 text-pink-600 dark:text-pink-400" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">Staff Birthdays</CardTitle>
-                        <CardDescription>Upcoming in the next 2 weeks</CardDescription>
-                      </div>
-                    </div>
+                <Card data-testid="card-staff-birthdays">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Cake className="h-5 w-5" />
+                      Staff Birthdays
+                    </CardTitle>
+                    <CardDescription>Upcoming in the next 2 weeks</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {staffBirthdaysLoading ? (
                       <Skeleton className="h-20 w-full" />
                     ) : (
                       <ScrollArea className="h-[200px]">
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {staffBirthdays.map((staff) => (
                             <div key={staff.userId} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`staff-birthday-${staff.userId}`}>
                               <div className="flex items-center gap-3">
@@ -712,24 +688,20 @@ export default function Dashboard() {
               )}
 
               {studentBirthdays.length > 0 && hasBehaviour && (
-                <Card data-testid="card-student-birthdays" className="border-l-4 border-l-cyan-500">
-                  <CardHeader className="flex flex-row items-center justify-between gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-cyan-100 dark:bg-cyan-900/30">
-                        <GraduationCap className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
-                      </div>
-                      <div>
-                        <CardTitle className="text-lg">Student Birthdays</CardTitle>
-                        <CardDescription>Upcoming in the next 2 weeks</CardDescription>
-                      </div>
-                    </div>
+                <Card data-testid="card-student-birthdays">
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <GraduationCap className="h-5 w-5" />
+                      Student Birthdays
+                    </CardTitle>
+                    <CardDescription>Upcoming in the next 2 weeks</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {studentBirthdaysLoading ? (
                       <Skeleton className="h-20 w-full" />
                     ) : (
                       <ScrollArea className="h-[200px]">
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {studentBirthdays.map((student) => (
                             <div key={student.studentId} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`student-birthday-${student.studentId}`}>
                               <div className="flex items-center gap-3">
