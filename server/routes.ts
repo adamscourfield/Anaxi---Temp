@@ -3966,6 +3966,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Birthday endpoints - for Leaders, Admins, and Creators
+  
+  // Get upcoming staff birthdays for a school
+  app.get("/api/schools/:schoolId/birthdays/staff", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+      const daysAhead = parseInt(req.query.daysAhead as string) || 30;
+
+      // Verify user has Leader, Admin, or Creator role
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+        if (membership.role === "Teacher") {
+          return res.status(403).json({ message: "Forbidden: Only Leaders, Admins, or Creators can view birthdays" });
+        }
+      }
+
+      // Get all memberships for the school
+      const memberships = await storage.getMembershipsBySchool(schoolId);
+      
+      // Get user details with birthdays
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const staffBirthdays: Array<{
+        userId: string;
+        firstName: string | null;
+        lastName: string | null;
+        email: string;
+        dateOfBirth: string;
+        upcomingBirthday: string;
+        daysUntil: number;
+      }> = [];
+
+      for (const membership of memberships) {
+        const memberUser = await storage.getUser(membership.userId);
+        if (memberUser && memberUser.date_of_birth && !memberUser.archived) {
+          const dob = new Date(memberUser.date_of_birth);
+          
+          // Calculate this year's birthday
+          let nextBirthday = new Date(currentYear, dob.getMonth(), dob.getDate());
+          
+          // If birthday has passed this year, use next year
+          if (nextBirthday < today) {
+            nextBirthday = new Date(currentYear + 1, dob.getMonth(), dob.getDate());
+          }
+          
+          // Calculate days until birthday
+          const msPerDay = 24 * 60 * 60 * 1000;
+          const daysUntil = Math.ceil((nextBirthday.getTime() - today.getTime()) / msPerDay);
+          
+          if (daysUntil <= daysAhead) {
+            staffBirthdays.push({
+              userId: memberUser.id,
+              firstName: memberUser.first_name,
+              lastName: memberUser.last_name,
+              email: memberUser.email,
+              dateOfBirth: memberUser.date_of_birth,
+              upcomingBirthday: nextBirthday.toISOString().split('T')[0],
+              daysUntil,
+            });
+          }
+        }
+      }
+
+      // Sort by days until birthday
+      staffBirthdays.sort((a, b) => a.daysUntil - b.daysUntil);
+
+      res.json(staffBirthdays);
+    } catch (error) {
+      console.error("Error fetching staff birthdays:", error);
+      res.status(500).json({ message: "Failed to fetch staff birthdays" });
+    }
+  });
+
+  // Get upcoming student birthdays for a school
+  app.get("/api/schools/:schoolId/birthdays/students", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { schoolId } = req.params;
+      const daysAhead = parseInt(req.query.daysAhead as string) || 30;
+
+      // Verify user has Leader, Admin, or Creator role
+      if (user.global_role !== "Creator") {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (!membership) {
+          return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
+        }
+        if (membership.role === "Teacher") {
+          return res.status(403).json({ message: "Forbidden: Only Leaders, Admins, or Creators can view birthdays" });
+        }
+      }
+
+      // Get all students for the school
+      const students = await storage.getStudentsBySchool(schoolId, false);
+      
+      const today = new Date();
+      const currentYear = today.getFullYear();
+      const studentBirthdays: Array<{
+        studentId: string;
+        name: string;
+        dateOfBirth: string;
+        upcomingBirthday: string;
+        daysUntil: number;
+      }> = [];
+
+      for (const student of students) {
+        if (student.dateOfBirth) {
+          const dob = new Date(student.dateOfBirth);
+          
+          // Calculate this year's birthday
+          let nextBirthday = new Date(currentYear, dob.getMonth(), dob.getDate());
+          
+          // If birthday has passed this year, use next year
+          if (nextBirthday < today) {
+            nextBirthday = new Date(currentYear + 1, dob.getMonth(), dob.getDate());
+          }
+          
+          // Calculate days until birthday
+          const msPerDay = 24 * 60 * 60 * 1000;
+          const daysUntil = Math.ceil((nextBirthday.getTime() - today.getTime()) / msPerDay);
+          
+          if (daysUntil <= daysAhead) {
+            studentBirthdays.push({
+              studentId: student.id,
+              name: student.name,
+              dateOfBirth: student.dateOfBirth,
+              upcomingBirthday: nextBirthday.toISOString().split('T')[0],
+              daysUntil,
+            });
+          }
+        }
+      }
+
+      // Sort by days until birthday
+      studentBirthdays.sort((a, b) => a.daysUntil - b.daysUntil);
+
+      res.json(studentBirthdays);
+    } catch (error) {
+      console.error("Error fetching student birthdays:", error);
+      res.status(500).json({ message: "Failed to fetch student birthdays" });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
