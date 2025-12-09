@@ -131,13 +131,18 @@ export function AppSidebar() {
     // When currentSchool is null/loading, hide feature-gated items
     if (!currentSchool) {
       // Hide feature-specific items when loading
-      if (item.title === "Meetings" || item.title === "Request Leave" || item.title === "Approve Leave" || item.title === "On-Call" || item.title === "Behaviour Management") {
+      if (item.title === "Observe" || item.title === "View Observations" || item.title === "Meetings" || item.title === "Request Leave" || item.title === "Approve Leave" || item.title === "On-Call" || item.title === "Behaviour Management") {
         return false;
       }
       return true;
     }
 
     const enabledFeatures = currentSchool.enabled_features || [];
+
+    // Observe and View Observations require "observations" feature
+    if (item.title === "Observe" || item.title === "View Observations") {
+      return enabledFeatures.includes("observations");
+    }
 
     // Meetings requires "meetings" feature
     if (item.title === "Meetings") {

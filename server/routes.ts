@@ -150,6 +150,13 @@ function requireFeature(featureName: string) {
             schoolId = meeting.schoolId;
           }
         }
+        // For observations
+        else if (req.path.includes('/observations/')) {
+          const observation = await storage.getObservation(req.params.id);
+          if (observation) {
+            schoolId = observation.schoolId;
+          }
+        }
       }
       
       if (!schoolId) {
@@ -2551,7 +2558,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Observation routes with granular permission-based filtering
-  app.get("/api/observations", isAuthenticated, async (req: any, res) => {
+  app.get("/api/observations", isAuthenticated, requireFeature("observations"), async (req: any, res) => {
     try {
       const user = req.user;
       const schoolId = req.query.schoolId as string;
@@ -2657,7 +2664,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get a single observation with full details (categories and habits)
-  app.get("/api/observations/:id", isAuthenticated, async (req: any, res) => {
+  app.get("/api/observations/:id", isAuthenticated, requireFeature("observations"), async (req: any, res) => {
     try {
       const user = req.user;
       const { id } = req.params;
@@ -2744,7 +2751,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/observations", isAuthenticated, async (req: any, res) => {
+  app.post("/api/observations", isAuthenticated, requireFeature("observations"), async (req: any, res) => {
     try {
       const user = req.user;
       
