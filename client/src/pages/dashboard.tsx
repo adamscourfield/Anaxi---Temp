@@ -417,7 +417,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-5">
                       {recentObservations.slice(0, 4).map((obs: any) => (
-                        <Link key={obs.id} href={`/history?observationId=${obs.id}`}>
+                        <Link key={obs.id} href={`/history?observationId=${obs.id}`} className="block">
                           <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`observation-item-${obs.id}`}>
                             <div className="flex items-center gap-3">
                               <Eye className="h-4 w-4 text-muted-foreground" />
@@ -472,7 +472,7 @@ export default function Dashboard() {
                         <h4 className="text-sm font-medium mb-2">Upcoming Meetings</h4>
                         <div className="space-y-4">
                           {upcomingMeetings.map((meeting: any) => (
-                            <Link key={meeting.id} href={`/meetings?meetingId=${meeting.id}`}>
+                            <Link key={meeting.id} href={`/meetings?meetingId=${meeting.id}`} className="block">
                               <div className="flex items-center justify-between p-2 rounded-lg border hover-elevate cursor-pointer" data-testid={`meeting-item-${meeting.id}`}>
                                 <div className="flex items-center gap-2">
                                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -498,7 +498,7 @@ export default function Dashboard() {
                           {myActions.filter((a: any) => a.status === "open").slice(0, 3).map((action: any) => {
                             const isOverdue = action.dueDate && new Date(action.dueDate) < new Date();
                             return (
-                              <Link key={action.id} href={`/meetings?meetingId=${action.meetingId}`}>
+                              <Link key={action.id} href={`/meetings?meetingId=${action.meetingId}`} className="block">
                                 <div className="flex items-center justify-between p-2 rounded-lg border hover-elevate cursor-pointer" data-testid={`action-item-${action.id}`}>
                                   <div className="flex items-center gap-2">
                                     <CheckSquare className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`} />
@@ -554,7 +554,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-5">
                       {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).slice(0, 3).map((request: any) => (
-                        <Link key={request.id} href={canApproveLeave ? `/approve-leave?requestId=${request.id}` : `/leave-requests?requestId=${request.id}`}>
+                        <Link key={request.id} href={canApproveLeave ? `/approve-leave?requestId=${request.id}` : `/leave-requests?requestId=${request.id}`} className="block">
                           <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`leave-item-${request.id}`}>
                             <div className="flex items-center gap-3">
                               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -612,7 +612,7 @@ export default function Dashboard() {
                     ) : openOncalls.length > 0 ? (
                       <div className="space-y-5">
                         {openOncalls.map((oncall: any) => (
-                          <Link key={oncall.id} href={`/behaviour-management?oncall_id=${oncall.id}`}>
+                          <Link key={oncall.id} href={`/behaviour-management?oncall_id=${oncall.id}`} className="block">
                             <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`oncall-item-${oncall.id}`}>
                               <div className="flex items-center gap-3">
                                 <AlertCircle className="h-4 w-4 text-destructive" />
