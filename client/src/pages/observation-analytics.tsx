@@ -10,7 +10,19 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { format } from "date-fns";
+import { 
+  ComposedChart, 
+  Line, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer 
+} from "recharts";
 import { 
   ArrowLeft, 
   Eye, 
@@ -24,6 +36,8 @@ import {
   ChevronRight,
   Calendar
 } from "lucide-react";
+
+type ChartDisplayMode = "both" | "observations" | "quality";
 
 interface DrillDownFilter {
   type: "teacher" | "group" | "habit" | "category";
@@ -67,6 +81,7 @@ export default function ObservationAnalytics() {
   const { currentSchoolId, currentSchool } = useSchool();
   const [, setLocation] = useLocation();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
+  const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>("both");
   const [drillDownOpen, setDrillDownOpen] = useState(false);
   const [drillDownFilter, setDrillDownFilter] = useState<DrillDownFilter | null>(null);
 
@@ -269,49 +284,98 @@ export default function ObservationAnalytics() {
           {/* Observation Trend Chart */}
           {analyticsData.observationTrend && analyticsData.observationTrend.length > 0 && (
             <Card data-testid="card-observation-trend">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BarChart3 className="h-5 w-5" />
-                  Observation Trend
-                </CardTitle>
-                <CardDescription>Observations (bars) and average quality score (line)</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between flex-wrap gap-4">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Observation Trend
+                  </CardTitle>
+                  <CardDescription>Weekly observation count and quality score</CardDescription>
+                </div>
+                <ToggleGroup 
+                  type="single" 
+                  value={chartDisplayMode}
+                  onValueChange={(value) => value && setChartDisplayMode(value as ChartDisplayMode)}
+                  data-testid="toggle-chart-display"
+                >
+                  <ToggleGroupItem value="both" aria-label="Show both" data-testid="toggle-both">
+                    Both
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="observations" aria-label="Show observations only" data-testid="toggle-observations">
+                    Count
+                  </ToggleGroupItem>
+                  <ToggleGroupItem value="quality" aria-label="Show quality only" data-testid="toggle-quality">
+                    Quality
+                  </ToggleGroupItem>
+                </ToggleGroup>
               </CardHeader>
               <CardContent>
-                <div className="h-64 flex items-end justify-between gap-1">
-                  {analyticsData.observationTrend.map((item, idx) => (
-                    <div key={idx} className="flex-1 flex flex-col items-center gap-1">
-                      <div className="text-xs text-muted-foreground">{item.quality.toFixed(1)}</div>
-                      <div 
-                        className="w-full bg-primary rounded-t relative"
-                        style={{ 
-                          height: `${Math.max(10, (item.value / Math.max(...analyticsData.observationTrend.map(t => t.value))) * 150)}px` 
-                        }}
-                        data-testid={`bar-trend-${idx}`}
-                      >
-                        <div 
-                          className="absolute -top-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-orange-500 rounded-full"
-                          style={{ 
-                            bottom: `${(item.quality / 5) * 100}%`
-                          }}
-                        />
-                      </div>
-                      <div className="text-xs text-muted-foreground text-center truncate w-full">
-                        {item.label}
-                      </div>
-                      <div className="text-xs font-medium">{item.value}</div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex justify-center gap-4 mt-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-primary rounded" />
-                    <span>Observations</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 bg-orange-500 rounded-full" />
-                    <span>Quality Score</span>
-                  </div>
-                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={analyticsData.observationTrend}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <XAxis 
+                      dataKey="label" 
+                      className="text-xs"
+                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 11 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    {(chartDisplayMode === "both" || chartDisplayMode === "observations") && (
+                      <YAxis 
+                        yAxisId="left"
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        label={{ value: 'Count', angle: -90, position: 'insideLeft', style: { fill: 'hsl(var(--muted-foreground))' } }}
+                        allowDecimals={false}
+                      />
+                    )}
+                    {(chartDisplayMode === "both" || chartDisplayMode === "quality") && (
+                      <YAxis 
+                        yAxisId="right"
+                        orientation="right"
+                        className="text-xs"
+                        tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                        domain={[0, 5]}
+                        label={{ value: 'Quality (0-5)', angle: 90, position: 'insideRight', style: { fill: 'hsl(var(--muted-foreground))' } }}
+                      />
+                    )}
+                    <Tooltip 
+                      contentStyle={{ 
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '8px',
+                      }}
+                      labelStyle={{ color: 'hsl(var(--foreground))' }}
+                      formatter={(value: number, name: string) => [
+                        name === "Average Quality" ? value.toFixed(2) : value,
+                        name
+                      ]}
+                    />
+                    <Legend />
+                    {(chartDisplayMode === "both" || chartDisplayMode === "observations") && (
+                      <Bar 
+                        yAxisId="left"
+                        dataKey="value" 
+                        fill="hsl(var(--primary))" 
+                        name="Observation Count"
+                        radius={[4, 4, 0, 0]}
+                      />
+                    )}
+                    {(chartDisplayMode === "both" || chartDisplayMode === "quality") && (
+                      <Line 
+                        yAxisId={chartDisplayMode === "quality" ? "right" : "right"}
+                        type="monotone" 
+                        dataKey="quality" 
+                        stroke="hsl(var(--chart-2))" 
+                        strokeWidth={2}
+                        name="Average Quality"
+                        dot={{ fill: 'hsl(var(--chart-2))', r: 4 }}
+                        connectNulls
+                      />
+                    )}
+                  </ComposedChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           )}

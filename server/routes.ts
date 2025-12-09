@@ -3002,27 +3002,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "School ID is required" });
       }
 
+      // Get all users for the school to build teacher name lookup
+      const schoolUsers = await storage.getUsersBySchool(schoolId);
+      const userMap = new Map(schoolUsers.map(u => [u.id, u]));
+
+      // Helper to add teacher name and categories to observation
+      const enrichObservation = async (obs: any) => {
+        const teacher = userMap.get(obs.teacherId);
+        const teacherName = teacher 
+          ? `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || teacher.email
+          : "Unknown Teacher";
+        
+        const rubric = await storage.getRubric(obs.rubricId);
+        if (!rubric) return { ...obs, teacherName, categories: [] };
+        
+        const categories = await storage.getCategoriesByRubric(rubric.id);
+        return {
+          ...obs,
+          teacherName,
+          categories: categories
+            .filter(cat => cat.habits && cat.habits.length > 0)
+            .map(cat => ({ categoryName: cat.name })),
+        };
+      };
+
       // Creators can see all observations across all schools
       if (user.global_role === "Creator") {
         const observations = await storage.getObservationsBySchool(schoolId);
-        
-        // Add category names to each observation
-        const observationsWithCategories = await Promise.all(
-          observations.map(async (obs) => {
-            const rubric = await storage.getRubric(obs.rubricId);
-            if (!rubric) return { ...obs, categories: [] };
-            
-            const categories = await storage.getCategoriesByRubric(rubric.id);
-            return {
-              ...obs,
-              categories: categories
-                .filter(cat => cat.habits && cat.habits.length > 0)
-                .map(cat => ({ categoryName: cat.name })),
-            };
-          })
-        );
-        
-        return res.json(observationsWithCategories);
+        const observationsWithDetails = await Promise.all(observations.map(enrichObservation));
+        return res.json(observationsWithDetails);
       }
 
       // Verify the user has membership in the requested school
@@ -3039,24 +3047,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Admins can see all observations in their school
       if (role === "Admin") {
         const observations = await storage.getObservationsBySchool(schoolId);
-        
-        // Add category names to each observation
-        const observationsWithCategories = await Promise.all(
-          observations.map(async (obs) => {
-            const rubric = await storage.getRubric(obs.rubricId);
-            if (!rubric) return { ...obs, categories: [] };
-            
-            const categories = await storage.getCategoriesByRubric(rubric.id);
-            return {
-              ...obs,
-              categories: categories
-                .filter(cat => cat.habits && cat.habits.length > 0)
-                .map(cat => ({ categoryName: cat.name })),
-            };
-          })
-        );
-        
-        return res.json(observationsWithCategories);
+        const observationsWithDetails = await Promise.all(observations.map(enrichObservation));
+        return res.json(observationsWithDetails);
       }
 
       // Leaders and Teachers: See their own observations + observations for teachers they have explicit permission to view
@@ -3075,23 +3067,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         allowedTeacherIds.has(obs.teacherId)
       );
 
-      // Add category names to each observation
-      const observationsWithCategories = await Promise.all(
-        filteredObservations.map(async (obs) => {
-          const rubric = await storage.getRubric(obs.rubricId);
-          if (!rubric) return { ...obs, categories: [] };
-          
-          const categories = await storage.getCategoriesByRubric(rubric.id);
-          return {
-            ...obs,
-            categories: categories
-              .filter(cat => cat.habits && cat.habits.length > 0)
-              .map(cat => ({ categoryName: cat.name })),
-          };
-        })
-      );
-
-      res.json(observationsWithCategories);
+      const observationsWithDetails = await Promise.all(filteredObservations.map(enrichObservation));
+      res.json(observationsWithDetails);
     } catch (error) {
       console.error("Error fetching observations:", error);
       res.status(500).json({ message: "Failed to fetch observations" });
