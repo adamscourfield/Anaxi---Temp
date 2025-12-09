@@ -128,3 +128,26 @@ A comprehensive incident tracking system for schools with real-time notification
   - On-Call page (incident submission)
   - Behaviour Management page (three-tab admin interface)
   - School Memberships page (permission management with conditional behaviour access controls)
+
+### Feature Flag System
+All major features are feature-flagged per school via the `enabled_features` array on the `schools` table. Available features:
+- **observations**: Teacher observation system with rubrics, feedback, and analytics
+- **meetings**: Meetings and conversations tracking with action items
+- **absence_management**: Leave request and approval workflow
+- **behaviour**: Student behaviour tracking, on-call incidents, analytics
+
+The sidebar navigation and dashboard widgets automatically adapt based on which features are enabled for the current school. API routes use `requireFeature()` middleware to enforce feature access.
+
+### Flexible Dashboard
+The dashboard (`/dashboard`) is a widget-based interface that adapts to each school's enabled features and user permissions:
+- **Welcome Header**: Personalized greeting with school name
+- **Observations Widget**: Stats and quick actions (shown if observations enabled)
+- **Meetings Widget**: Meeting count and open actions (shown if meetings enabled)
+- **Leave Widget**: Pending approvals for approvers OR personal requests for staff (shown if absence_management enabled)
+- **Behaviour Widget**: Open on-calls for managers OR quick "Raise On-Call" for all staff (shown if behaviour enabled)
+- **My Action Items**: Open meeting actions assigned to current user across all meetings
+- **Empty State**: Shown when no features are enabled for the school
+
+Permission-based display:
+- `canApproveLeaveRequests`: Shows school-wide pending approvals vs personal leave requests
+- `canManageBehaviour`: Shows on-call statistics vs basic on-call raise button
