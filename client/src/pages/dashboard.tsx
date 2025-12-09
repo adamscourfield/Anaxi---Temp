@@ -427,20 +427,25 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-3">
                       {recentObservations.slice(0, 4).map((obs: any) => (
-                        <div key={obs.id} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`observation-item-${obs.id}`}>
-                          <div className="flex items-center gap-3">
-                            <Eye className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              <p className="text-sm font-medium">{obs.teacherName || "Teacher"}</p>
-                              <p className="text-xs text-muted-foreground">{formatDate(obs.date)}</p>
+                        <Link key={obs.id} href={`/history?observationId=${obs.id}`}>
+                          <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`observation-item-${obs.id}`}>
+                            <div className="flex items-center gap-3">
+                              <Eye className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                <p className="text-sm font-medium">{obs.teacherName || "Teacher"}</p>
+                                <p className="text-xs text-muted-foreground">{formatDate(obs.date)}</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {obs.status && (
+                                <Badge variant={obs.status === "completed" ? "secondary" : "outline"}>
+                                  {obs.status}
+                                </Badge>
+                              )}
+                              <ArrowRight className="h-4 w-4 text-muted-foreground" />
                             </div>
                           </div>
-                          {obs.status && (
-                            <Badge variant={obs.status === "completed" ? "secondary" : "outline"}>
-                              {obs.status}
-                            </Badge>
-                          )}
-                        </div>
+                        </Link>
                       ))}
                       {recentObservations.length > 4 && (
                         <Link href="/history">
@@ -477,15 +482,20 @@ export default function Dashboard() {
                         <h4 className="text-sm font-medium mb-2">Upcoming Meetings</h4>
                         <div className="space-y-2">
                           {upcomingMeetings.map((meeting: any) => (
-                            <div key={meeting.id} className="flex items-center justify-between p-2 rounded-lg border" data-testid={`meeting-item-${meeting.id}`}>
-                              <div className="flex items-center gap-2">
-                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm">{meeting.subject}</span>
+                            <Link key={meeting.id} href={`/meetings?meetingId=${meeting.id}`}>
+                              <div className="flex items-center justify-between p-2 rounded-lg border hover-elevate cursor-pointer" data-testid={`meeting-item-${meeting.id}`}>
+                                <div className="flex items-center gap-2">
+                                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                  <span className="text-sm">{meeting.subject}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatDate(meeting.scheduledAt)}
+                                  </span>
+                                  <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                </div>
                               </div>
-                              <span className="text-xs text-muted-foreground">
-                                {formatDate(meeting.scheduledAt)}
-                              </span>
-                            </div>
+                            </Link>
                           ))}
                         </div>
                       </div>
@@ -498,17 +508,22 @@ export default function Dashboard() {
                           {myActions.filter((a: any) => a.status === "open").slice(0, 3).map((action: any) => {
                             const isOverdue = action.dueDate && new Date(action.dueDate) < new Date();
                             return (
-                              <div key={action.id} className="flex items-center justify-between p-2 rounded-lg border" data-testid={`action-item-${action.id}`}>
-                                <div className="flex items-center gap-2">
-                                  <CheckSquare className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`} />
-                                  <span className="text-sm truncate max-w-[200px]">{action.description}</span>
+                              <Link key={action.id} href={`/meetings?meetingId=${action.meetingId}`}>
+                                <div className="flex items-center justify-between p-2 rounded-lg border hover-elevate cursor-pointer" data-testid={`action-item-${action.id}`}>
+                                  <div className="flex items-center gap-2">
+                                    <CheckSquare className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`} />
+                                    <span className="text-sm truncate max-w-[200px]">{action.description}</span>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {action.dueDate && (
+                                      <Badge variant={isOverdue ? "destructive" : "outline"} className="text-xs">
+                                        {isOverdue ? "Overdue" : formatDate(action.dueDate)}
+                                      </Badge>
+                                    )}
+                                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                                  </div>
                                 </div>
-                                {action.dueDate && (
-                                  <Badge variant={isOverdue ? "destructive" : "outline"} className="text-xs">
-                                    {isOverdue ? "Overdue" : formatDate(action.dueDate)}
-                                  </Badge>
-                                )}
-                              </div>
+                              </Link>
                             );
                           })}
                         </div>
@@ -549,22 +564,27 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-3">
                       {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).slice(0, 3).map((request: any) => (
-                        <div key={request.id} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`leave-item-${request.id}`}>
-                          <div className="flex items-center gap-3">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <div>
-                              {canApproveLeave && request.requester && (
-                                <p className="text-sm font-medium">{request.requester.firstName} {request.requester.lastName}</p>
-                              )}
-                              <p className="text-xs text-muted-foreground">
-                                {formatDate(request.startDate)} - {formatDate(request.endDate)}
-                              </p>
+                        <Link key={request.id} href={canApproveLeave ? `/approve-leave?requestId=${request.id}` : `/leave-requests?requestId=${request.id}`}>
+                          <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`leave-item-${request.id}`}>
+                            <div className="flex items-center gap-3">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <div>
+                                {canApproveLeave && request.requester && (
+                                  <p className="text-sm font-medium">{request.requester.firstName} {request.requester.lastName}</p>
+                                )}
+                                <p className="text-xs text-muted-foreground">
+                                  {formatDate(request.startDate)} - {formatDate(request.endDate)}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Badge variant={request.status === "pending" ? "outline" : request.status === "approved_with_pay" || request.status === "approved_without_pay" ? "secondary" : "destructive"}>
+                                {request.status === "pending" ? "Pending" : request.status === "approved_with_pay" ? "Approved" : request.status === "approved_without_pay" ? "Approved (unpaid)" : "Denied"}
+                              </Badge>
+                              <ArrowRight className="h-4 w-4 text-muted-foreground" />
                             </div>
                           </div>
-                          <Badge variant={request.status === "pending" ? "outline" : request.status === "approved_with_pay" || request.status === "approved_without_pay" ? "secondary" : "destructive"}>
-                            {request.status === "pending" ? "Pending" : request.status === "approved_with_pay" ? "Approved" : request.status === "approved_without_pay" ? "Approved (unpaid)" : "Denied"}
-                          </Badge>
-                        </div>
+                        </Link>
                       ))}
                       {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).length === 0 && (
                         <p className="text-muted-foreground text-sm">{canApproveLeave ? "No pending requests to review." : "No leave requests yet."}</p>
@@ -612,16 +632,21 @@ export default function Dashboard() {
                     ) : openOncalls.length > 0 ? (
                       <div className="space-y-3">
                         {openOncalls.map((oncall: any) => (
-                          <div key={oncall.id} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`oncall-item-${oncall.id}`}>
-                            <div className="flex items-center gap-3">
-                              <AlertCircle className="h-4 w-4 text-destructive" />
-                              <div>
-                                <p className="text-sm font-medium">{oncall.location}</p>
-                                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{oncall.description}</p>
+                          <Link key={oncall.id} href={`/behaviour-management?oncall_id=${oncall.id}`}>
+                            <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`oncall-item-${oncall.id}`}>
+                              <div className="flex items-center gap-3">
+                                <AlertCircle className="h-4 w-4 text-destructive" />
+                                <div>
+                                  <p className="text-sm font-medium">{oncall.location}</p>
+                                  <p className="text-xs text-muted-foreground truncate max-w-[200px]">{oncall.description}</p>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="destructive">Open</Badge>
+                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
                               </div>
                             </div>
-                            <Badge variant="destructive">Open</Badge>
-                          </div>
+                          </Link>
                         ))}
                         <Link href="/behaviour-management">
                           <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-oncalls">

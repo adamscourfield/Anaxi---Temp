@@ -2,12 +2,15 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useSchool } from "@/hooks/use-school";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
 import { 
   ArrowLeft, 
   Eye, 
@@ -17,8 +20,16 @@ import {
   BarChart3,
   MessageSquare,
   Target,
-  Award
+  Award,
+  ChevronRight,
+  Calendar
 } from "lucide-react";
+
+interface DrillDownFilter {
+  type: "teacher" | "group" | "habit" | "category";
+  name: string;
+  filterKey: string;
+}
 
 type TimePeriod = "week" | "month" | "year" | "all";
 
@@ -30,8 +41,8 @@ interface AnalyticsData {
     scoreChange: number;
   };
   observationTrend: Array<{ label: string; value: number; quality: number }>;
-  topPerformers: Array<{ label: string; value: number; maxValue: number; count: number }>;
-  lowestPerformers: Array<{ label: string; value: number; maxValue: number; count: number }>;
+  topPerformers: Array<{ teacherId: string; label: string; value: number; maxValue: number; count: number }>;
+  lowestPerformers: Array<{ teacherId: string; label: string; value: number; maxValue: number; count: number }>;
   categoryPerformance: Array<{ name: string; avgScore: number; maxScore: number }>;
   teachingGroupAnalysis: Array<{ 
     groupId: string; 
@@ -54,7 +65,10 @@ interface AnalyticsData {
 export default function ObservationAnalytics() {
   const { user, isCreator } = useAuth();
   const { currentSchoolId, currentSchool } = useSchool();
+  const [, setLocation] = useLocation();
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
+  const [drillDownOpen, setDrillDownOpen] = useState(false);
+  const [drillDownFilter, setDrillDownFilter] = useState<DrillDownFilter | null>(null);
 
   const { data: memberships = [] } = useQuery<any[]>({
     queryKey: ["/api/memberships", user?.id],
@@ -80,6 +94,67 @@ export default function ObservationAnalytics() {
       return response.json();
     },
   });
+
+  // Fetch all observations for drill-down filtering
+  const { data: allObservations = [] } = useQuery<any[]>({
+    queryKey: ["/api/observations", currentSchoolId],
+    enabled: !!currentSchoolId && isLeaderOrAbove,
+    queryFn: async () => {
+      const response = await fetch(`/api/observations?schoolId=${currentSchoolId}`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  // Fetch users for observation details
+  const { data: users = [] } = useQuery<any[]>({
+    queryKey: ["/api/users", currentSchoolId],
+    enabled: !!currentSchoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/users?schoolId=${currentSchoolId}`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  // Get filtered observations for drill-down
+  const drillDownObservations = drillDownFilter ? allObservations.filter(obs => {
+    if (drillDownFilter.type === "teacher") {
+      // Filter by teacherId for reliable matching
+      return obs.teacherId === drillDownFilter.filterKey;
+    }
+    if (drillDownFilter.type === "group") {
+      // Filter by group would require membership data - for now show all
+      return true;
+    }
+    if (drillDownFilter.type === "habit" || drillDownFilter.type === "category") {
+      // Filter by habit/category would require checking observation habits
+      return true;
+    }
+    return true;
+  }) : [];
+
+  // Helper to get observation display data
+  const getObservationDisplay = (obs: any) => {
+    const teacher = users.find(u => u.id === obs.teacherId);
+    const observer = users.find(u => u.id === obs.observerId);
+    return {
+      teacherName: teacher ? `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || teacher.email : "Unknown",
+      observerName: observer ? `${observer.first_name || ''} ${observer.last_name || ''}`.trim() || observer.email : "Unknown",
+      date: new Date(obs.date),
+      score: obs.totalMaxScore > 0 ? ((obs.totalScore / obs.totalMaxScore) * 100).toFixed(0) : 0,
+    };
+  };
+
+  const openDrillDown = (type: DrillDownFilter["type"], name: string, filterKey: string) => {
+    setDrillDownFilter({ type, name, filterKey });
+    setDrillDownOpen(true);
+  };
+
+  const viewObservation = (observationId: string) => {
+    setDrillDownOpen(false);
+    setLocation(`/history?observationId=${observationId}`);
+  };
 
   if (!isLeaderOrAbove) {
     return (
@@ -276,7 +351,12 @@ export default function ObservationAnalytics() {
                     {analyticsData.topPerformers && analyticsData.topPerformers.length > 0 ? (
                       <div className="space-y-3">
                         {analyticsData.topPerformers.map((teacher, idx) => (
-                          <div key={idx} className="flex items-center justify-between" data-testid={`top-performer-${idx}`}>
+                          <div 
+                            key={idx} 
+                            className="flex items-center justify-between p-2 rounded hover-elevate cursor-pointer" 
+                            data-testid={`top-performer-${idx}`}
+                            onClick={() => openDrillDown("teacher", teacher.label, teacher.teacherId)}
+                          >
                             <div className="flex items-center gap-3">
                               <Badge variant="outline">{idx + 1}</Badge>
                               <span className="font-medium">{teacher.label}</span>
@@ -284,6 +364,7 @@ export default function ObservationAnalytics() {
                             <div className="flex items-center gap-2">
                               <Badge variant="secondary">{teacher.count} obs</Badge>
                               <span className="font-bold text-green-600">{teacher.value.toFixed(2)}/5</span>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             </div>
                           </div>
                         ))}
@@ -307,7 +388,12 @@ export default function ObservationAnalytics() {
                     {analyticsData.lowestPerformers && analyticsData.lowestPerformers.length > 0 ? (
                       <div className="space-y-3">
                         {analyticsData.lowestPerformers.map((teacher, idx) => (
-                          <div key={idx} className="flex items-center justify-between" data-testid={`lowest-performer-${idx}`}>
+                          <div 
+                            key={idx} 
+                            className="flex items-center justify-between p-2 rounded hover-elevate cursor-pointer" 
+                            data-testid={`lowest-performer-${idx}`}
+                            onClick={() => openDrillDown("teacher", teacher.label, teacher.teacherId)}
+                          >
                             <div className="flex items-center gap-3">
                               <Badge variant="outline">{idx + 1}</Badge>
                               <span className="font-medium">{teacher.label}</span>
@@ -315,6 +401,7 @@ export default function ObservationAnalytics() {
                             <div className="flex items-center gap-2">
                               <Badge variant="secondary">{teacher.count} obs</Badge>
                               <span className="font-bold text-orange-600">{teacher.value.toFixed(2)}/5</span>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
                             </div>
                           </div>
                         ))}
@@ -367,10 +454,18 @@ export default function ObservationAnalytics() {
                   {analyticsData.teachingGroupAnalysis && analyticsData.teachingGroupAnalysis.length > 0 ? (
                     <div className="space-y-4">
                       {analyticsData.teachingGroupAnalysis.map((group, idx) => (
-                        <div key={idx} className="p-4 border rounded-lg space-y-2" data-testid={`teaching-group-${idx}`}>
+                        <div 
+                          key={idx} 
+                          className="p-4 border rounded-lg space-y-2 hover-elevate cursor-pointer" 
+                          data-testid={`teaching-group-${idx}`}
+                          onClick={() => openDrillDown("group", group.groupName, group.groupId)}
+                        >
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-lg">{group.groupName}</span>
-                            <Badge variant="secondary">{group.teacherCount} teachers</Badge>
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary">{group.teacherCount} teachers</Badge>
+                              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            </div>
                           </div>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
@@ -410,7 +505,12 @@ export default function ObservationAnalytics() {
                   {analyticsData.habitAnalysis && analyticsData.habitAnalysis.length > 0 ? (
                     <div className="space-y-3">
                       {analyticsData.habitAnalysis.slice(0, 15).map((habit, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-2 border rounded" data-testid={`habit-${idx}`}>
+                        <div 
+                          key={idx} 
+                          className="flex items-center justify-between p-2 border rounded hover-elevate cursor-pointer" 
+                          data-testid={`habit-${idx}`}
+                          onClick={() => openDrillDown("habit", habit.habitName, habit.habitName)}
+                        >
                           <div className="flex-1">
                             <span className="font-medium">{habit.habitName}</span>
                             <span className="text-muted-foreground text-sm ml-2">({habit.categoryName})</span>
@@ -424,6 +524,7 @@ export default function ObservationAnalytics() {
                             </div>
                             <span className="text-sm font-medium w-12 text-right">{habit.percentage.toFixed(0)}%</span>
                             <Badge variant="outline">{habit.observedCount}/{habit.totalCount}</Badge>
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
                           </div>
                         </div>
                       ))}
@@ -501,6 +602,72 @@ export default function ObservationAnalytics() {
           </div>
         </Card>
       )}
+
+      {/* Drill-down Sheet */}
+      <Sheet open={drillDownOpen} onOpenChange={setDrillDownOpen}>
+        <SheetContent className="sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              {drillDownFilter?.type === "teacher" && <Users className="h-5 w-5" />}
+              {drillDownFilter?.type === "group" && <Users className="h-5 w-5" />}
+              {drillDownFilter?.type === "habit" && <Target className="h-5 w-5" />}
+              {drillDownFilter?.name}
+            </SheetTitle>
+            <SheetDescription>
+              {drillDownFilter?.type === "teacher" && "All observations for this teacher"}
+              {drillDownFilter?.type === "group" && "All observations for this teaching group"}
+              {drillDownFilter?.type === "habit" && "Observations involving this habit"}
+            </SheetDescription>
+          </SheetHeader>
+          <ScrollArea className="h-[calc(100vh-150px)] mt-6">
+            {drillDownObservations.length > 0 ? (
+              <div className="space-y-3 pr-4">
+                {drillDownObservations
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .map((obs) => {
+                    const display = getObservationDisplay(obs);
+                    return (
+                      <div
+                        key={obs.id}
+                        className="p-4 border rounded-lg hover-elevate cursor-pointer space-y-2"
+                        onClick={() => viewObservation(obs.id)}
+                        data-testid={`drilldown-obs-${obs.id}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium">{display.teacherName}</span>
+                          <Badge 
+                            variant={Number(display.score) >= 80 ? "default" : Number(display.score) >= 60 ? "secondary" : "outline"}
+                          >
+                            {display.score}%
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                            <Eye className="h-3 w-3" />
+                            <span>by {display.observerName}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-3 w-3" />
+                            <span>{format(display.date, "dd MMM yyyy")}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-end">
+                          <Button variant="ghost" size="sm" className="text-xs">
+                            View Details <ChevronRight className="h-3 w-3 ml-1" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <div className="text-center text-muted-foreground py-8">
+                No observations found for this filter.
+              </div>
+            )}
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

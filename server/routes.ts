@@ -2584,9 +2584,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         teacherScores[obs.teacherId].count++;
       }
 
-      const topPerformers = Object.values(teacherScores)
-        .filter(t => t.count > 0 && t.totalMax > 0)
-        .map(t => ({
+      const topPerformers = Object.entries(teacherScores)
+        .filter(([_, t]) => t.count > 0 && t.totalMax > 0)
+        .map(([teacherId, t]) => ({
+          teacherId,
           label: t.name,
           value: (t.totalScore / t.totalMax) * 5,
           maxValue: 5,
@@ -2596,9 +2597,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .sort((a, b) => b.value - a.value)
         .slice(0, 10);
 
-      const lowestPerformers = Object.values(teacherScores)
-        .filter(t => t.count > 0 && t.totalMax > 0)
-        .map(t => ({
+      const lowestPerformers = Object.entries(teacherScores)
+        .filter(([_, t]) => t.count > 0 && t.totalMax > 0)
+        .map(([teacherId, t]) => ({
+          teacherId,
           label: t.name,
           value: (t.totalScore / t.totalMax) * 5,
           maxValue: 5,
