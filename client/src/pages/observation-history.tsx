@@ -92,13 +92,11 @@ export default function ObservationHistory() {
   const [performersTimePeriod, setPerformersTimePeriod] = useState<"week" | "month" | "year" | "all">("all");
 
   interface AnalyticsData {
-    categoryAverages: Array<{ name: string; score: number; maxScore: number }>;
-    topPerformers: Array<{ name: string; avgScore: number }>;
-    lowestPerformers: Array<{ name: string; avgScore: number }>;
-    observationTrend: Array<{ date: string; count: number }>;
-    totalObservations: number;
-    totalTeachersObserved: number;
-    avgOverallScore: number;
+    observationTrend: Array<{ label: string; value: number; quality: number }>;
+    topPerformers: Array<{ label: string; value: number; maxValue: number; count: number }>;
+    lowestPerformers: Array<{ label: string; value: number; maxValue: number; count: number }>;
+    categoryPerformance: Array<{ name: string; avgScore: number; maxScore: number; trend: string; trendValue: number }>;
+    qualitativeFeedback: Array<{ teacherName: string; observerName: string; date: string; feedback: string }>;
   }
 
   const { data: analyticsData, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
@@ -106,12 +104,20 @@ export default function ObservationHistory() {
     enabled: !!currentSchoolId && isLeaderOrAbove && analyticsOpen,
     queryFn: async () => {
       const response = await fetch(
-        `/api/dashboard/analytics?schoolId=${currentSchoolId}&categoryTimePeriod=${categoryTimePeriod}&topPerformersTimePeriod=${performersTimePeriod}&lowestPerformersTimePeriod=${performersTimePeriod}&includeLowest=true`
+        `/api/dashboard/analytics?schoolId=${currentSchoolId}&categoryTimePeriod=${categoryTimePeriod}&topPerformersTimePeriod=${performersTimePeriod}&lowestPerformersTimePeriod=${performersTimePeriod}&includeLowest=true&trendTimePeriod=month`
       );
       if (!response.ok) throw new Error("Failed to fetch analytics");
       return response.json();
     },
   });
+
+  // Compute summary stats from the loaded data
+  const totalObservations = observations.length;
+  const totalTeachersObserved = new Set(observations.map((o: any) => o.teacherId)).size;
+  const avgOverallScore = observations.length > 0
+    ? observations.reduce((sum: number, obs: any) => sum + (obs.totalScore || 0), 0) / 
+      observations.reduce((sum: number, obs: any) => sum + (obs.totalMaxScore || 1), 0) * 5
+    : 0;
 
   // Map observations with teacher and observer names
   const observationsWithNames = observations.map((obs: any) => {
@@ -338,8 +344,8 @@ export default function ObservationHistory() {
                       <Eye className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold" data-testid="text-total-obs">{analyticsData.totalObservations}</div>
-                      <p className="text-xs text-muted-foreground">completed this period</p>
+                      <div className="text-2xl font-bold" data-testid="text-total-obs">{totalObservations}</div>
+                      <p className="text-xs text-muted-foreground">completed</p>
                     </CardContent>
                   </Card>
                   <Card data-testid="card-teachers-observed">
@@ -348,7 +354,7 @@ export default function ObservationHistory() {
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold" data-testid="text-teachers-count">{analyticsData.totalTeachersObserved}</div>
+                      <div className="text-2xl font-bold" data-testid="text-teachers-count">{totalTeachersObserved}</div>
                       <p className="text-xs text-muted-foreground">unique teachers</p>
                     </CardContent>
                   </Card>
@@ -359,7 +365,7 @@ export default function ObservationHistory() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold" data-testid="text-avg-score">
-                        {analyticsData.avgOverallScore ? analyticsData.avgOverallScore.toFixed(1) : "N/A"}
+                        {avgOverallScore ? avgOverallScore.toFixed(1) : "N/A"}
                       </div>
                       <p className="text-xs text-muted-foreground">out of 5.0</p>
                     </CardContent>
@@ -368,14 +374,14 @@ export default function ObservationHistory() {
 
                 {/* Analytics Charts */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {analyticsData.categoryAverages && analyticsData.categoryAverages.length > 0 && (
+                  {analyticsData.categoryPerformance && analyticsData.categoryPerformance.length > 0 && (
                     <AnalyticsChart
                       title="Performance by Category"
-                      data={analyticsData.categoryAverages
-                        .filter(cat => cat.name && cat.score != null)
+                      data={analyticsData.categoryPerformance
+                        .filter(cat => cat.name && cat.avgScore != null)
                         .map(cat => ({
                           label: cat.name,
-                          value: cat.score || 0,
+                          value: cat.avgScore || 0,
                           maxValue: cat.maxScore || 1,
                         }))}
                       type="progress"
@@ -388,11 +394,11 @@ export default function ObservationHistory() {
                     <AnalyticsChart
                       title="Top Performing Teachers"
                       data={analyticsData.topPerformers
-                        .filter(p => p.name && p.avgScore != null)
+                        .filter(p => p.label && p.value != null)
                         .map(p => ({
-                          label: p.name,
-                          value: parseFloat((p.avgScore || 0).toFixed(2)),
-                          maxValue: 5,
+                          label: p.label,
+                          value: parseFloat((p.value || 0).toFixed(2)),
+                          maxValue: p.maxValue || 5,
                         }))}
                       type="progress"
                       showFilter
