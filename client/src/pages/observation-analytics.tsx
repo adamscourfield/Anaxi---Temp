@@ -54,7 +54,7 @@ interface AnalyticsData {
 export default function ObservationAnalytics() {
   const { user, isCreator } = useAuth();
   const { currentSchoolId, currentSchool } = useSchool();
-  const [timePeriod, setTimePeriod] = useState<TimePeriod>("month");
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("all");
 
   const { data: memberships = [] } = useQuery<any[]>({
     queryKey: ["/api/memberships", user?.id],

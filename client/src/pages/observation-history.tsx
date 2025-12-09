@@ -248,6 +248,17 @@ export default function ObservationHistory() {
           </p>
         </div>
         <div className="flex gap-2">
+          {isLeaderOrAbove && (
+            <Link href="/analytics">
+              <Button 
+                variant="outline"
+                data-testid="button-view-analytics"
+              >
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Analytics
+              </Button>
+            </Link>
+          )}
           {canExport && (
             <Button
               variant="outline"
@@ -277,20 +288,6 @@ export default function ObservationHistory() {
           data-testid="input-search-observations"
         />
       </div>
-
-      {/* Analytics Link - Leaders/Admins/Creators only */}
-      {isLeaderOrAbove && (
-        <Link href="/analytics">
-          <Button 
-            variant="outline" 
-            className="w-full justify-start gap-2"
-            data-testid="button-view-analytics"
-          >
-            <BarChart3 className="h-4 w-4" />
-            <span>View Analytics & Insights</span>
-          </Button>
-        </Link>
-      )}
 
       {observationsLoading ? (
         <div className="text-center text-muted-foreground py-12">Loading observations...</div>
