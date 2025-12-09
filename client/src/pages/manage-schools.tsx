@@ -458,14 +458,14 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
                   <Checkbox
                     id="feature-observations"
                     checked={editEnabledFeatures.includes("observations")}
-                    disabled={true}
+                    onCheckedChange={() => toggleFeature("observations")}
                     data-testid="checkbox-feature-observations"
                   />
                   <Label 
                     htmlFor="feature-observations" 
-                    className="text-sm font-normal cursor-not-allowed opacity-60"
+                    className="text-sm font-normal cursor-pointer"
                   >
-                    Observations (Always enabled)
+                    Observations
                   </Label>
                 </div>
                 
