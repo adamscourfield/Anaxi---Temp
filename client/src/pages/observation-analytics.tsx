@@ -139,12 +139,18 @@ export default function ObservationAnalytics() {
       return obs.teacherId === drillDownFilter.filterKey;
     }
     if (drillDownFilter.type === "group") {
-      // Filter by group would require membership data - for now show all
+      // Filter by group - would need membership data, for now show all
       return true;
     }
-    if (drillDownFilter.type === "habit" || drillDownFilter.type === "category") {
-      // Filter by habit/category would require checking observation habits
-      return true;
+    if (drillDownFilter.type === "habit") {
+      // Filter by habit name - check if observation has this habit observed
+      const habitNames = obs.habitNames || [];
+      return habitNames.includes(drillDownFilter.filterKey);
+    }
+    if (drillDownFilter.type === "category") {
+      // Filter by category name
+      const categories = obs.categories || [];
+      return categories.some((c: any) => c.categoryName === drillDownFilter.filterKey);
     }
     return true;
   }) : [];

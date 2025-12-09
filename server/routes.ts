@@ -3003,10 +3003,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get all users for the school to build teacher name lookup
-      const schoolUsers = await storage.getUsersBySchool(schoolId);
-      const userMap = new Map(schoolUsers.map(u => [u.id, u]));
+      const schoolMemberships = await storage.getMembershipsBySchool(schoolId);
+      const schoolUsers = await Promise.all(schoolMemberships.map(m => storage.getUser(m.userId)));
+      const userMap = new Map(schoolUsers.filter(Boolean).map(u => [u!.id, u!]));
 
-      // Helper to add teacher name and categories to observation
+      // Helper to add teacher name, categories, and habit names to observation
       const enrichObservation = async (obs: any) => {
         const teacher = userMap.get(obs.teacherId);
         const teacherName = teacher 
@@ -3014,12 +3015,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
           : "Unknown Teacher";
         
         const rubric = await storage.getRubric(obs.rubricId);
-        if (!rubric) return { ...obs, teacherName, categories: [] };
+        if (!rubric) return { ...obs, teacherName, categories: [], habitNames: [] };
         
         const categories = await storage.getCategoriesByRubric(rubric.id);
+        
+        // Get observation habits for filtering
+        const observationHabits = await storage.getObservationHabitsByObservation(obs.id);
+        const habitNames = observationHabits
+          .filter(oh => oh.observed)
+          .map(oh => oh.habitText || "");
+        
         return {
           ...obs,
           teacherName,
+          habitNames,
           categories: categories
             .filter(cat => cat.habits && cat.habits.length > 0)
             .map(cat => ({ categoryName: cat.name })),
