@@ -1,17 +1,15 @@
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useSchool } from "@/hooks/use-school";
-import type { User, SchoolMembership, School } from "@shared/schema";
+import type { SchoolMembership } from "@shared/schema";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Eye,
-  Users,
-  ClipboardCheck,
   TrendingUp,
   Calendar,
   MessageSquare,
@@ -21,6 +19,11 @@ import {
   Plus,
   Clock,
   FileText,
+  BarChart3,
+  Cake,
+  User,
+  Users,
+  GraduationCap,
 } from "lucide-react";
 
 interface DashboardStats {
@@ -28,6 +31,13 @@ interface DashboardStats {
   activeTeachers: number;
   avgScore: number;
   improvement: number;
+}
+
+interface AnalyticsData {
+  byCategory: Record<string, { total: number; average: number }>;
+  byTeacher: Record<string, { name: string; count: number; avgScore: number }>;
+  byObserver: Record<string, { name: string; count: number }>;
+  recentTrend: { month: string; count: number; avgScore: number }[];
 }
 
 interface LeaveStats {
@@ -47,6 +57,24 @@ interface BehaviourStats {
   todayOncallsCount: number;
 }
 
+interface StaffBirthday {
+  userId: string;
+  firstName: string | null;
+  lastName: string | null;
+  email: string;
+  dateOfBirth: string;
+  upcomingBirthday: string;
+  daysUntil: number;
+}
+
+interface StudentBirthday {
+  studentId: string;
+  name: string;
+  dateOfBirth: string;
+  upcomingBirthday: string;
+  daysUntil: number;
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const { currentSchoolId, currentSchool } = useSchool();
@@ -57,7 +85,6 @@ export default function Dashboard() {
   const hasLeave = enabledFeatures.includes("absence_management");
   const hasBehaviour = enabledFeatures.includes("behaviour");
 
-  // Get user's membership for current school
   const { data: userMemberships = [] } = useQuery<Array<SchoolMembership & { school?: any }>>({
     queryKey: ["/api/my-memberships"],
     enabled: !!user,
@@ -66,8 +93,9 @@ export default function Dashboard() {
   const currentMembership = userMemberships.find(m => m.schoolId === currentSchoolId);
   const canApproveLeave = currentMembership?.canApproveLeaveRequests || false;
   const canManageBehaviour = currentMembership?.canManageBehaviour || false;
+  const userRole = currentMembership?.role || "Teacher";
+  const isLeaderOrAbove = userRole === "Leader" || userRole === "Admin" || user?.global_role === "Creator";
 
-  // Observation stats (only if feature enabled)
   const { data: observationStats, isLoading: observationStatsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats", currentSchoolId],
     enabled: !!currentSchoolId && hasObservations,
@@ -78,7 +106,26 @@ export default function Dashboard() {
     },
   });
 
-  // Leave stats (only if feature enabled)
+  const { data: observationAnalytics, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
+    queryKey: ["/api/dashboard/analytics", currentSchoolId],
+    enabled: !!currentSchoolId && hasObservations && isLeaderOrAbove,
+    queryFn: async () => {
+      const response = await fetch(`/api/dashboard/analytics?schoolId=${currentSchoolId}`);
+      if (!response.ok) throw new Error("Failed to fetch analytics");
+      return response.json();
+    },
+  });
+
+  const { data: recentObservations = [], isLoading: recentObsLoading } = useQuery<any[]>({
+    queryKey: ["/api/observations", currentSchoolId],
+    enabled: !!currentSchoolId && hasObservations,
+    queryFn: async () => {
+      const response = await fetch(`/api/observations?schoolId=${currentSchoolId}`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
   const { data: leaveRequests = [], isLoading: leaveLoading } = useQuery<any[]>({
     queryKey: ["/api/leave-requests", currentSchoolId],
     enabled: !!currentSchoolId && hasLeave,
@@ -95,7 +142,6 @@ export default function Dashboard() {
     upcomingLeave: leaveRequests.filter(lr => lr.status === "approved" && new Date(lr.startDate) > new Date()).length,
   };
 
-  // Meetings stats (only if feature enabled)
   const { data: meetings = [], isLoading: meetingsLoading } = useQuery<any[]>({
     queryKey: ["/api/meetings", currentSchoolId],
     enabled: !!currentSchoolId && hasMeetings,
@@ -106,7 +152,6 @@ export default function Dashboard() {
     },
   });
 
-  // Get meeting actions for the current user
   const { data: myActions = [] } = useQuery<any[]>({
     queryKey: ["/api/my-actions"],
     enabled: hasMeetings,
@@ -123,12 +168,16 @@ export default function Dashboard() {
     myActionsCount: myActions.filter((a: any) => a.status === "open").length,
   };
 
-  // Behaviour stats (only if feature enabled)
+  const upcomingMeetings = meetings
+    .filter(m => m.scheduledAt && new Date(m.scheduledAt) > new Date())
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime())
+    .slice(0, 3);
+
   const { data: oncalls = [], isLoading: oncallsLoading } = useQuery<any[]>({
-    queryKey: ["/api/oncalls", currentSchoolId],
+    queryKey: ["/api/schools", currentSchoolId, "oncalls"],
     enabled: !!currentSchoolId && hasBehaviour && canManageBehaviour,
     queryFn: async () => {
-      const response = await fetch(`/api/oncalls?schoolId=${currentSchoolId}`);
+      const response = await fetch(`/api/schools/${currentSchoolId}/oncalls`);
       if (!response.ok) return [];
       return response.json();
     },
@@ -146,14 +195,47 @@ export default function Dashboard() {
     }).length,
   };
 
-  const userName = user?.first_name || user?.email?.split("@")[0] || "there";
+  const openOncalls = oncalls
+    .filter(o => o.status === "open")
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 3);
 
-  // Check if any features are enabled
+  const { data: staffBirthdays = [], isLoading: staffBirthdaysLoading } = useQuery<StaffBirthday[]>({
+    queryKey: ["/api/schools", currentSchoolId, "birthdays/staff"],
+    enabled: !!currentSchoolId && isLeaderOrAbove,
+    queryFn: async () => {
+      const response = await fetch(`/api/schools/${currentSchoolId}/birthdays/staff?daysAhead=14`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  const { data: studentBirthdays = [], isLoading: studentBirthdaysLoading } = useQuery<StudentBirthday[]>({
+    queryKey: ["/api/schools", currentSchoolId, "birthdays/students"],
+    enabled: !!currentSchoolId && isLeaderOrAbove && hasBehaviour,
+    queryFn: async () => {
+      const response = await fetch(`/api/schools/${currentSchoolId}/birthdays/students?daysAhead=14`);
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  const userName = user?.first_name || user?.email?.split("@")[0] || "there";
   const hasAnyFeatures = hasObservations || hasMeetings || hasLeave || hasBehaviour;
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  };
+
+  const getBirthdayLabel = (daysUntil: number) => {
+    if (daysUntil === 0) return "Today!";
+    if (daysUntil === 1) return "Tomorrow";
+    return `In ${daysUntil} days`;
+  };
 
   return (
     <div className="p-6 space-y-8">
-      {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight" data-testid="text-welcome">
@@ -165,7 +247,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* No features enabled state */}
       {!hasAnyFeatures && currentSchool && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
@@ -178,298 +259,473 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Feature Widgets Grid */}
       {hasAnyFeatures && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Observations Widget */}
-          {hasObservations && (
-            <Card className="hover-elevate" data-testid="card-observations-widget">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Observations</CardTitle>
-                <Eye className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {observationStatsLoading ? (
-                  <div className="space-y-2">
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {hasObservations && (
+              <Card data-testid="card-observations-widget">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+                  <CardTitle className="text-sm font-medium">Observations</CardTitle>
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {observationStatsLoading ? (
                     <Skeleton className="h-8 w-20" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold" data-testid="text-observations-count">
-                      {observationStats?.totalObservations || 0}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      observations this month
-                    </p>
-                    <div className="flex items-center gap-2 mt-4">
-                      <Badge variant="secondary" className="gap-1">
-                        <TrendingUp className="h-3 w-3" />
-                        {observationStats?.improvement || 0}% vs last month
-                      </Badge>
-                    </div>
-                    <div className="flex gap-2 mt-4">
-                      <Link href="/observe">
-                        <Button size="sm" data-testid="button-new-observation">
-                          <Plus className="h-4 w-4 mr-1" />
-                          New
-                        </Button>
-                      </Link>
-                      <Link href="/history">
-                        <Button size="sm" variant="outline" data-testid="button-view-observations">
-                          View All
-                          <ArrowRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </Link>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Meetings Widget */}
-          {hasMeetings && (
-            <Card className="hover-elevate" data-testid="card-meetings-widget">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Meetings</CardTitle>
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {meetingsLoading ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-8 w-20" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold" data-testid="text-meetings-count">
-                      {meetings.length}
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      total meetings recorded
-                    </p>
-                    {meetingStats.myActionsCount > 0 && (
-                      <div className="flex items-center gap-2 mt-4">
-                        <Badge variant={meetingStats.overdueActionsCount > 0 ? "destructive" : "secondary"} className="gap-1">
-                          <CheckSquare className="h-3 w-3" />
-                          {meetingStats.myActionsCount} open action{meetingStats.myActionsCount !== 1 ? "s" : ""}
-                        </Badge>
-                      </div>
-                    )}
-                    <div className="flex gap-2 mt-4">
-                      <Link href="/meetings">
-                        <Button size="sm" data-testid="button-new-meeting">
-                          <Plus className="h-4 w-4 mr-1" />
-                          New
-                        </Button>
-                      </Link>
-                      <Link href="/meetings">
-                        <Button size="sm" variant="outline" data-testid="button-view-meetings">
-                          View All
-                          <ArrowRight className="h-4 w-4 ml-1" />
-                        </Button>
-                      </Link>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Leave Widget */}
-          {hasLeave && (
-            <Card className="hover-elevate" data-testid="card-leave-widget">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
-                  {canApproveLeave ? "Leave Requests" : "My Leave"}
-                </CardTitle>
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {leaveLoading ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-8 w-20" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
-                ) : (
-                  <>
-                    {canApproveLeave ? (
-                      <>
-                        <div className="text-2xl font-bold" data-testid="text-pending-leave-count">
-                          {leaveStats.pendingCount}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          pending approval{leaveStats.pendingCount !== 1 ? "s" : ""}
-                        </p>
-                        {leaveStats.pendingCount > 0 && (
-                          <div className="flex items-center gap-2 mt-4">
-                            <Badge variant="outline" className="gap-1">
-                              <Clock className="h-3 w-3" />
-                              Needs attention
-                            </Badge>
-                          </div>
-                        )}
-                        <div className="flex gap-2 mt-4">
-                          <Link href="/approve-leave">
-                            <Button size="sm" data-testid="button-approve-leave">
-                              Review
-                              <ArrowRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-2xl font-bold" data-testid="text-my-leave-count">
-                          {leaveStats.myPendingCount}
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          pending request{leaveStats.myPendingCount !== 1 ? "s" : ""}
-                        </p>
-                        {leaveStats.upcomingLeave > 0 && (
-                          <div className="flex items-center gap-2 mt-4">
-                            <Badge variant="secondary" className="gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {leaveStats.upcomingLeave} upcoming
-                            </Badge>
-                          </div>
-                        )}
-                        <div className="flex gap-2 mt-4">
-                          <Link href="/leave-requests">
-                            <Button size="sm" data-testid="button-request-leave">
-                              <Plus className="h-4 w-4 mr-1" />
-                              Request
-                            </Button>
-                          </Link>
-                          <Link href="/leave-requests">
-                            <Button size="sm" variant="outline" data-testid="button-view-leave">
-                              View All
-                              <ArrowRight className="h-4 w-4 ml-1" />
-                            </Button>
-                          </Link>
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Behaviour Widget */}
-          {hasBehaviour && (
-            <Card className="hover-elevate" data-testid="card-behaviour-widget">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Behaviour</CardTitle>
-                <AlertCircle className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                {canManageBehaviour ? (
-                  oncallsLoading ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-8 w-20" />
-                      <Skeleton className="h-4 w-32" />
-                    </div>
                   ) : (
                     <>
-                      <div className="text-2xl font-bold" data-testid="text-open-oncalls-count">
-                        {behaviourStats.openOncallsCount}
+                      <div className="text-2xl font-bold" data-testid="text-observations-count">
+                        {observationStats?.totalObservations || 0}
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        open on-call{behaviourStats.openOncallsCount !== 1 ? "s" : ""}
-                      </p>
-                      {behaviourStats.todayOncallsCount > 0 && (
-                        <div className="flex items-center gap-2 mt-4">
-                          <Badge variant="outline" className="gap-1">
+                      <p className="text-xs text-muted-foreground">this month</p>
+                      {observationStats?.improvement !== undefined && observationStats.improvement !== 0 && (
+                        <Badge variant="secondary" className="mt-2 gap-1">
+                          <TrendingUp className="h-3 w-3" />
+                          {observationStats.improvement > 0 ? "+" : ""}{observationStats.improvement}%
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {hasMeetings && (
+              <Card data-testid="card-meetings-widget">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+                  <CardTitle className="text-sm font-medium">Meetings</CardTitle>
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {meetingsLoading ? (
+                    <Skeleton className="h-8 w-20" />
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold" data-testid="text-meetings-count">
+                        {meetings.length}
+                      </div>
+                      <p className="text-xs text-muted-foreground">total recorded</p>
+                      {meetingStats.myActionsCount > 0 && (
+                        <Badge variant={meetingStats.overdueActionsCount > 0 ? "destructive" : "secondary"} className="mt-2 gap-1">
+                          <CheckSquare className="h-3 w-3" />
+                          {meetingStats.myActionsCount} action{meetingStats.myActionsCount !== 1 ? "s" : ""}
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {hasLeave && (
+              <Card data-testid="card-leave-widget">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+                  <CardTitle className="text-sm font-medium">{canApproveLeave ? "Leave Requests" : "My Leave"}</CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {leaveLoading ? (
+                    <Skeleton className="h-8 w-20" />
+                  ) : canApproveLeave ? (
+                    <>
+                      <div className="text-2xl font-bold" data-testid="text-pending-leave-count">
+                        {leaveStats.pendingCount}
+                      </div>
+                      <p className="text-xs text-muted-foreground">pending approval</p>
+                      {leaveStats.pendingCount > 0 && (
+                        <Badge variant="outline" className="mt-2 gap-1">
+                          <Clock className="h-3 w-3" />
+                          Needs attention
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold" data-testid="text-my-leave-count">
+                        {leaveStats.myPendingCount}
+                      </div>
+                      <p className="text-xs text-muted-foreground">pending request{leaveStats.myPendingCount !== 1 ? "s" : ""}</p>
+                      {leaveStats.upcomingLeave > 0 && (
+                        <Badge variant="secondary" className="mt-2 gap-1">
+                          <Calendar className="h-3 w-3" />
+                          {leaveStats.upcomingLeave} upcoming
+                        </Badge>
+                      )}
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {hasBehaviour && (
+              <Card data-testid="card-behaviour-widget">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+                  <CardTitle className="text-sm font-medium">Behaviour</CardTitle>
+                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  {canManageBehaviour ? (
+                    oncallsLoading ? (
+                      <Skeleton className="h-8 w-20" />
+                    ) : (
+                      <>
+                        <div className="text-2xl font-bold" data-testid="text-open-oncalls-count">
+                          {behaviourStats.openOncallsCount}
+                        </div>
+                        <p className="text-xs text-muted-foreground">open on-call{behaviourStats.openOncallsCount !== 1 ? "s" : ""}</p>
+                        {behaviourStats.todayOncallsCount > 0 && (
+                          <Badge variant="outline" className="mt-2 gap-1">
                             <Clock className="h-3 w-3" />
                             {behaviourStats.todayOncallsCount} today
                           </Badge>
+                        )}
+                      </>
+                    )
+                  ) : (
+                    <>
+                      <div className="text-2xl font-bold" data-testid="text-behaviour-placeholder">On-Call</div>
+                      <p className="text-xs text-muted-foreground">Report incidents</p>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {hasObservations && (
+              <Card data-testid="card-observations-detail">
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg">Observations</CardTitle>
+                    <CardDescription>Recent activity and quick actions</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    {isLeaderOrAbove && (
+                      <Link href="/analytics">
+                        <Button size="sm" variant="outline" data-testid="button-view-analytics">
+                          <BarChart3 className="h-4 w-4 mr-1" />
+                          Analytics
+                        </Button>
+                      </Link>
+                    )}
+                    <Link href="/observe">
+                      <Button size="sm" data-testid="button-new-observation">
+                        <Plus className="h-4 w-4 mr-1" />
+                        New
+                      </Button>
+                    </Link>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {recentObsLoading ? (
+                    <div className="space-y-2">
+                      <Skeleton className="h-12 w-full" />
+                      <Skeleton className="h-12 w-full" />
+                    </div>
+                  ) : recentObservations.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">No observations yet. Start by creating one!</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {recentObservations.slice(0, 4).map((obs: any) => (
+                        <div key={obs.id} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`observation-item-${obs.id}`}>
+                          <div className="flex items-center gap-3">
+                            <Eye className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              <p className="text-sm font-medium">{obs.teacherName || "Teacher"}</p>
+                              <p className="text-xs text-muted-foreground">{formatDate(obs.date)}</p>
+                            </div>
+                          </div>
+                          {obs.status && (
+                            <Badge variant={obs.status === "completed" ? "secondary" : "outline"}>
+                              {obs.status}
+                            </Badge>
+                          )}
                         </div>
-                      )}
-                      <div className="flex gap-2 mt-4">
-                        <Link href="/on-call">
-                          <Button size="sm" data-testid="button-raise-oncall">
-                            <Plus className="h-4 w-4 mr-1" />
-                            Raise On-Call
+                      ))}
+                      {recentObservations.length > 4 && (
+                        <Link href="/history">
+                          <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-observations">
+                            View all {recentObservations.length} observations
+                            <ArrowRight className="h-4 w-4 ml-1" />
                           </Button>
                         </Link>
+                      )}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {hasMeetings && (
+              <Card data-testid="card-meetings-detail">
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg">Meetings & Actions</CardTitle>
+                    <CardDescription>Upcoming meetings and your action items</CardDescription>
+                  </div>
+                  <Link href="/meetings">
+                    <Button size="sm" data-testid="button-new-meeting">
+                      <Plus className="h-4 w-4 mr-1" />
+                      New
+                    </Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {upcomingMeetings.length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">Upcoming Meetings</h4>
+                        <div className="space-y-2">
+                          {upcomingMeetings.map((meeting: any) => (
+                            <div key={meeting.id} className="flex items-center justify-between p-2 rounded-lg border" data-testid={`meeting-item-${meeting.id}`}>
+                              <div className="flex items-center gap-2">
+                                <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm">{meeting.subject}</span>
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {formatDate(meeting.scheduledAt)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    {myActions.filter((a: any) => a.status === "open").length > 0 && (
+                      <div>
+                        <h4 className="text-sm font-medium mb-2">My Action Items</h4>
+                        <div className="space-y-2">
+                          {myActions.filter((a: any) => a.status === "open").slice(0, 3).map((action: any) => {
+                            const isOverdue = action.dueDate && new Date(action.dueDate) < new Date();
+                            return (
+                              <div key={action.id} className="flex items-center justify-between p-2 rounded-lg border" data-testid={`action-item-${action.id}`}>
+                                <div className="flex items-center gap-2">
+                                  <CheckSquare className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`} />
+                                  <span className="text-sm truncate max-w-[200px]">{action.description}</span>
+                                </div>
+                                {action.dueDate && (
+                                  <Badge variant={isOverdue ? "destructive" : "outline"} className="text-xs">
+                                    {isOverdue ? "Overdue" : formatDate(action.dueDate)}
+                                  </Badge>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {upcomingMeetings.length === 0 && myActions.filter((a: any) => a.status === "open").length === 0 && (
+                      <p className="text-muted-foreground text-sm">No upcoming meetings or pending actions.</p>
+                    )}
+
+                    <Link href="/meetings">
+                      <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-meetings">
+                        View all meetings
+                        <ArrowRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {hasLeave && (
+              <Card data-testid="card-leave-detail">
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg">{canApproveLeave ? "Leave Approvals" : "Leave Requests"}</CardTitle>
+                    <CardDescription>{canApproveLeave ? "Pending requests requiring your review" : "Your leave request status"}</CardDescription>
+                  </div>
+                  <Link href={canApproveLeave ? "/approve-leave" : "/leave-requests"}>
+                    <Button size="sm" data-testid="button-manage-leave">
+                      {canApproveLeave ? "Review" : <><Plus className="h-4 w-4 mr-1" />Request</>}
+                    </Button>
+                  </Link>
+                </CardHeader>
+                <CardContent>
+                  {leaveLoading ? (
+                    <Skeleton className="h-20 w-full" />
+                  ) : (
+                    <div className="space-y-3">
+                      {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).slice(0, 3).map((request: any) => (
+                        <div key={request.id} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`leave-item-${request.id}`}>
+                          <div className="flex items-center gap-3">
+                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                            <div>
+                              {canApproveLeave && request.requester && (
+                                <p className="text-sm font-medium">{request.requester.firstName} {request.requester.lastName}</p>
+                              )}
+                              <p className="text-xs text-muted-foreground">
+                                {formatDate(request.startDate)} - {formatDate(request.endDate)}
+                              </p>
+                            </div>
+                          </div>
+                          <Badge variant={request.status === "pending" ? "outline" : request.status === "approved_with_pay" || request.status === "approved_without_pay" ? "secondary" : "destructive"}>
+                            {request.status === "pending" ? "Pending" : request.status === "approved_with_pay" ? "Approved" : request.status === "approved_without_pay" ? "Approved (unpaid)" : "Denied"}
+                          </Badge>
+                        </div>
+                      ))}
+                      {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).length === 0 && (
+                        <p className="text-muted-foreground text-sm">{canApproveLeave ? "No pending requests to review." : "No leave requests yet."}</p>
+                      )}
+                      <Link href={canApproveLeave ? "/approve-leave" : "/leave-requests"}>
+                        <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-leave">
+                          View all
+                          <ArrowRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {hasBehaviour && (
+              <Card data-testid="card-behaviour-detail">
+                <CardHeader className="flex flex-row items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="text-lg">Behaviour Management</CardTitle>
+                    <CardDescription>{canManageBehaviour ? "Open on-call incidents" : "Report behaviour incidents"}</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    {canManageBehaviour && (
+                      <Link href="/behaviour-management">
+                        <Button size="sm" variant="outline" data-testid="button-behaviour-analytics">
+                          <BarChart3 className="h-4 w-4 mr-1" />
+                          Analytics
+                        </Button>
+                      </Link>
+                    )}
+                    <Link href="/on-call">
+                      <Button size="sm" data-testid="button-raise-oncall">
+                        <Plus className="h-4 w-4 mr-1" />
+                        On-Call
+                      </Button>
+                    </Link>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {canManageBehaviour ? (
+                    oncallsLoading ? (
+                      <Skeleton className="h-20 w-full" />
+                    ) : openOncalls.length > 0 ? (
+                      <div className="space-y-3">
+                        {openOncalls.map((oncall: any) => (
+                          <div key={oncall.id} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`oncall-item-${oncall.id}`}>
+                            <div className="flex items-center gap-3">
+                              <AlertCircle className="h-4 w-4 text-destructive" />
+                              <div>
+                                <p className="text-sm font-medium">{oncall.location}</p>
+                                <p className="text-xs text-muted-foreground truncate max-w-[200px]">{oncall.description}</p>
+                              </div>
+                            </div>
+                            <Badge variant="destructive">Open</Badge>
+                          </div>
+                        ))}
                         <Link href="/behaviour-management">
-                          <Button size="sm" variant="outline" data-testid="button-manage-behaviour">
-                            Manage
+                          <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-oncalls">
+                            View all on-calls
                             <ArrowRight className="h-4 w-4 ml-1" />
                           </Button>
                         </Link>
                       </div>
-                    </>
-                  )
-                ) : (
-                  <>
-                    <div className="text-2xl font-bold" data-testid="text-behaviour-placeholder">
-                      On-Call
+                    ) : (
+                      <p className="text-muted-foreground text-sm">No open on-call incidents.</p>
+                    )
+                  ) : (
+                    <div className="text-center py-4">
+                      <AlertCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">Use the On-Call button to report behaviour incidents that need immediate attention.</p>
                     </div>
-                    <p className="text-xs text-muted-foreground">
-                      Report behaviour incidents
-                    </p>
-                    <div className="flex gap-2 mt-4">
-                      <Link href="/on-call">
-                        <Button size="sm" data-testid="button-raise-oncall">
-                          <Plus className="h-4 w-4 mr-1" />
-                          Raise On-Call
-                        </Button>
-                      </Link>
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
+                  )}
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
-      {/* My Actions Section - Only show if there are open actions */}
-      {hasMeetings && myActions.filter((a: any) => a.status === "open").length > 0 && (
-        <Card data-testid="card-my-actions">
-          <CardHeader>
-            <CardTitle className="text-lg">My Action Items</CardTitle>
-            <CardDescription>Tasks assigned to you from meetings</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {myActions
-                .filter((a: any) => a.status === "open")
-                .slice(0, 5)
-                .map((action: any) => {
-                  const isOverdue = action.dueDate && new Date(action.dueDate) < new Date();
-                  return (
-                    <div
-                      key={action.id}
-                      className="flex items-center justify-between p-3 rounded-lg border"
-                      data-testid={`action-item-${action.id}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <CheckSquare className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`} />
-                        <span className="text-sm">{action.description}</span>
-                      </div>
-                      {action.dueDate && (
-                        <Badge variant={isOverdue ? "destructive" : "outline"} className="text-xs">
-                          {isOverdue ? "Overdue" : `Due ${new Date(action.dueDate).toLocaleDateString()}`}
-                        </Badge>
-                      )}
+          {isLeaderOrAbove && (staffBirthdays.length > 0 || studentBirthdays.length > 0) && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {staffBirthdays.length > 0 && (
+                <Card data-testid="card-staff-birthdays">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Cake className="h-5 w-5" />
+                        Staff Birthdays
+                      </CardTitle>
+                      <CardDescription>Upcoming in the next 2 weeks</CardDescription>
                     </div>
-                  );
-                })}
-              {myActions.filter((a: any) => a.status === "open").length > 5 && (
-                <Link href="/meetings">
-                  <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-actions">
-                    View all {myActions.filter((a: any) => a.status === "open").length} actions
-                    <ArrowRight className="h-4 w-4 ml-1" />
-                  </Button>
-                </Link>
+                    <Users className="h-5 w-5 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {staffBirthdaysLoading ? (
+                      <Skeleton className="h-20 w-full" />
+                    ) : (
+                      <ScrollArea className="h-[200px]">
+                        <div className="space-y-3">
+                          {staffBirthdays.map((staff) => (
+                            <div key={staff.userId} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`staff-birthday-${staff.userId}`}>
+                              <div className="flex items-center gap-3">
+                                <User className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-sm font-medium">{staff.firstName} {staff.lastName}</p>
+                                  <p className="text-xs text-muted-foreground">{formatDate(staff.upcomingBirthday)}</p>
+                                </div>
+                              </div>
+                              <Badge variant={staff.daysUntil === 0 ? "default" : staff.daysUntil <= 3 ? "secondary" : "outline"}>
+                                {getBirthdayLabel(staff.daysUntil)}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {studentBirthdays.length > 0 && hasBehaviour && (
+                <Card data-testid="card-student-birthdays">
+                  <CardHeader className="flex flex-row items-center justify-between gap-2">
+                    <div>
+                      <CardTitle className="text-lg flex items-center gap-2">
+                        <Cake className="h-5 w-5" />
+                        Student Birthdays
+                      </CardTitle>
+                      <CardDescription>Upcoming in the next 2 weeks</CardDescription>
+                    </div>
+                    <GraduationCap className="h-5 w-5 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    {studentBirthdaysLoading ? (
+                      <Skeleton className="h-20 w-full" />
+                    ) : (
+                      <ScrollArea className="h-[200px]">
+                        <div className="space-y-3">
+                          {studentBirthdays.map((student) => (
+                            <div key={student.studentId} className="flex items-center justify-between p-3 rounded-lg border" data-testid={`student-birthday-${student.studentId}`}>
+                              <div className="flex items-center gap-3">
+                                <GraduationCap className="h-4 w-4 text-muted-foreground" />
+                                <div>
+                                  <p className="text-sm font-medium">{student.name}</p>
+                                  <p className="text-xs text-muted-foreground">{formatDate(student.upcomingBirthday)}</p>
+                                </div>
+                              </div>
+                              <Badge variant={student.daysUntil === 0 ? "default" : student.daysUntil <= 3 ? "secondary" : "outline"}>
+                                {getBirthdayLabel(student.daysUntil)}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </>
       )}
     </div>
   );
