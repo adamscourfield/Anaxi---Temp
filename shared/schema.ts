@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, timestamp, integer, boolean, jsonb, index, uniqueIndex, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -23,6 +23,7 @@ export const users = pgTable("users", {
   first_name: varchar("first_name"),
   last_name: varchar("last_name"),
   profile_image_url: varchar("profile_image_url"),
+  date_of_birth: date("date_of_birth"), // Staff date of birth for birthday tracking
   global_role: text("global_role"), // "Creator" for platform admins, null for regular users
   archived: boolean("archived").default(false).notNull(), // Archived users cannot log in or be assigned observations
   reset_token: varchar("reset_token"), // Password reset token
@@ -282,6 +283,7 @@ export const students = pgTable("students", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   schoolId: varchar("school_id").notNull().references(() => schools.id),
   name: text("name").notNull(),
+  dateOfBirth: date("date_of_birth"), // Student date of birth for birthday tracking
   send: boolean("send").default(false).notNull(), // Special Educational Needs and Disabilities
   pp: boolean("pp").default(false).notNull(), // Pupil Premium
   isArchived: boolean("is_archived").default(false).notNull(),
