@@ -371,11 +371,13 @@ export default function ObservationHistory() {
                   {analyticsData.categoryAverages && analyticsData.categoryAverages.length > 0 && (
                     <AnalyticsChart
                       title="Performance by Category"
-                      data={analyticsData.categoryAverages.map(cat => ({
-                        label: cat.name,
-                        value: cat.score,
-                        maxValue: cat.maxScore,
-                      }))}
+                      data={analyticsData.categoryAverages
+                        .filter(cat => cat.name && cat.score != null)
+                        .map(cat => ({
+                          label: cat.name,
+                          value: cat.score || 0,
+                          maxValue: cat.maxScore || 1,
+                        }))}
                       type="progress"
                       showFilter
                       timePeriod={categoryTimePeriod}
@@ -385,11 +387,13 @@ export default function ObservationHistory() {
                   {analyticsData.topPerformers && analyticsData.topPerformers.length > 0 && (
                     <AnalyticsChart
                       title="Top Performing Teachers"
-                      data={analyticsData.topPerformers.map(p => ({
-                        label: p.name,
-                        value: parseFloat(p.avgScore.toFixed(2)),
-                        maxValue: 5,
-                      }))}
+                      data={analyticsData.topPerformers
+                        .filter(p => p.name && p.avgScore != null)
+                        .map(p => ({
+                          label: p.name,
+                          value: parseFloat((p.avgScore || 0).toFixed(2)),
+                          maxValue: 5,
+                        }))}
                       type="progress"
                       showFilter
                       timePeriod={performersTimePeriod}
