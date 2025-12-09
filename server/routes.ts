@@ -2417,8 +2417,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const teacherData = userMap.get(obs.teacherId);
           const observerData = userMap.get(obs.observerId);
           return {
-            teacherName: teacherData ? `${teacherData.firstName} ${teacherData.lastName}`.trim() || teacherData.email : "Unknown",
-            observerName: observerData ? `${observerData.firstName} ${observerData.lastName}`.trim() || observerData.email : "Unknown",
+            teacherName: teacherData ? `${teacherData.first_name || ''} ${teacherData.last_name || ''}`.trim() || teacherData.email : "Unknown",
+            observerName: observerData ? `${observerData.first_name || ''} ${observerData.last_name || ''}`.trim() || observerData.email : "Unknown",
             date: obs.date,
             feedback: obs.qualitativeFeedback
           };
@@ -2564,7 +2564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             totalScore: 0,
             totalMax: 0,
             count: 0,
-            name: userData ? `${userData.firstName} ${userData.lastName}`.trim() || userData.email : "Unknown"
+            name: userData ? `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || userData.email : "Unknown"
           };
         }
         teacherScores[obs.teacherId].totalScore += obs.totalScore;
@@ -2672,7 +2672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           habitCounts[obsHabit.habitId] = {
             observed: 0,
             total: 0,
-            name: habit.name,
+            name: habit.text,
             category: catName
           };
         }
@@ -2739,8 +2739,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const teacherData = userMap.get(obs.teacherId);
           const observerData = userMap.get(obs.observerId);
           return {
-            teacherName: teacherData ? `${teacherData.firstName} ${teacherData.lastName}`.trim() || teacherData.email : "Unknown",
-            observerName: observerData ? `${observerData.firstName} ${observerData.lastName}`.trim() || observerData.email : "Unknown",
+            teacherName: teacherData ? `${teacherData.first_name || ''} ${teacherData.last_name || ''}`.trim() || teacherData.email : "Unknown",
+            observerName: observerData ? `${observerData.first_name || ''} ${observerData.last_name || ''}`.trim() || observerData.email : "Unknown",
             date: obs.date,
             feedback: obs.qualitativeFeedback
           };
