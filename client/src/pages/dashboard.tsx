@@ -415,7 +415,7 @@ export default function Dashboard() {
                   ) : recentObservations.length === 0 ? (
                     <p className="text-muted-foreground text-sm">No observations yet. Start by creating one!</p>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       {recentObservations.slice(0, 4).map((obs: any) => (
                         <Link key={obs.id} href={`/history?observationId=${obs.id}`}>
                           <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`observation-item-${obs.id}`}>
@@ -470,7 +470,7 @@ export default function Dashboard() {
                     {upcomingMeetings.length > 0 && (
                       <div>
                         <h4 className="text-sm font-medium mb-2">Upcoming Meetings</h4>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {upcomingMeetings.map((meeting: any) => (
                             <Link key={meeting.id} href={`/meetings?meetingId=${meeting.id}`}>
                               <div className="flex items-center justify-between p-2 rounded-lg border hover-elevate cursor-pointer" data-testid={`meeting-item-${meeting.id}`}>
@@ -494,7 +494,7 @@ export default function Dashboard() {
                     {myActions.filter((a: any) => a.status === "open").length > 0 && (
                       <div>
                         <h4 className="text-sm font-medium mb-2">My Action Items</h4>
-                        <div className="space-y-3">
+                        <div className="space-y-4">
                           {myActions.filter((a: any) => a.status === "open").slice(0, 3).map((action: any) => {
                             const isOverdue = action.dueDate && new Date(action.dueDate) < new Date();
                             return (
@@ -552,7 +552,7 @@ export default function Dashboard() {
                   {leaveLoading ? (
                     <Skeleton className="h-20 w-full" />
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-5">
                       {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).slice(0, 3).map((request: any) => (
                         <Link key={request.id} href={canApproveLeave ? `/approve-leave?requestId=${request.id}` : `/leave-requests?requestId=${request.id}`}>
                           <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`leave-item-${request.id}`}>
@@ -610,7 +610,7 @@ export default function Dashboard() {
                     oncallsLoading ? (
                       <Skeleton className="h-20 w-full" />
                     ) : openOncalls.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="space-y-5">
                         {openOncalls.map((oncall: any) => (
                           <Link key={oncall.id} href={`/behaviour-management?oncall_id=${oncall.id}`}>
                             <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`oncall-item-${oncall.id}`}>
