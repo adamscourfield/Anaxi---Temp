@@ -174,7 +174,7 @@ export default function Dashboard() {
     .slice(0, 3);
 
   const { data: oncalls = [], isLoading: oncallsLoading } = useQuery<any[]>({
-    queryKey: ["/api/schools", currentSchoolId, "oncalls"],
+    queryKey: [`/api/schools/${currentSchoolId}/oncalls`],
     enabled: !!currentSchoolId && hasBehaviour && canManageBehaviour,
     queryFn: async () => {
       const response = await fetch(`/api/schools/${currentSchoolId}/oncalls`);
