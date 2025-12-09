@@ -2437,6 +2437,337 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Comprehensive Observation Analytics endpoint
+  app.get("/api/observation-analytics", isAuthenticated, async (req: any, res) => {
+    try {
+      const schoolId = req.query.schoolId as string;
+      const timePeriod = (req.query.timePeriod as string) || "month";
+      const user = req.user;
+
+      if (!schoolId) {
+        return res.status(400).json({ message: "schoolId parameter is required" });
+      }
+
+      // Verify user has access to this school and is Leader/Admin/Creator
+      let hasAccess = false;
+      if (user.global_role === "Creator") {
+        hasAccess = true;
+      } else {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (membership && (membership.role === "Leader" || membership.role === "Admin")) {
+          hasAccess = true;
+        }
+      }
+
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Forbidden: Analytics requires Leader or Admin access" });
+      }
+
+      // Get all observations for this school
+      const schoolObservations = await storage.getObservationsBySchool(schoolId);
+
+      // Calculate time filter cutoff
+      const now = new Date();
+      let cutoffDate: Date | null = null;
+      let prevCutoffDate: Date | null = null;
+      
+      if (timePeriod === "week") {
+        cutoffDate = new Date(now);
+        cutoffDate.setDate(now.getDate() - 7);
+        prevCutoffDate = new Date(cutoffDate);
+        prevCutoffDate.setDate(prevCutoffDate.getDate() - 7);
+      } else if (timePeriod === "month") {
+        cutoffDate = new Date(now);
+        cutoffDate.setMonth(now.getMonth() - 1);
+        prevCutoffDate = new Date(cutoffDate);
+        prevCutoffDate.setMonth(prevCutoffDate.getMonth() - 1);
+      } else if (timePeriod === "year") {
+        cutoffDate = new Date(now);
+        cutoffDate.setFullYear(now.getFullYear() - 1);
+        prevCutoffDate = new Date(cutoffDate);
+        prevCutoffDate.setFullYear(prevCutoffDate.getFullYear() - 1);
+      }
+
+      // Filter observations by time period
+      const filteredObservations = cutoffDate
+        ? schoolObservations.filter(obs => new Date(obs.date) >= cutoffDate!)
+        : schoolObservations;
+      
+      const prevPeriodObservations = cutoffDate && prevCutoffDate
+        ? schoolObservations.filter(obs => {
+            const obsDate = new Date(obs.date);
+            return obsDate >= prevCutoffDate! && obsDate < cutoffDate!;
+          })
+        : [];
+
+      // Get all users for name lookups
+      const schoolMemberships = await storage.getMembershipsBySchool(schoolId);
+      const userIds = [...new Set(schoolMemberships.map(m => m.userId))];
+      const allUsers = await Promise.all(userIds.map(id => storage.getUser(id)));
+      const userMap = new Map(allUsers.filter(Boolean).map(u => [u!.id, u!]));
+
+      // Summary statistics
+      const totalObservations = filteredObservations.length;
+      const uniqueTeachers = new Set(filteredObservations.map(obs => obs.teacherId)).size;
+      
+      // Calculate average score, only counting observations with valid max scores
+      const validObservations = filteredObservations.filter(obs => obs.totalMaxScore > 0);
+      const averageScore = validObservations.length > 0
+        ? validObservations.reduce((sum, obs) => sum + (obs.totalScore / obs.totalMaxScore) * 5, 0) / validObservations.length
+        : 0;
+
+      // Calculate score change vs previous period
+      const validPrevObservations = prevPeriodObservations.filter(obs => obs.totalMaxScore > 0);
+      const prevAvgScore = validPrevObservations.length > 0
+        ? validPrevObservations.reduce((sum, obs) => sum + (obs.totalScore / obs.totalMaxScore) * 5, 0) / validPrevObservations.length
+        : averageScore;
+      const scoreChange = prevAvgScore > 0 && validObservations.length > 0 ? ((averageScore - prevAvgScore) / prevAvgScore) * 100 : 0;
+
+      // Observation trend (group by time interval)
+      const trendMap = new Map<string, { count: number; totalScore: number; totalMax: number }>();
+      for (const obs of filteredObservations) {
+        const date = new Date(obs.date);
+        let label: string;
+        if (timePeriod === "week") {
+          label = date.toLocaleDateString('en-US', { weekday: 'short' });
+        } else if (timePeriod === "month") {
+          label = `Week ${Math.ceil(date.getDate() / 7)}`;
+        } else if (timePeriod === "year") {
+          label = date.toLocaleDateString('en-US', { month: 'short' });
+        } else {
+          label = date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        }
+        
+        if (!trendMap.has(label)) {
+          trendMap.set(label, { count: 0, totalScore: 0, totalMax: 0 });
+        }
+        const entry = trendMap.get(label)!;
+        entry.count++;
+        entry.totalScore += obs.totalScore;
+        entry.totalMax += obs.totalMaxScore;
+      }
+      
+      const observationTrend = Array.from(trendMap.entries())
+        .map(([label, data]) => ({
+          label,
+          value: data.count,
+          quality: data.totalMax > 0 ? (data.totalScore / data.totalMax) * 5 : 0
+        }))
+        .slice(-12); // Limit to last 12 data points
+
+      // Top and lowest performers
+      const teacherScores: Record<string, { totalScore: number; totalMax: number; count: number; name: string }> = {};
+      for (const obs of filteredObservations) {
+        if (!teacherScores[obs.teacherId]) {
+          const userData = userMap.get(obs.teacherId);
+          teacherScores[obs.teacherId] = {
+            totalScore: 0,
+            totalMax: 0,
+            count: 0,
+            name: userData ? `${userData.firstName} ${userData.lastName}`.trim() || userData.email : "Unknown"
+          };
+        }
+        teacherScores[obs.teacherId].totalScore += obs.totalScore;
+        teacherScores[obs.teacherId].totalMax += obs.totalMaxScore;
+        teacherScores[obs.teacherId].count++;
+      }
+
+      const topPerformers = Object.values(teacherScores)
+        .filter(t => t.count > 0 && t.totalMax > 0)
+        .map(t => ({
+          label: t.name,
+          value: (t.totalScore / t.totalMax) * 5,
+          maxValue: 5,
+          count: t.count
+        }))
+        .filter(t => t.value >= 4.0)
+        .sort((a, b) => b.value - a.value)
+        .slice(0, 10);
+
+      const lowestPerformers = Object.values(teacherScores)
+        .filter(t => t.count > 0 && t.totalMax > 0)
+        .map(t => ({
+          label: t.name,
+          value: (t.totalScore / t.totalMax) * 5,
+          maxValue: 5,
+          count: t.count
+        }))
+        .filter(t => t.value < 3.5)
+        .sort((a, b) => a.value - b.value)
+        .slice(0, 10);
+
+      // Category performance
+      const categoryScores: Record<string, { totalScore: number; totalMax: number }> = {};
+      const allObsHabits = await Promise.all(
+        filteredObservations.map(obs => storage.getObservationHabitsByObservation(obs.id))
+      );
+      const flatObsHabits = allObsHabits.flat();
+      
+      const categoryIds = [...new Set(flatObsHabits.map(h => h.categoryId))];
+      const categories = await Promise.all(categoryIds.map(id => storage.getCategory(id)));
+      const categoryMap = new Map(categories.filter(Boolean).map(c => [c!.id, c!.name]));
+      
+      for (const habit of flatObsHabits) {
+        const catName = categoryMap.get(habit.categoryId) || "Unknown";
+        if (!categoryScores[catName]) {
+          categoryScores[catName] = { totalScore: 0, totalMax: 0 };
+        }
+        categoryScores[catName].totalScore += habit.observed ? 1 : 0;
+        categoryScores[catName].totalMax += 1;
+      }
+      
+      const categoryPerformance = Object.entries(categoryScores).map(([name, data]) => ({
+        name,
+        avgScore: data.totalScore,
+        maxScore: data.totalMax
+      }));
+
+      // Teaching group analysis
+      const teachingGroups = await storage.getTeachingGroupsBySchool(schoolId);
+      const membershipsByGroup = new Map<string, typeof schoolMemberships>();
+      
+      for (const membership of schoolMemberships) {
+        if (membership.groupId) {
+          if (!membershipsByGroup.has(membership.groupId)) {
+            membershipsByGroup.set(membership.groupId, []);
+          }
+          membershipsByGroup.get(membership.groupId)!.push(membership);
+        }
+      }
+      
+      const teachingGroupAnalysis = teachingGroups.map(group => {
+        const groupMemberships = membershipsByGroup.get(group.id) || [];
+        const groupUserIds = new Set(groupMemberships.map(m => m.userId));
+        
+        const groupObs = filteredObservations.filter(obs => groupUserIds.has(obs.teacherId));
+        const obsCount = groupObs.length;
+        const avgScore = obsCount > 0
+          ? groupObs.reduce((sum, obs) => {
+              if (obs.totalMaxScore === 0) return sum;
+              return sum + (obs.totalScore / obs.totalMaxScore) * 5;
+            }, 0) / obsCount
+          : 0;
+        
+        return {
+          groupId: group.id,
+          groupName: group.name,
+          observationCount: obsCount,
+          avgScore,
+          teacherCount: groupMemberships.length
+        };
+      }).filter(g => g.teacherCount > 0);
+
+      // Habit analysis - which habits are most commonly observed
+      const habitIds = [...new Set(flatObsHabits.map(h => h.habitId))];
+      const habits = await Promise.all(habitIds.map(id => storage.getHabit(id)));
+      const habitMap = new Map(habits.filter(Boolean).map(h => [h!.id, h!]));
+      
+      const habitCounts: Record<string, { observed: number; total: number; name: string; category: string }> = {};
+      for (const obsHabit of flatObsHabits) {
+        const habit = habitMap.get(obsHabit.habitId);
+        if (!habit) continue;
+        const catName = categoryMap.get(obsHabit.categoryId) || "Unknown";
+        
+        if (!habitCounts[obsHabit.habitId]) {
+          habitCounts[obsHabit.habitId] = {
+            observed: 0,
+            total: 0,
+            name: habit.name,
+            category: catName
+          };
+        }
+        habitCounts[obsHabit.habitId].total++;
+        if (obsHabit.observed) {
+          habitCounts[obsHabit.habitId].observed++;
+        }
+      }
+      
+      const habitAnalysis = Object.values(habitCounts)
+        .map(h => ({
+          habitName: h.name,
+          categoryName: h.category,
+          observedCount: h.observed,
+          totalCount: h.total,
+          percentage: h.total > 0 ? (h.observed / h.total) * 100 : 0
+        }))
+        .sort((a, b) => b.totalCount - a.totalCount);
+
+      // Common phrases analysis (simple word frequency from feedback)
+      const allFeedback = filteredObservations
+        .filter(obs => obs.qualitativeFeedback && obs.qualitativeFeedback.trim().length > 0)
+        .map(obs => obs.qualitativeFeedback!);
+      
+      const positiveWords = new Set(['excellent', 'great', 'good', 'outstanding', 'effective', 'engaging', 'clear', 'well', 'strong', 'positive', 'progress', 'improvement', 'success']);
+      const negativeWords = new Set(['needs', 'improve', 'lacks', 'weak', 'unclear', 'difficult', 'challenge', 'issue', 'problem', 'concern']);
+      
+      const wordCounts = new Map<string, { count: number; sentiment: 'positive' | 'negative' | 'neutral' }>();
+      const stopWords = new Set(['the', 'a', 'an', 'and', 'or', 'but', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'to', 'of', 'in', 'for', 'on', 'with', 'at', 'by', 'from', 'as', 'this', 'that', 'these', 'those', 'it', 'its', 'they', 'their', 'them', 'he', 'she', 'his', 'her', 'you', 'your', 'we', 'our', 'i', 'me', 'my']);
+      
+      for (const feedback of allFeedback) {
+        const words = feedback.toLowerCase()
+          .replace(/[^a-z\s]/g, ' ')
+          .split(/\s+/)
+          .filter(w => w.length > 3 && !stopWords.has(w) && /^[a-z]+$/.test(w));
+        
+        for (const word of words) {
+          if (!wordCounts.has(word)) {
+            let sentiment: 'positive' | 'negative' | 'neutral' = 'neutral';
+            if (positiveWords.has(word)) sentiment = 'positive';
+            else if (negativeWords.has(word)) sentiment = 'negative';
+            wordCounts.set(word, { count: 0, sentiment });
+          }
+          wordCounts.get(word)!.count++;
+        }
+      }
+      
+      const commonPhrases = Array.from(wordCounts.entries())
+        .filter(([_, data]) => data.count >= 2)
+        .map(([phrase, data]) => ({
+          phrase,
+          count: data.count,
+          sentiment: data.sentiment
+        }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 30);
+
+      // Qualitative feedback samples
+      const qualitativeFeedback = filteredObservations
+        .filter(obs => obs.qualitativeFeedback && obs.qualitativeFeedback.trim().length > 0)
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        .slice(0, 10)
+        .map(obs => {
+          const teacherData = userMap.get(obs.teacherId);
+          const observerData = userMap.get(obs.observerId);
+          return {
+            teacherName: teacherData ? `${teacherData.firstName} ${teacherData.lastName}`.trim() || teacherData.email : "Unknown",
+            observerName: observerData ? `${observerData.firstName} ${observerData.lastName}`.trim() || observerData.email : "Unknown",
+            date: obs.date,
+            feedback: obs.qualitativeFeedback
+          };
+        });
+
+      res.json({
+        summary: {
+          totalObservations,
+          uniqueTeachers,
+          averageScore,
+          scoreChange
+        },
+        observationTrend,
+        topPerformers,
+        lowestPerformers,
+        categoryPerformance,
+        teachingGroupAnalysis,
+        habitAnalysis,
+        commonPhrases,
+        qualitativeFeedback
+      });
+    } catch (error) {
+      console.error("Error fetching observation analytics:", error);
+      res.status(500).json({ message: "Failed to fetch observation analytics" });
+    }
+  });
+
   // Dashboard stats endpoint
   app.get("/api/dashboard/stats", isAuthenticated, async (req: any, res) => {
     try {

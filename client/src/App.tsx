@@ -14,6 +14,7 @@ import { SchoolProvider } from "@/hooks/use-school";
 import Dashboard from "@/pages/dashboard";
 import ConductObservation from "@/pages/conduct-observation";
 import ObservationHistory from "@/pages/observation-history";
+import ObservationAnalytics from "@/pages/observation-analytics";
 import ManageRubrics from "@/pages/manage-rubrics";
 import ManageTeachers from "@/pages/manage-teachers";
 import ManageSchools from "@/pages/manage-schools";
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/observe" component={ConductObservation} />
       <Route path="/history" component={ObservationHistory} />
+      <Route path="/analytics" component={ObservationAnalytics} />
       <Route path="/manage-rubrics" component={ManageRubrics} />
       <Route path="/teachers" component={ManageTeachers} />
       <Route path="/schools" component={ManageSchools} />

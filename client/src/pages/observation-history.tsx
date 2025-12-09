@@ -1,13 +1,10 @@
 import { useState, useEffect } from "react";
 import { FeedbackReport } from "@/components/feedback-report";
 import { ObservationTable } from "@/components/observation-table";
-import { AnalyticsChart } from "@/components/analytics-chart";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Search, ArrowLeft, Download, BarChart3, ChevronDown, TrendingUp, Users, Eye } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Search, ArrowLeft, Download, BarChart3 } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
@@ -83,41 +80,7 @@ export default function ObservationHistory() {
 
   const currentMembership = memberships.find(m => m.schoolId === currentSchoolId);
   const canExport = isCreator || currentMembership?.role === "Leader" || currentMembership?.role === "Admin";
-  // For analytics, Creators always have access (they don't need memberships to be fetched)
   const isLeaderOrAbove = isCreator || currentMembership?.role === "Leader" || currentMembership?.role === "Admin";
-
-  // Analytics state and data (for Leaders/Admins/Creators only)
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
-  const [categoryTimePeriod, setCategoryTimePeriod] = useState<"week" | "month" | "year" | "all">("month");
-  const [performersTimePeriod, setPerformersTimePeriod] = useState<"week" | "month" | "year" | "all">("all");
-
-  interface AnalyticsData {
-    observationTrend: Array<{ label: string; value: number; quality: number }>;
-    topPerformers: Array<{ label: string; value: number; maxValue: number; count: number }>;
-    lowestPerformers: Array<{ label: string; value: number; maxValue: number; count: number }>;
-    categoryPerformance: Array<{ name: string; avgScore: number; maxScore: number; trend: string; trendValue: number }>;
-    qualitativeFeedback: Array<{ teacherName: string; observerName: string; date: string; feedback: string }>;
-  }
-
-  const { data: analyticsData, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
-    queryKey: ["/api/dashboard/analytics", currentSchoolId, categoryTimePeriod, performersTimePeriod],
-    enabled: !!currentSchoolId && isLeaderOrAbove && analyticsOpen,
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/dashboard/analytics?schoolId=${currentSchoolId}&categoryTimePeriod=${categoryTimePeriod}&topPerformersTimePeriod=${performersTimePeriod}&lowestPerformersTimePeriod=${performersTimePeriod}&includeLowest=true&trendTimePeriod=month`
-      );
-      if (!response.ok) throw new Error("Failed to fetch analytics");
-      return response.json();
-    },
-  });
-
-  // Compute summary stats from the loaded data
-  const totalObservations = observations.length;
-  const totalTeachersObserved = new Set(observations.map((o: any) => o.teacherId)).size;
-  const avgOverallScore = observations.length > 0
-    ? observations.reduce((sum: number, obs: any) => sum + (obs.totalScore || 0), 0) / 
-      observations.reduce((sum: number, obs: any) => sum + (obs.totalMaxScore || 1), 0) * 5
-    : 0;
 
   // Map observations with teacher and observer names
   const observationsWithNames = observations.map((obs: any) => {
@@ -315,106 +278,18 @@ export default function ObservationHistory() {
         />
       </div>
 
-      {/* Analytics Section - Leaders/Admins/Creators only */}
+      {/* Analytics Link - Leaders/Admins/Creators only */}
       {isLeaderOrAbove && (
-        <Collapsible open={analyticsOpen} onOpenChange={setAnalyticsOpen}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="outline" 
-              className="w-full justify-between"
-              data-testid="button-toggle-analytics"
-            >
-              <div className="flex items-center gap-2">
-                <BarChart3 className="h-4 w-4" />
-                <span>Analytics & Insights</span>
-              </div>
-              <ChevronDown className={`h-4 w-4 transition-transform ${analyticsOpen ? "rotate-180" : ""}`} />
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="pt-4">
-            {analyticsLoading ? (
-              <div className="text-center text-muted-foreground py-8">Loading analytics...</div>
-            ) : analyticsData ? (
-              <div className="space-y-6">
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card data-testid="card-total-observations">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                      <CardTitle className="text-sm font-medium">Total Observations</CardTitle>
-                      <Eye className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold" data-testid="text-total-obs">{totalObservations}</div>
-                      <p className="text-xs text-muted-foreground">completed</p>
-                    </CardContent>
-                  </Card>
-                  <Card data-testid="card-teachers-observed">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                      <CardTitle className="text-sm font-medium">Teachers Observed</CardTitle>
-                      <Users className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold" data-testid="text-teachers-count">{totalTeachersObserved}</div>
-                      <p className="text-xs text-muted-foreground">unique teachers</p>
-                    </CardContent>
-                  </Card>
-                  <Card data-testid="card-avg-score">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
-                      <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                    </CardHeader>
-                    <CardContent>
-                      <div className="text-2xl font-bold" data-testid="text-avg-score">
-                        {avgOverallScore ? avgOverallScore.toFixed(1) : "N/A"}
-                      </div>
-                      <p className="text-xs text-muted-foreground">out of 5.0</p>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Analytics Charts */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {analyticsData.categoryPerformance && analyticsData.categoryPerformance.length > 0 && (
-                    <AnalyticsChart
-                      title="Performance by Category"
-                      data={analyticsData.categoryPerformance
-                        .filter(cat => cat.name && cat.avgScore != null)
-                        .map(cat => ({
-                          label: cat.name,
-                          value: cat.avgScore || 0,
-                          maxValue: cat.maxScore || 1,
-                        }))}
-                      type="progress"
-                      showFilter
-                      timePeriod={categoryTimePeriod}
-                      onTimePeriodChange={setCategoryTimePeriod}
-                    />
-                  )}
-                  {analyticsData.topPerformers && analyticsData.topPerformers.length > 0 && (
-                    <AnalyticsChart
-                      title="Top Performing Teachers"
-                      data={analyticsData.topPerformers
-                        .filter(p => p.label && p.value != null)
-                        .map(p => ({
-                          label: p.label,
-                          value: parseFloat((p.value || 0).toFixed(2)),
-                          maxValue: p.maxValue || 5,
-                        }))}
-                      type="progress"
-                      showFilter
-                      timePeriod={performersTimePeriod}
-                      onTimePeriodChange={setPerformersTimePeriod}
-                    />
-                  )}
-                </div>
-              </div>
-            ) : (
-              <div className="text-center text-muted-foreground py-8">
-                No analytics data available yet. Complete some observations first.
-              </div>
-            )}
-          </CollapsibleContent>
-        </Collapsible>
+        <Link href="/analytics">
+          <Button 
+            variant="outline" 
+            className="w-full justify-start gap-2"
+            data-testid="button-view-analytics"
+          >
+            <BarChart3 className="h-4 w-4" />
+            <span>View Analytics & Insights</span>
+          </Button>
+        </Link>
       )}
 
       {observationsLoading ? (
