@@ -391,7 +391,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
             {hasObservations && (
               <Card data-testid="card-observations-detail">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -650,7 +650,7 @@ export default function Dashboard() {
           </div>
 
           {isLeaderOrAbove && (staffBirthdays.length > 0 || studentBirthdays.length > 0) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
               {staffBirthdays.length > 0 && (
                 <Card data-testid="card-staff-birthdays">
                   <CardHeader>
