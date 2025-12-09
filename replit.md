@@ -145,9 +145,26 @@ The dashboard (`/dashboard`) is a widget-based interface that adapts to each sch
 - **Meetings Widget**: Meeting count and open actions (shown if meetings enabled)
 - **Leave Widget**: Pending approvals for approvers OR personal requests for staff (shown if absence_management enabled)
 - **Behaviour Widget**: Open on-calls for managers OR quick "Raise On-Call" for all staff (shown if behaviour enabled)
+- **Birthday Widget**: Upcoming staff and student birthdays (Leaders/Admins/Creators only)
 - **My Action Items**: Open meeting actions assigned to current user across all meetings
 - **Empty State**: Shown when no features are enabled for the school
 
 Permission-based display:
 - `canApproveLeaveRequests`: Shows school-wide pending approvals vs personal leave requests
 - `canManageBehaviour`: Shows on-call statistics vs basic on-call raise button
+
+### Birthday Tracking
+- **Date of Birth Fields**: Both `users` and `students` tables have `date_of_birth` DATE columns
+- **Editing**: Staff DOB editable via teacher edit dialog; student DOB editable via add/edit student dialogs
+- **API Endpoints**: 
+  - GET `/api/schools/:schoolId/birthdays/staff?daysAhead=7` - Staff birthdays within specified days
+  - GET `/api/schools/:schoolId/birthdays/students?daysAhead=7` - Student birthdays (requires canManageBehaviour)
+- **Access Control**: Birthday viewing restricted to Leaders, Admins, and Creators only
+- **Teacher Update**: PATCH `/api/teachers/:id` updates user info including dateOfBirth (requires own profile, or Admin/Leader role)
+
+### Observation Analytics (on History Page)
+- **Location**: Collapsible panel on Observation History page (`/history`)
+- **Access**: Leaders, Admins, and Creators only
+- **Summary Cards**: Total observations, unique teachers observed, average score
+- **Charts**: Performance by category, top performing teachers with time period filters
+- **Data Source**: `/api/dashboard/analytics` endpoint with configurable time periods

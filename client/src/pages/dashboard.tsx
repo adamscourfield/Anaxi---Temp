@@ -401,7 +401,7 @@ export default function Dashboard() {
                   </div>
                   <div className="flex gap-2">
                     {isLeaderOrAbove && (
-                      <Link href="/analytics">
+                      <Link href="/history">
                         <Button size="sm" variant="outline" data-testid="button-view-analytics">
                           <BarChart3 className="h-4 w-4 mr-1" />
                           Analytics

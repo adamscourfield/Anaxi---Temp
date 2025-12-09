@@ -27,6 +27,7 @@ function sanitizeUser(user: any) {
     profile_image_url: user.profile_image_url,
     global_role: user.global_role,
     archived: user.archived,
+    date_of_birth: user.date_of_birth,
   };
 }
 
@@ -2554,6 +2555,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching teachers for observation:", error);
       res.status(500).json({ message: "Failed to fetch teachers" });
+    }
+  });
+
+  // Update teacher/user information (including date of birth)
+  app.patch("/api/teachers/:id", isAuthenticated, async (req: any, res) => {
+    try {
+      const user = req.user;
+      const { id } = req.params;
+      const { name, email, role, profilePicture, groupId, dateOfBirth, schoolId } = req.body;
+
+      // Check if this is the user updating themselves or if they have admin rights
+      const isOwnProfile = user.id === id;
+      
+      if (!isOwnProfile && user.global_role !== "Creator") {
+        // Get the caller's memberships
+        const callerMemberships = await storage.getMembershipsByUser(user.id);
+        
+        // Check if caller is Admin/Leader in any school
+        const isAdminOrLeader = callerMemberships.some(m => m.role === "Admin" || m.role === "Leader");
+        if (!isAdminOrLeader) {
+          return res.status(403).json({ message: "Forbidden: You can only update your own profile or need Admin/Leader privileges" });
+        }
+        
+        // If schoolId provided, verify caller has Admin/Leader role in that school
+        if (schoolId) {
+          const callerMembershipInSchool = callerMemberships.find(m => m.schoolId === schoolId);
+          if (!callerMembershipInSchool || (callerMembershipInSchool.role !== "Admin" && callerMembershipInSchool.role !== "Leader")) {
+            return res.status(403).json({ message: "Forbidden: You need Admin/Leader role in this school" });
+          }
+          
+          // Verify target user is in the same school
+          const targetMemberships = await storage.getMembershipsByUser(id);
+          const targetInSchool = targetMemberships.some(m => m.schoolId === schoolId);
+          if (!targetInSchool) {
+            return res.status(403).json({ message: "Forbidden: Target user is not in this school" });
+          }
+        }
+      }
+
+      // Parse name into first_name and last_name if provided
+      let firstName: string | undefined;
+      let lastName: string | undefined;
+      if (name) {
+        const nameParts = name.trim().split(/\s+/);
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(" ");
+      }
+
+      // Check if email is being changed and if it's already in use
+      if (email) {
+        const existingUser = await storage.getUserByEmail(email);
+        if (existingUser && existingUser.id !== id) {
+          return res.status(400).json({ message: "Email is already in use by another user" });
+        }
+      }
+
+      // Update user
+      const updatedUser = await storage.updateUser(id, {
+        first_name: firstName !== undefined ? firstName : undefined,
+        last_name: lastName !== undefined ? lastName : undefined,
+        email: email !== undefined ? email : undefined,
+        profile_image_url: profilePicture !== undefined ? profilePicture : undefined,
+        date_of_birth: dateOfBirth || null,
+      });
+
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Update membership role if provided
+      if (role) {
+        const memberships = await storage.getMembershipsByUser(id);
+        for (const membership of memberships) {
+          await storage.updateMembership(membership.id, { role });
+        }
+      }
+
+      // Update teaching group if provided
+      if (groupId) {
+        const memberships = await storage.getMembershipsByUser(id);
+        for (const membership of memberships) {
+          await storage.updateMembership(membership.id, { departmentId: groupId });
+        }
+      }
+
+      res.json(sanitizeUser(updatedUser));
+    } catch (error) {
+      console.error("Error updating teacher:", error);
+      res.status(500).json({ message: "Failed to update teacher" });
     }
   });
 

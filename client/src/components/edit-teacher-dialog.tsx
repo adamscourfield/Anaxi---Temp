@@ -40,6 +40,7 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
     role: teacher.role || "Teacher",
     profilePicture: teacher.profilePicture || "",
     groupId: teacher.groupId || "",
+    dateOfBirth: teacher.dateOfBirth || "",
   });
   const [newPassword, setNewPassword] = useState("");
 
@@ -50,6 +51,7 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
       role: teacher.role || "Teacher",
       profilePicture: teacher.profilePicture || "",
       groupId: teacher.groupId || "",
+      dateOfBirth: teacher.dateOfBirth || "",
     });
   }, [teacher]);
 
@@ -274,6 +276,21 @@ export function EditTeacherDialog({ teacher, schoolId, open, onOpenChange }: Edi
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-dateOfBirth">Date of Birth</Label>
+              <Input
+                id="edit-dateOfBirth"
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) =>
+                  setFormData({ ...formData, dateOfBirth: e.target.value })
+                }
+                data-testid="input-edit-date-of-birth"
+              />
+              <p className="text-sm text-muted-foreground">
+                Used for birthday tracking on the dashboard
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-password">Reset Password (Admin Only)</Label>

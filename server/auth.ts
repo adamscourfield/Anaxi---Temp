@@ -21,6 +21,7 @@ function sanitizeUser(user: any) {
     profile_image_url: user.profile_image_url,
     global_role: user.global_role,
     archived: user.archived,
+    date_of_birth: user.date_of_birth,
   };
 }
 

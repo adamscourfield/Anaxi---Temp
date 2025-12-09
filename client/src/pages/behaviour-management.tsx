@@ -20,7 +20,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, subDays, startOfDay, endOfDay } from "date-fns";
 import { toZonedTime, fromZonedTime } from "date-fns-tz";
-import { Archive, ArchiveRestore, Plus, Upload, AlertCircle, ShieldX, Search } from "lucide-react";
+import { Archive, ArchiveRestore, Plus, Upload, AlertCircle, ShieldX, Search, Pencil } from "lucide-react";
 import { useMemo } from "react";
 import type { Student, Oncall, SchoolMembership } from "@shared/schema";
 import { CsvColumnMapper } from "@/components/csv-column-mapper";
@@ -29,6 +29,7 @@ const addStudentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   send: z.boolean().default(false),
   pp: z.boolean().default(false),
+  dateOfBirth: z.string().optional(),
 });
 
 type AddStudentFormValues = z.infer<typeof addStudentSchema>;
@@ -39,12 +40,23 @@ const completeOncallSchema = z.object({
 
 type CompleteOncallFormValues = z.infer<typeof completeOncallSchema>;
 
+const editStudentSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  send: z.boolean().default(false),
+  pp: z.boolean().default(false),
+  dateOfBirth: z.string().optional(),
+});
+
+type EditStudentFormValues = z.infer<typeof editStudentSchema>;
+
 export default function BehaviourManagementPage() {
   const { currentSchool, currentSchoolId } = useSchool();
   const { user, isCreator } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("students");
   const [addStudentDialogOpen, setAddStudentDialogOpen] = useState(false);
+  const [editStudentDialogOpen, setEditStudentDialogOpen] = useState(false);
+  const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
   const [importCsvDialogOpen, setImportCsvDialogOpen] = useState(false);
   const [completeOncallDialogOpen, setCompleteOncallDialogOpen] = useState(false);
   const [selectedOncallId, setSelectedOncallId] = useState<string | null>(null);
@@ -187,6 +199,18 @@ export default function BehaviourManagementPage() {
       name: "",
       send: false,
       pp: false,
+      dateOfBirth: "",
+    },
+  });
+
+  // Form for editing student
+  const editStudentForm = useForm<EditStudentFormValues>({
+    resolver: zodResolver(editStudentSchema),
+    defaultValues: {
+      name: "",
+      send: false,
+      pp: false,
+      dateOfBirth: "",
     },
   });
 
@@ -234,6 +258,34 @@ export default function BehaviourManagementPage() {
     onError: (error: any) => {
       toast({
         title: "Failed to update student status",
+        description: error.message || "An error occurred",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Edit student mutation
+  const editStudentMutation = useMutation({
+    mutationFn: async (data: EditStudentFormValues & { id: string }) => {
+      return apiRequest("PATCH", `/api/students/${data.id}`, {
+        name: data.name,
+        send: data.send,
+        pp: data.pp,
+        dateOfBirth: data.dateOfBirth || null,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Student updated successfully",
+      });
+      editStudentForm.reset();
+      setEditStudentDialogOpen(false);
+      setSelectedStudent(null);
+      queryClient.invalidateQueries({ queryKey: ["/api/schools", currentSchoolId, "students"] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update student",
         description: error.message || "An error occurred",
         variant: "destructive",
       });
@@ -531,6 +583,19 @@ export default function BehaviourManagementPage() {
                           </FormItem>
                         )}
                       />
+                      <FormField
+                        control={addStudentForm.control}
+                        name="dateOfBirth"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Date of Birth</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} data-testid="input-student-dob" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                       <DialogFooter>
                         <Button
                           type="button"
@@ -597,6 +662,109 @@ export default function BehaviourManagementPage() {
                       {importCsvMutation.isPending ? "Importing..." : "Import"}
                     </Button>
                   </DialogFooter>
+                </DialogContent>
+              </Dialog>
+
+              <Dialog open={editStudentDialogOpen} onOpenChange={(open) => {
+                setEditStudentDialogOpen(open);
+                if (!open) setSelectedStudent(null);
+              }}>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Student</DialogTitle>
+                    <DialogDescription>
+                      Update student information.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <Form {...editStudentForm}>
+                    <form onSubmit={editStudentForm.handleSubmit((data) => {
+                      if (selectedStudent) {
+                        editStudentMutation.mutate({ ...data, id: selectedStudent.id });
+                      }
+                    })} className="space-y-4">
+                      <FormField
+                        control={editStudentForm.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Student Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter student name..." {...field} data-testid="input-edit-student-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editStudentForm.control}
+                        name="send"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                data-testid="checkbox-edit-send"
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>SEND (Special Educational Needs and Disabilities)</FormLabel>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editStudentForm.control}
+                        name="pp"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormControl>
+                              <Checkbox
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                                data-testid="checkbox-edit-pp"
+                              />
+                            </FormControl>
+                            <div className="space-y-1 leading-none">
+                              <FormLabel>PP (Pupil Premium)</FormLabel>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editStudentForm.control}
+                        name="dateOfBirth"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Date of Birth</FormLabel>
+                            <FormControl>
+                              <Input type="date" {...field} data-testid="input-edit-student-dob" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <DialogFooter>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            setEditStudentDialogOpen(false);
+                            setSelectedStudent(null);
+                          }}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={editStudentMutation.isPending}
+                          data-testid="button-confirm-edit-student"
+                        >
+                          {editStudentMutation.isPending ? "Saving..." : "Save Changes"}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
                 </DialogContent>
               </Dialog>
             </div>
@@ -671,25 +839,45 @@ export default function BehaviourManagementPage() {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => archiveStudentMutation.mutate(student.id)}
-                              disabled={archiveStudentMutation.isPending}
-                              data-testid={`button-archive-student-${student.id}`}
-                            >
-                              {student.isArchived ? (
-                                <>
-                                  <ArchiveRestore className="h-4 w-4 mr-2" />
-                                  Unarchive
-                                </>
-                              ) : (
-                                <>
-                                  <Archive className="h-4 w-4 mr-2" />
-                                  Archive
-                                </>
-                              )}
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  setSelectedStudent(student);
+                                  editStudentForm.reset({
+                                    name: student.name,
+                                    send: student.send,
+                                    pp: student.pp,
+                                    dateOfBirth: student.dateOfBirth || "",
+                                  });
+                                  setEditStudentDialogOpen(true);
+                                }}
+                                data-testid={`button-edit-student-${student.id}`}
+                              >
+                                <Pencil className="h-4 w-4 mr-2" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => archiveStudentMutation.mutate(student.id)}
+                                disabled={archiveStudentMutation.isPending}
+                                data-testid={`button-archive-student-${student.id}`}
+                              >
+                                {student.isArchived ? (
+                                  <>
+                                    <ArchiveRestore className="h-4 w-4 mr-2" />
+                                    Unarchive
+                                  </>
+                                ) : (
+                                  <>
+                                    <Archive className="h-4 w-4 mr-2" />
+                                    Archive
+                                  </>
+                                )}
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
