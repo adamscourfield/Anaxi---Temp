@@ -40,7 +40,7 @@ import {
 type ChartDisplayMode = "both" | "observations" | "quality";
 
 interface DrillDownFilter {
-  type: "teacher" | "group" | "habit" | "category";
+  type: "teacher" | "group" | "habit" | "category" | "week";
   name: string;
   filterKey: string;
 }
@@ -54,7 +54,7 @@ interface AnalyticsData {
     averageScore: number;
     scoreChange: number;
   };
-  observationTrend: Array<{ label: string; value: number; quality: number }>;
+  observationTrend: Array<{ label: string; value: number; quality: number; sortKey: number }>;
   topPerformers: Array<{ teacherId: string; label: string; value: number; maxValue: number; count: number }>;
   lowestPerformers: Array<{ teacherId: string; label: string; value: number; maxValue: number; count: number }>;
   categoryPerformance: Array<{ name: string; avgScore: number; maxScore: number }>;
@@ -151,6 +151,13 @@ export default function ObservationAnalytics() {
       // Filter by category name
       const categories = obs.categories || [];
       return categories.some((c: any) => c.categoryName === drillDownFilter.filterKey);
+    }
+    if (drillDownFilter.type === "week") {
+      // Filter by week - filterKey contains the week start timestamp
+      const weekStart = parseInt(drillDownFilter.filterKey);
+      const weekEnd = weekStart + 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+      const obsDate = new Date(obs.date).getTime();
+      return obsDate >= weekStart && obsDate < weekEnd;
     }
     return true;
   }) : [];
@@ -366,6 +373,12 @@ export default function ObservationAnalytics() {
                         fill="hsl(var(--primary))" 
                         name="Observation Count"
                         radius={[4, 4, 0, 0]}
+                        cursor="pointer"
+                        onClick={(data: any) => {
+                          if (data && data.sortKey) {
+                            openDrillDown("week", `Week of ${data.label}`, String(data.sortKey));
+                          }
+                        }}
                       />
                     )}
                     {(chartDisplayMode === "both" || chartDisplayMode === "quality") && (
