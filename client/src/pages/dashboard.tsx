@@ -108,10 +108,10 @@ export default function Dashboard() {
 
   // Get meeting actions for the current user
   const { data: myActions = [] } = useQuery<any[]>({
-    queryKey: ["/api/meeting-actions/my", currentSchoolId],
-    enabled: !!currentSchoolId && hasMeetings && !!currentMembership,
+    queryKey: ["/api/my-actions"],
+    enabled: hasMeetings,
     queryFn: async () => {
-      const response = await fetch(`/api/meeting-actions?membershipId=${currentMembership?.id}`);
+      const response = await fetch("/api/my-actions");
       if (!response.ok) return [];
       return response.json();
     },
