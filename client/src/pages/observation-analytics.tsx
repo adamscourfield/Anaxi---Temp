@@ -324,7 +324,18 @@ export default function ObservationAnalytics() {
               </CardHeader>
               <CardContent>
                 <ResponsiveContainer width="100%" height={300}>
-                  <ComposedChart data={analyticsData.observationTrend}>
+                  <ComposedChart 
+                    data={analyticsData.observationTrend}
+                    onClick={(data: any) => {
+                      if (data && data.activePayload && data.activePayload[0]) {
+                        const payload = data.activePayload[0].payload;
+                        if (payload.sortKey) {
+                          openDrillDown("week", `Week of ${payload.label}`, String(payload.sortKey));
+                        }
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis 
                       dataKey="label" 
@@ -373,12 +384,6 @@ export default function ObservationAnalytics() {
                         fill="hsl(var(--primary))" 
                         name="Observation Count"
                         radius={[4, 4, 0, 0]}
-                        cursor="pointer"
-                        onClick={(data: any) => {
-                          if (data && data.sortKey) {
-                            openDrillDown("week", `Week of ${data.label}`, String(data.sortKey));
-                          }
-                        }}
                       />
                     )}
                     {(chartDisplayMode === "both" || chartDisplayMode === "quality") && (
