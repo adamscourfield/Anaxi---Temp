@@ -2564,8 +2564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           sortKey: data.sortKey
         }))
         .sort((a, b) => a.sortKey - b.sortKey)
-        .slice(-24) // Limit to last 24 weeks
-        .map(({ label, value, quality }) => ({ label, value, quality }));
+        .slice(-24); // Limit to last 24 weeks
 
       // Top and lowest performers
       const teacherScores: Record<string, { totalScore: number; totalMax: number; count: number; name: string }> = {};
