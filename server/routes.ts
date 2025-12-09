@@ -3019,11 +3019,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         const categories = await storage.getCategoriesByRubric(rubric.id);
         
-        // Get observation habits for filtering
+        // Get observation habits for filtering - need to look up habit text from habits table
         const observationHabits = await storage.getObservationHabitsByObservation(obs.id);
-        const habitNames = observationHabits
-          .filter(oh => oh.observed)
-          .map(oh => oh.habitText || "");
+        const observedHabits = observationHabits.filter(oh => oh.observed);
+        const habitNames: string[] = [];
+        for (const oh of observedHabits) {
+          const habit = await storage.getHabit(oh.habitId);
+          if (habit) {
+            habitNames.push(habit.text);
+          }
+        }
         
         return {
           ...obs,
