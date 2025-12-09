@@ -162,9 +162,16 @@ Permission-based display:
 - **Access Control**: Birthday viewing restricted to Leaders, Admins, and Creators only
 - **Teacher Update**: PATCH `/api/teachers/:id` updates user info including dateOfBirth (requires own profile, or Admin/Leader role)
 
-### Observation Analytics (on History Page)
-- **Location**: Collapsible panel on Observation History page (`/history`)
+### Observation Analytics (Dedicated Page)
+- **Location**: Dedicated analytics page at `/analytics`, accessible via "View Analytics & Insights" button on Observation History page
 - **Access**: Leaders, Admins, and Creators only
-- **Summary Cards**: Total observations, unique teachers observed, average score
-- **Charts**: Performance by category, top performing teachers with time period filters
-- **Data Source**: `/api/dashboard/analytics` endpoint with configurable time periods
+- **Summary Cards**: Total observations, unique teachers observed, average score, score change vs previous period
+- **Observation Trend Chart**: Dual-axis chart showing observation count (bars) and quality score (line) over time
+- **Top & Lowest Performers**: Lists of teachers with best and lowest average observation scores
+- **Category Performance**: Breakdown of performance by rubric category with percentage scores
+- **Teaching Group Analysis**: Performance metrics grouped by teaching groups with average scores and observation counts
+- **Habit & Category Analysis**: Frequency of observed habits across categories with percentage rates
+- **Common Phrases**: Word frequency analysis from qualitative feedback with sentiment indicators (positive/negative/neutral)
+- **Qualitative Feedback Samples**: Recent feedback excerpts from observations
+- **Time Period Filtering**: Week, Month, Year, All Time - applied across all analytics components
+- **Data Source**: `/api/observation-analytics` endpoint with comprehensive analytics computation
