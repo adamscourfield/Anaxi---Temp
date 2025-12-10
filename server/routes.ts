@@ -4416,7 +4416,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const memberships = await storage.getMembershipsBySchool(schoolId);
       
       // Get user details with birthdays
-      const today = new Date();
+      // Normalize today to midnight for accurate date comparison
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const currentYear = today.getFullYear();
       const staffBirthdays: Array<{
         userId: string;
@@ -4433,19 +4435,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (memberUser && memberUser.date_of_birth && !memberUser.archived) {
           const dob = new Date(memberUser.date_of_birth);
           
-          // Calculate this year's birthday
+          // Calculate this year's birthday (at midnight)
           let nextBirthday = new Date(currentYear, dob.getMonth(), dob.getDate());
           
-          // If birthday has passed this year, use next year
-          if (nextBirthday < today) {
+          // If birthday has already passed this year (strictly less than today), use next year
+          if (nextBirthday.getTime() < today.getTime()) {
             nextBirthday = new Date(currentYear + 1, dob.getMonth(), dob.getDate());
           }
           
-          // Calculate days until birthday
+          // Calculate days until birthday (both dates at midnight, so use round)
           const msPerDay = 24 * 60 * 60 * 1000;
-          const daysUntil = Math.ceil((nextBirthday.getTime() - today.getTime()) / msPerDay);
+          const daysUntil = Math.round((nextBirthday.getTime() - today.getTime()) / msPerDay);
           
-          if (daysUntil <= daysAhead) {
+          if (daysUntil >= 0 && daysUntil <= daysAhead) {
             staffBirthdays.push({
               userId: memberUser.id,
               firstName: memberUser.first_name,
@@ -4490,7 +4492,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get all students for the school
       const students = await storage.getStudentsBySchool(schoolId, false);
       
-      const today = new Date();
+      // Normalize today to midnight for accurate date comparison
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const currentYear = today.getFullYear();
       const studentBirthdays: Array<{
         studentId: string;
@@ -4504,19 +4508,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (student.dateOfBirth) {
           const dob = new Date(student.dateOfBirth);
           
-          // Calculate this year's birthday
+          // Calculate this year's birthday (at midnight)
           let nextBirthday = new Date(currentYear, dob.getMonth(), dob.getDate());
           
-          // If birthday has passed this year, use next year
-          if (nextBirthday < today) {
+          // If birthday has already passed this year (strictly less than today), use next year
+          if (nextBirthday.getTime() < today.getTime()) {
             nextBirthday = new Date(currentYear + 1, dob.getMonth(), dob.getDate());
           }
           
-          // Calculate days until birthday
+          // Calculate days until birthday (both dates at midnight, so use round)
           const msPerDay = 24 * 60 * 60 * 1000;
-          const daysUntil = Math.ceil((nextBirthday.getTime() - today.getTime()) / msPerDay);
+          const daysUntil = Math.round((nextBirthday.getTime() - today.getTime()) / msPerDay);
           
-          if (daysUntil <= daysAhead) {
+          if (daysUntil >= 0 && daysUntil <= daysAhead) {
             studentBirthdays.push({
               studentId: student.id,
               name: student.name,
