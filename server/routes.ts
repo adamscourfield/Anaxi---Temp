@@ -780,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      const { name, first_name, last_name, email, profile_image_url } = req.body;
+      const { name, first_name, last_name, email, profile_image_url, date_of_birth } = req.body;
 
       // Parse name into first_name and last_name if provided
       let firstName = first_name;
@@ -805,6 +805,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         last_name: lastName !== undefined ? lastName : undefined,
         email: email !== undefined ? email : undefined,
         profile_image_url: profile_image_url !== undefined ? profile_image_url : undefined,
+        date_of_birth: date_of_birth !== undefined ? date_of_birth : undefined,
       });
 
       if (!updatedUser) {

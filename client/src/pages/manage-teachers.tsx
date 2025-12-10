@@ -45,6 +45,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
   const [editEmail, setEditEmail] = useState("");
+  const [editDateOfBirth, setEditDateOfBirth] = useState("");
   const [editRole, setEditRole] = useState<string>("Teacher");
   const [editingMemberships, setEditingMemberships] = useState<SchoolMembership[]>([]);
   
@@ -140,11 +141,12 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
 
   // Update teacher mutation
   const updateTeacherMutation = useMutation({
-    mutationFn: async (data: { id: string; first_name: string; last_name: string; email: string }) => {
+    mutationFn: async (data: { id: string; first_name: string; last_name: string; email: string; date_of_birth?: string }) => {
       return await apiRequest("PATCH", `/api/users/${data.id}`, {
         first_name: data.first_name,
         last_name: data.last_name,
         email: data.email,
+        date_of_birth: data.date_of_birth || null,
       });
     },
     onSuccess: () => {
@@ -366,6 +368,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     setEditFirstName(teacher.first_name || "");
     setEditLastName(teacher.last_name || "");
     setEditEmail(teacher.email);
+    setEditDateOfBirth(teacher.date_of_birth || "");
     
     // Fetch teacher's memberships to get current role
     try {
@@ -399,6 +402,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
         first_name: editFirstName,
         last_name: editLastName,
         email: editEmail,
+        date_of_birth: editDateOfBirth,
       });
 
       // Update role for all memberships
@@ -1112,6 +1116,19 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
               </Select>
               <p className="text-sm text-muted-foreground mt-1">
                 Role will be updated for all schools this teacher is assigned to
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="edit-date-of-birth">Date of Birth</Label>
+              <Input
+                id="edit-date-of-birth"
+                data-testid="input-edit-date-of-birth"
+                type="date"
+                value={editDateOfBirth}
+                onChange={(e) => setEditDateOfBirth(e.target.value)}
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Used for birthday tracking on the dashboard
               </p>
             </div>
           </div>
