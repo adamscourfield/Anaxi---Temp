@@ -809,12 +809,15 @@ export default function BehaviourManagementPage() {
                         <TableHead>Name</TableHead>
                         <TableHead>SEND</TableHead>
                         <TableHead>PP</TableHead>
+                        <TableHead>On-Calls</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredStudents.map((student) => (
+                      {filteredStudents.map((student) => {
+                        const studentOncallCount = oncalls.filter(o => o.studentId === student.id).length;
+                        return (
                         <TableRow key={student.id}>
                           <TableCell className="font-medium">{student.name}</TableCell>
                           <TableCell>
@@ -830,6 +833,11 @@ export default function BehaviourManagementPage() {
                             ) : (
                               <Badge variant="outline">No</Badge>
                             )}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={studentOncallCount > 0 ? "secondary" : "outline"} data-testid={`oncall-count-${student.id}`}>
+                              {studentOncallCount}
+                            </Badge>
                           </TableCell>
                           <TableCell>
                             {student.isArchived ? (
@@ -880,7 +888,8 @@ export default function BehaviourManagementPage() {
                             </div>
                           </TableCell>
                         </TableRow>
-                      ))}
+                        );
+                      })}
                     </TableBody>
                   </Table>
                 )}
