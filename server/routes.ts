@@ -158,6 +158,13 @@ function requireFeature(featureName: string) {
             schoolId = observation.schoolId;
           }
         }
+        // For students
+        else if (req.path.includes('/students/')) {
+          const student = await storage.getStudent(req.params.id);
+          if (student) {
+            schoolId = student.schoolId;
+          }
+        }
       }
       
       if (!schoolId) {
