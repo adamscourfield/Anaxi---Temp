@@ -283,6 +283,7 @@ export const students = pgTable("students", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   schoolId: varchar("school_id").notNull().references(() => schools.id),
   name: text("name").notNull(),
+  upn: varchar("upn"), // Unique Pupil Number - national identifier for students
   dateOfBirth: date("date_of_birth"), // Student date of birth for birthday tracking
   send: boolean("send").default(false).notNull(), // Special Educational Needs and Disabilities
   pp: boolean("pp").default(false).notNull(), // Pupil Premium

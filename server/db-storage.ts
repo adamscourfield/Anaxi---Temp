@@ -637,6 +637,16 @@ export class DbStorage implements IStorage {
     return student;
   }
 
+  async getStudentByUpnAndSchool(upn: string, schoolId: string): Promise<Student | undefined> {
+    const [student] = await db.select()
+      .from(students)
+      .where(and(
+        eq(students.upn, upn),
+        eq(students.schoolId, schoolId)
+      ));
+    return student;
+  }
+
   async createStudent(student: InsertStudent): Promise<Student> {
     const [created] = await db.insert(students).values(student).returning();
     return created;

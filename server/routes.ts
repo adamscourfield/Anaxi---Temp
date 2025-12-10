@@ -4069,7 +4069,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Parse CSV data (expecting array of {name, send, pp})
+      // Parse CSV data (expecting array of {name, upn?, send, pp})
       const results = {
         created: 0,
         updated: 0,
@@ -4078,19 +4078,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       for (const row of csvData) {
         try {
-          const { name, send, pp } = row;
+          const { name, upn, send, pp } = row;
           
           if (!name || name.trim() === "") {
             results.errors.push(`Skipped row with empty name`);
             continue;
           }
 
-          // Check if student already exists (non-archived)
-          const existing = await storage.getStudentByNameAndSchool(name.trim(), schoolId);
+          let existing = null;
+          
+          // First, try to find by UPN if provided (primary duplicate detection)
+          if (upn && upn.trim() !== "") {
+            existing = await storage.getStudentByUpnAndSchool(upn.trim(), schoolId);
+          }
+          
+          // If no match by UPN, fall back to name matching
+          if (!existing) {
+            existing = await storage.getStudentByNameAndSchool(name.trim(), schoolId);
+          }
           
           if (existing) {
             // Update existing student
             await storage.updateStudent(existing.id, {
+              name: name.trim(),
+              upn: upn?.trim() || existing.upn, // Update UPN if provided, otherwise keep existing
               send: send === "TRUE" || send === true,
               pp: pp === "TRUE" || pp === true
             });
@@ -4100,6 +4111,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             await storage.createStudent({
               schoolId,
               name: name.trim(),
+              upn: upn?.trim() || null,
               send: send === "TRUE" || send === true,
               pp: pp === "TRUE" || pp === true,
               isArchived: false

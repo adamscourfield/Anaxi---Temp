@@ -117,6 +117,7 @@ export interface IStorage {
   getStudentsBySchool(schoolId: string, includeArchived?: boolean): Promise<Student[]>;
   getStudent(id: string): Promise<Student | undefined>;
   getStudentByNameAndSchool(name: string, schoolId: string): Promise<Student | undefined>;
+  getStudentByUpnAndSchool(upn: string, schoolId: string): Promise<Student | undefined>;
   createStudent(student: InsertStudent): Promise<Student>;
   updateStudent(id: string, updates: Partial<Student>): Promise<Student | undefined>;
   
@@ -532,6 +533,10 @@ export class MemStorage implements IStorage {
   }
 
   async getStudentByNameAndSchool(name: string, schoolId: string): Promise<Student | undefined> {
+    throw new Error("Students not implemented in MemStorage");
+  }
+
+  async getStudentByUpnAndSchool(upn: string, schoolId: string): Promise<Student | undefined> {
     throw new Error("Students not implemented in MemStorage");
   }
 

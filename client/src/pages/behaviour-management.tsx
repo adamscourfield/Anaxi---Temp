@@ -27,6 +27,7 @@ import { CsvColumnMapper } from "@/components/csv-column-mapper";
 
 const addStudentSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  upn: z.string().optional(),
   send: z.boolean().default(false),
   pp: z.boolean().default(false),
   dateOfBirth: z.string().optional(),
@@ -42,6 +43,7 @@ type CompleteOncallFormValues = z.infer<typeof completeOncallSchema>;
 
 const editStudentSchema = z.object({
   name: z.string().min(1, "Name is required"),
+  upn: z.string().optional(),
   send: z.boolean().default(false),
   pp: z.boolean().default(false),
   dateOfBirth: z.string().optional(),
@@ -197,6 +199,7 @@ export default function BehaviourManagementPage() {
     resolver: zodResolver(addStudentSchema),
     defaultValues: {
       name: "",
+      upn: "",
       send: false,
       pp: false,
       dateOfBirth: "",
@@ -208,6 +211,7 @@ export default function BehaviourManagementPage() {
     resolver: zodResolver(editStudentSchema),
     defaultValues: {
       name: "",
+      upn: "",
       send: false,
       pp: false,
       dateOfBirth: "",
@@ -269,6 +273,7 @@ export default function BehaviourManagementPage() {
     mutationFn: async (data: EditStudentFormValues & { id: string }) => {
       return apiRequest("PATCH", `/api/students/${data.id}`, {
         name: data.name,
+        upn: data.upn || null,
         send: data.send,
         pp: data.pp,
         dateOfBirth: data.dateOfBirth || null,
@@ -294,7 +299,7 @@ export default function BehaviourManagementPage() {
 
   // Import CSV mutation
   const importCsvMutation = useMutation({
-    mutationFn: async (csvData: Array<{ name: string; send: boolean; pp: boolean }>) => {
+    mutationFn: async (csvData: Array<{ name: string; upn?: string; send: boolean; pp: boolean }>) => {
       return apiRequest("POST", `/api/schools/${currentSchoolId}/students/import-csv`, { csvData });
     },
     onSuccess: () => {
@@ -359,7 +364,7 @@ export default function BehaviourManagementPage() {
       };
 
       // Build the student data from mapped columns
-      const studentData: Array<{ name: string; send: boolean; pp: boolean }> = rows.map(row => {
+      const studentData: Array<{ name: string; upn?: string; send: boolean; pp: boolean }> = rows.map(row => {
         const getColumnValue = (fieldKey: string): string => {
           const headerName = mappings[fieldKey];
           if (!headerName) return '';
@@ -367,8 +372,10 @@ export default function BehaviourManagementPage() {
           return headerIndex >= 0 ? (row[headerIndex] || '') : '';
         };
 
+        const upnValue = getColumnValue('upn').trim();
         return {
           name: getColumnValue('name').trim(),
+          upn: upnValue || undefined,
           send: parseBoolean(getColumnValue('send')),
           pp: parseBoolean(getColumnValue('pp')),
         };
@@ -549,6 +556,19 @@ export default function BehaviourManagementPage() {
                       />
                       <FormField
                         control={addStudentForm.control}
+                        name="upn"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>UPN (Unique Pupil Number)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter UPN..." {...field} data-testid="input-student-upn" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={addStudentForm.control}
                         name="send"
                         render={({ field }) => (
                           <FormItem className="flex flex-row items-start space-x-3 space-y-0">
@@ -628,13 +648,14 @@ export default function BehaviourManagementPage() {
                   <DialogHeader>
                     <DialogTitle>Import Students from CSV</DialogTitle>
                     <DialogDescription>
-                      Upload a CSV file and map the columns to import student data. Required field: Student Name. Optional fields: SEND, PP.
+                      Upload a CSV file and map the columns to import student data. If a UPN matches an existing student, their record will be updated instead of creating a duplicate.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4 py-4">
                     <CsvColumnMapper
                       requiredFields={[
                         { key: "name", label: "Student Name", required: true },
+                        { key: "upn", label: "UPN (Unique Pupil Number)", required: false },
                         { key: "send", label: "SEND", required: false },
                         { key: "pp", label: "PP (Pupil Premium)", required: false },
                       ]}
@@ -690,6 +711,19 @@ export default function BehaviourManagementPage() {
                             <FormLabel>Student Name</FormLabel>
                             <FormControl>
                               <Input placeholder="Enter student name..." {...field} data-testid="input-edit-student-name" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editStudentForm.control}
+                        name="upn"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>UPN (Unique Pupil Number)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="Enter UPN..." {...field} data-testid="input-edit-student-upn" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -807,6 +841,7 @@ export default function BehaviourManagementPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Name</TableHead>
+                        <TableHead>UPN</TableHead>
                         <TableHead>SEND</TableHead>
                         <TableHead>PP</TableHead>
                         <TableHead>On-Calls</TableHead>
@@ -820,6 +855,7 @@ export default function BehaviourManagementPage() {
                         return (
                         <TableRow key={student.id}>
                           <TableCell className="font-medium">{student.name}</TableCell>
+                          <TableCell className="text-muted-foreground font-mono text-sm">{student.upn || "-"}</TableCell>
                           <TableCell>
                             {student.send ? (
                               <Badge variant="default">Yes</Badge>
@@ -855,6 +891,7 @@ export default function BehaviourManagementPage() {
                                   setSelectedStudent(student);
                                   editStudentForm.reset({
                                     name: student.name,
+                                    upn: student.upn || "",
                                     send: student.send,
                                     pp: student.pp,
                                     dateOfBirth: student.dateOfBirth || "",
