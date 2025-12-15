@@ -391,4 +391,19 @@
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
   }
+
+  /* Glassmorphism effect for cards */
+  .glass {
+    background: hsl(0 0% 100% / 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid hsl(0 0% 100% / 0.4);
+    box-shadow: 0 4px 16px hsl(0 0% 0% / 0.05);
+  }
+
+  .dark .glass {
+    background: hsl(222 47% 11% / 0.7);
+    border: 1px solid hsl(0 0% 100% / 0.08);
+    box-shadow: 0 4px 16px hsl(0 0% 0% / 0.15);
+  }
 }

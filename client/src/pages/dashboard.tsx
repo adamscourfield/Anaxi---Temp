@@ -248,7 +248,7 @@ export default function Dashboard() {
       </div>
 
       {!hasAnyFeatures && currentSchool && (
-        <Card>
+        <Card className="glass">
           <CardContent className="flex flex-col items-center justify-center py-12">
             <FileText className="w-12 h-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No features enabled</h3>
@@ -263,7 +263,7 @@ export default function Dashboard() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {hasObservations && (
-              <Card data-testid="card-observations-widget">
+              <Card className="glass" data-testid="card-observations-widget">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Observations</CardTitle>
                   <Eye className="h-4 w-4 text-muted-foreground" />
@@ -290,7 +290,7 @@ export default function Dashboard() {
             )}
 
             {hasMeetings && (
-              <Card data-testid="card-meetings-widget">
+              <Card className="glass" data-testid="card-meetings-widget">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Meetings</CardTitle>
                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -317,7 +317,7 @@ export default function Dashboard() {
             )}
 
             {hasLeave && (
-              <Card data-testid="card-leave-widget">
+              <Card className="glass" data-testid="card-leave-widget">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">{canApproveLeave ? "Leave Requests" : "My Leave"}</CardTitle>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -357,7 +357,7 @@ export default function Dashboard() {
             )}
 
             {hasBehaviour && (
-              <Card data-testid="card-behaviour-widget">
+              <Card className="glass" data-testid="card-behaviour-widget">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Behaviour</CardTitle>
                   <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -393,7 +393,7 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {hasObservations && (
-              <Card data-testid="card-observations-detail">
+              <Card className="glass" data-testid="card-observations-detail">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle className="text-lg">Observations</CardTitle>
@@ -452,7 +452,7 @@ export default function Dashboard() {
             )}
 
             {hasMeetings && (
-              <Card data-testid="card-meetings-detail">
+              <Card className="glass" data-testid="card-meetings-detail">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle className="text-lg">Meetings & Actions</CardTitle>
@@ -536,7 +536,7 @@ export default function Dashboard() {
             )}
 
             {hasLeave && (
-              <Card data-testid="card-leave-detail">
+              <Card className="glass" data-testid="card-leave-detail">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle className="text-lg">{canApproveLeave ? "Leave Approvals" : "Leave Requests"}</CardTitle>
@@ -592,7 +592,7 @@ export default function Dashboard() {
             )}
 
             {hasBehaviour && (
-              <Card data-testid="card-behaviour-detail">
+              <Card className="glass" data-testid="card-behaviour-detail">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
                     <CardTitle className="text-lg">Behaviour Management</CardTitle>
@@ -652,7 +652,7 @@ export default function Dashboard() {
           {isLeaderOrAbove && (staffBirthdays.length > 0 || studentBirthdays.length > 0) && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {staffBirthdays.length > 0 && (
-                <Card data-testid="card-staff-birthdays">
+                <Card className="glass" data-testid="card-staff-birthdays">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Cake className="h-5 w-5" />
@@ -688,7 +688,7 @@ export default function Dashboard() {
               )}
 
               {studentBirthdays.length > 0 && hasBehaviour && (
-                <Card data-testid="card-student-birthdays">
+                <Card className="glass" data-testid="card-student-birthdays">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <GraduationCap className="h-5 w-5" />
