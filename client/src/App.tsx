@@ -91,10 +91,10 @@ function AppContent() {
     <SchoolProvider>
       <TooltipProvider>
         <SidebarProvider style={style as React.CSSProperties}>
-          <div className="flex h-screen w-full">
+          <div className="flex h-screen w-full bg-gradient-to-br from-primary/10 via-background to-accent/10">
             <AppSidebar />
             <div className="flex flex-col flex-1">
-              <header className="flex items-center justify-between gap-4 p-4 border-b">
+              <header className="flex items-center justify-between gap-4 p-4 border-b border-white/20 backdrop-blur-md bg-background/70">
                 <div className="flex items-center gap-4">
                   <SidebarTrigger data-testid="button-sidebar-toggle" />
                   <SchoolSelector />
