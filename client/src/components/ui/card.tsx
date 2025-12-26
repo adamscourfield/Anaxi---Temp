@@ -7,15 +7,20 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant = "default", ...props }, ref) => (
+  ({ className, variant = "default", style, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
         "shadcn-card rounded-xl border text-card-foreground",
         variant === "default" && "bg-card border-card-border shadow-md",
-        variant === "glass" && "bg-white/40 dark:bg-white/10 backdrop-blur-md border-white/50 dark:border-white/20 shadow-xl",
+        variant === "glass" && "backdrop-blur-md shadow-xl",
         className
       )}
+      style={variant === "glass" ? {
+        backgroundColor: "rgba(255, 255, 255, 0.35)",
+        borderColor: "rgba(255, 255, 255, 0.5)",
+        ...style
+      } : style}
       {...props}
     />
   )
