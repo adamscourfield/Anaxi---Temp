@@ -97,7 +97,7 @@ function AppContent() {
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
                   <img src={anaxiLogo} alt="Anaxi" className="h-9 w-9" />
-                  <span className="font-semibold text-xl text-foreground">Anaxi</span>
+                  <span className="font-semibold text-foreground text-[16px]">Anaxi</span>
                 </div>
                 <div className="h-7 w-px bg-border/40" />
                 <SchoolSelector />
