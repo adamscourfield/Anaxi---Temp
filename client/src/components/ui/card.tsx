@@ -7,12 +7,12 @@ interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant = "default", style, ...props }, ref) => (
+  ({ className, variant = "glass", style, ...props }, ref) => (
     <div
       ref={ref}
       className={cn(
-        "rounded-xl border text-card-foreground",
-        variant === "default" && "shadcn-card bg-card border-card-border shadow-md",
+        "rounded-xl text-card-foreground",
+        variant === "default" && "shadcn-card bg-card border border-card-border shadow-md",
         variant === "glass" && "glass-card",
         className
       )}
