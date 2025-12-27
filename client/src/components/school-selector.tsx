@@ -34,7 +34,7 @@ export function SchoolSelector() {
       value={currentSchoolId || undefined} 
       onValueChange={setCurrentSchoolId}
     >
-      <SelectTrigger className="w-[200px]" data-testid="select-school">
+      <SelectTrigger className="w-[200px] bg-white/30 backdrop-blur-sm border-white/50 hover:bg-white/40" data-testid="select-school">
         <Building2 className="h-4 w-4 mr-2" />
         <SelectValue placeholder="Select school" />
       </SelectTrigger>
