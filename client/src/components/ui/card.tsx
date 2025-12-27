@@ -11,15 +11,15 @@ const Card = React.forwardRef<HTMLDivElement, CardProps>(
     <div
       ref={ref}
       className={cn(
-        "shadcn-card rounded-xl border text-card-foreground",
-        variant === "default" && "bg-card border-card-border shadow-md",
-        variant === "glass" && "backdrop-blur-md shadow-xl",
+        "rounded-xl border text-card-foreground",
+        variant === "default" && "shadcn-card bg-card border-card-border shadow-md",
+        variant === "glass" && "backdrop-blur-md",
         className
       )}
       style={variant === "glass" ? {
-        backgroundColor: "rgba(255, 255, 255, 0.7)",
-        borderColor: "rgba(255, 255, 255, 0.8)",
-        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.1)",
+        backgroundColor: "rgba(255, 255, 255, 0.65)",
+        borderColor: "rgba(255, 255, 255, 0.5)",
+        boxShadow: "0 8px 32px rgba(0, 0, 0, 0.08)",
         ...style
       } : style}
       {...props}
