@@ -93,16 +93,16 @@ function AppContent() {
       <TooltipProvider>
         <SidebarProvider style={style as React.CSSProperties}>
           <div className="flex flex-col h-screen w-full bg-gradient-to-br from-primary/50 via-primary/15 to-accent/50">
-            <header className="flex items-center justify-between gap-4 px-4 py-3 border-b border-border/50 bg-white/30 dark:bg-black/30 backdrop-blur-md z-20">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <img src={anaxiLogo} alt="Anaxi" className="h-8 w-8" />
-                  <span className="font-semibold text-lg text-foreground">Anaxi</span>
+            <header className="flex items-center justify-between gap-6 px-6 py-4 border-b border-white/30 dark:border-white/10 z-20">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-3">
+                  <img src={anaxiLogo} alt="Anaxi" className="h-9 w-9" />
+                  <span className="font-semibold text-xl text-foreground">Anaxi</span>
                 </div>
-                <div className="h-6 w-px bg-border/50" />
+                <div className="h-7 w-px bg-border/40" />
                 <SchoolSelector />
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-5">
                 <UserMenu />
                 <ThemeToggle />
               </div>
