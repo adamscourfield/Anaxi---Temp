@@ -303,15 +303,15 @@
  */
 @layer components {
   .glass-card {
-    background-color: rgba(255, 255, 255, 0.65) !important;
-    border-color: rgba(255, 255, 255, 0.5) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1) !important;
+    background: rgba(255, 255, 255, 0.3) !important;
+    border: 2px solid rgba(255, 255, 255, 0.5) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
   }
   
   .dark .glass-card {
-    background-color: rgba(0, 0, 0, 0.4) !important;
+    background: rgba(0, 0, 0, 0.3) !important;
     border-color: rgba(255, 255, 255, 0.2) !important;
   }
 }
