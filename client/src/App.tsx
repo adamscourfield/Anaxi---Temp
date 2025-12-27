@@ -96,7 +96,7 @@ function AppContent() {
             <header className="flex items-center justify-between gap-6 px-6 py-4 border-b border-white/30 dark:border-white/10 z-20">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
-                  <img src={anaxiLogo} alt="Anaxi" className="h-9 w-9" />
+                  <img src={anaxiLogo} alt="Anaxi" className="h-9 w-9 dark:invert dark:brightness-200" />
                   <span className="font-semibold text-foreground text-[16px]">Anaxi</span>
                 </div>
                 <div className="h-7 w-px bg-border/40" />
