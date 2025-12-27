@@ -3,13 +3,14 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { SchoolSelector } from "@/components/school-selector";
 import { UserMenu } from "@/components/user-menu";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { SchoolProvider } from "@/hooks/use-school";
+import anaxiLogo from "@assets/7_1760131494886.png";
 
 import Dashboard from "@/pages/dashboard";
 import ConductObservation from "@/pages/conduct-observation";
@@ -60,7 +61,7 @@ function AppContent() {
   const { user, isLoading } = useAuth();
 
   const style = {
-    "--sidebar-width": "16rem",
+    "--sidebar-width": "4rem",
   };
 
   if (isLoading) {
@@ -91,19 +92,23 @@ function AppContent() {
     <SchoolProvider>
       <TooltipProvider>
         <SidebarProvider style={style as React.CSSProperties}>
-          <div className="flex h-screen w-full bg-gradient-to-br from-primary/50 via-primary/15 to-accent/50">
-            <AppSidebar />
-            <div className="flex flex-col flex-1">
-              <header className="flex items-center justify-between gap-4 p-4 border-b border-border/50 bg-transparent">
-                <div className="flex items-center gap-4">
-                  <SidebarTrigger data-testid="button-sidebar-toggle" />
-                  <SchoolSelector />
+          <div className="flex flex-col h-screen w-full bg-gradient-to-br from-primary/50 via-primary/15 to-accent/50">
+            <header className="flex items-center justify-between gap-4 px-4 py-3 border-b border-border/50 bg-white/30 dark:bg-black/30 backdrop-blur-md z-20">
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <img src={anaxiLogo} alt="Anaxi" className="h-8 w-8" />
+                  <span className="font-semibold text-lg text-foreground">Anaxi</span>
                 </div>
-                <div className="flex items-center gap-4">
-                  <UserMenu />
-                  <ThemeToggle />
-                </div>
-              </header>
+                <div className="h-6 w-px bg-border/50" />
+                <SchoolSelector />
+              </div>
+              <div className="flex items-center gap-4">
+                <UserMenu />
+                <ThemeToggle />
+              </div>
+            </header>
+            <div className="flex flex-1 overflow-hidden">
+              <AppSidebar />
               <main className="flex-1 overflow-auto">
                 <Router />
               </main>

@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CheckCircle, XCircle, DollarSign, FileText, ExternalLink, Eye, Search } from "lucide-react";
 import { format } from "date-fns";
@@ -294,7 +295,7 @@ export default function ApproveLeave() {
           {searchQuery ? "No leave requests found matching your search." : "No leave requests found for the selected filter."}
         </div>
       ) : (
-        <div className="border rounded-lg">
+        <Card className="overflow-hidden">
           <Table>
             <TableHeader>
               <TableRow>
@@ -401,7 +402,7 @@ export default function ApproveLeave() {
               })}
             </TableBody>
           </Table>
-        </div>
+        </Card>
       )}
 
       {/* Details Dialog */}

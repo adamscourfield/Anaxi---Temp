@@ -10,90 +10,76 @@ import {
   CheckSquare,
   AlertCircle,
   ShieldAlert,
+  User,
 } from "lucide-react";
 import {
   Sidebar,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
-  SidebarHeader,
   SidebarFooter,
 } from "@/components/ui/sidebar";
 import { Link, useLocation } from "wouter";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/use-auth";
 import { useSchool } from "@/hooks/use-school";
 import { useQuery } from "@tanstack/react-query";
 import type { SchoolMembership } from "@shared/schema";
-import anaxiLogo from "@assets/7_1760131494886.png";
+import { cn } from "@/lib/utils";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 const menuItems = [
   {
     title: "Dashboard",
     url: "/",
     icon: LayoutDashboard,
-    color: "primary",
   },
   {
     title: "Observe",
     url: "/observe",
     icon: Eye,
-    color: "info",
   },
   {
     title: "View Observations",
     url: "/history",
     icon: History,
-    color: "teal",
   },
   {
     title: "Meetings",
     url: "/meetings",
     icon: MessageSquare,
-    color: "info",
   },
   {
     title: "Request Leave",
     url: "/leave-requests",
     icon: Calendar,
-    color: "teal",
   },
   {
     title: "Approve Leave",
     url: "/approve-leave",
     icon: CheckSquare,
-    color: "info",
   },
   {
     title: "On-Call",
     url: "/on-call",
     icon: AlertCircle,
-    color: "info",
   },
   {
     title: "Behaviour Management",
     url: "/behaviour-management",
     icon: ShieldAlert,
-    color: "teal",
   },
   {
     title: "App Management",
     url: "/management",
     icon: Settings,
-    color: "amber",
   },
 ];
-
-const iconColorClasses: Record<string, string> = {
-  primary: "text-sidebar-foreground",
-  info: "text-sidebar-foreground",
-  teal: "text-sidebar-foreground",
-  amber: "text-sidebar-foreground",
-};
 
 export function AppSidebar() {
   const [location] = useLocation();
@@ -174,55 +160,67 @@ export function AppSidebar() {
   });
 
   return (
-    <Sidebar>
-      <SidebarHeader className="flex flex-col gap-2 p-4 pt-[32px] pb-[32px]">
-        <div className="flex items-center gap-3">
-          <img src={anaxiLogo} alt="Anaxi Logo" className="h-10 w-10" />
-          <div>
-            <h2 className="font-semibold text-base text-[#363b49]">Anaxi</h2>
-            <p className="text-xs text-muted-foreground">
-              {currentSchool?.name || "Loading..."}
-            </p>
-          </div>
-        </div>
-      </SidebarHeader>
-      <SidebarContent className="px-2">
+    <Sidebar collapsible="none">
+      <SidebarContent className="py-4 px-2">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-4">
-              {visibleMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={location === item.url}>
-                    <Link href={item.url} data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}>
-                      <item.icon className={iconColorClasses[item.color]} />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+            <SidebarMenu className="gap-2">
+              {visibleMenuItems.map((item) => {
+                const isActive = location === item.url;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Link 
+                          href={item.url} 
+                          data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
+                          className={cn(
+                            "flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200",
+                            "bg-white/60 dark:bg-black/40 backdrop-blur-sm",
+                            "border border-white/50 dark:border-white/20",
+                            "shadow-sm hover:shadow-md",
+                            "hover:bg-white/80 dark:hover:bg-black/60",
+                            isActive && "bg-foreground/90 dark:bg-foreground/80 text-background shadow-md",
+                            !isActive && "text-foreground/70 dark:text-foreground/60 hover:text-foreground"
+                          )}
+                        >
+                          <item.icon className="h-5 w-5" />
+                        </Link>
+                      </TooltipTrigger>
+                      <TooltipContent side="right" sideOffset={12}>
+                        {item.title}
+                      </TooltipContent>
+                    </Tooltip>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="p-4">
-        <Link href="/profile" data-testid="link-profile">
-          <div className="flex items-center gap-3 hover-elevate rounded-md p-2 cursor-pointer">
-            <Avatar className="h-8 w-8">
-              {user?.profile_image_url && (
-                <AvatarImage src={user.profile_image_url} />
+      <SidebarFooter className="p-2 pb-4">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Link 
+              href="/profile" 
+              data-testid="link-profile"
+              className={cn(
+                "flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200",
+                "bg-white/60 dark:bg-black/40 backdrop-blur-sm",
+                "border border-white/50 dark:border-white/20",
+                "shadow-sm hover:shadow-md",
+                "hover:bg-white/80 dark:hover:bg-black/60",
+                location === "/profile" && "bg-foreground/90 dark:bg-foreground/80 text-background shadow-md",
+                location !== "/profile" && "text-foreground/70 dark:text-foreground/60 hover:text-foreground"
               )}
-              <AvatarFallback>{userInitials}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-[#363b49]" data-testid="text-current-user-name">
-                {userName}
-              </p>
-              <p className="text-xs text-muted-foreground truncate" data-testid="text-current-user-email">
-                {user?.email || ""}
-              </p>
-            </div>
-          </div>
-        </Link>
+            >
+              <User className="h-5 w-5" />
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent side="right" sideOffset={12}>
+            {userName}
+          </TooltipContent>
+        </Tooltip>
       </SidebarFooter>
     </Sidebar>
   );
