@@ -37,6 +37,7 @@ export function CategorySelector({
                 <Checkbox
                   checked={isSelected}
                   onCheckedChange={() => onToggleCategory(category.id)}
+                  onClick={(e) => e.stopPropagation()}
                   data-testid={`checkbox-category-${category.id}`}
                   className="mt-0.5"
                 />
