@@ -107,7 +107,7 @@ function AppContent() {
                 <ThemeToggle />
               </div>
             </header>
-            <div className="flex flex-1 overflow-hidden gap-4">
+            <div className="flex flex-1 overflow-hidden gap-6">
               <AppSidebar />
               <main className="flex-1 overflow-auto">
                 <Router />

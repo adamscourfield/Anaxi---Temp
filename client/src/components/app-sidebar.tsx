@@ -164,7 +164,7 @@ export function AppSidebar() {
       <SidebarContent className="py-4 px-2">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu className="gap-4">
+            <SidebarMenu className="gap-5">
               {visibleMenuItems.map((item) => {
                 const isActive = location === item.url;
                 return (
