@@ -12,8 +12,8 @@ interface Habit {
 
 interface CategoryFeedback {
   name: string;
-  score: number;
-  maxScore: number;
+  score?: number;
+  maxScore?: number;
   habits: Habit[];
 }
 
@@ -26,8 +26,9 @@ interface FeedbackReportProps {
   classInfo?: string;
   qualitativeFeedback?: string;
   categories: CategoryFeedback[];
-  totalScore: number;
-  totalMaxScore: number;
+  totalScore?: number;
+  totalMaxScore?: number;
+  showScores?: boolean;
 }
 
 export function FeedbackReport({
@@ -41,6 +42,7 @@ export function FeedbackReport({
   categories,
   totalScore,
   totalMaxScore,
+  showScores = true,
 }: FeedbackReportProps) {
   return (
     <div className="space-y-6">
@@ -58,12 +60,14 @@ export function FeedbackReport({
                 </p>
               </div>
             </div>
-            <div className="text-right">
-              <div className="text-3xl font-bold" data-testid="text-total-score">
-                {totalScore}/{totalMaxScore}
+            {showScores && totalScore !== undefined && totalMaxScore !== undefined && (
+              <div className="text-right">
+                <div className="text-3xl font-bold" data-testid="text-total-score">
+                  {totalScore}/{totalMaxScore}
+                </div>
+                <p className="text-sm text-muted-foreground">Total Score</p>
               </div>
-              <p className="text-sm text-muted-foreground">Total Score</p>
-            </div>
+            )}
           </div>
         </CardHeader>
       </Card>
@@ -114,9 +118,11 @@ export function FeedbackReport({
           <CardHeader>
             <div className="flex items-center justify-between gap-4">
               <CardTitle className="text-lg">{category.name}</CardTitle>
-              <Badge variant="secondary">
-                {category.score}/{category.maxScore}
-              </Badge>
+              {showScores && category.score !== undefined && category.maxScore !== undefined && (
+                <Badge variant="secondary">
+                  {category.score}/{category.maxScore}
+                </Badge>
+              )}
             </div>
           </CardHeader>
           <CardContent className="space-y-3">

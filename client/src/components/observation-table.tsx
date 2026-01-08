@@ -17,8 +17,8 @@ interface ObservationData {
   teacherName: string;
   observerName: string;
   date: Date;
-  totalScore: number;
-  totalMaxScore: number;
+  totalScore?: number;
+  totalMaxScore?: number;
   classInfo?: string;
   categories?: Array<{ name: string }>;
 }
@@ -26,9 +26,10 @@ interface ObservationData {
 interface ObservationTableProps {
   observations: ObservationData[];
   onViewDetails: (observationId: string) => void;
+  showScores?: boolean;
 }
 
-export function ObservationTable({ observations, onViewDetails }: ObservationTableProps) {
+export function ObservationTable({ observations, onViewDetails, showScores = true }: ObservationTableProps) {
   if (observations.length === 0) {
     return (
       <div className="text-center text-muted-foreground py-12">
@@ -45,7 +46,7 @@ export function ObservationTable({ observations, onViewDetails }: ObservationTab
             <TableHead>Teacher</TableHead>
             <TableHead>Observer</TableHead>
             <TableHead>Date</TableHead>
-            <TableHead>Score</TableHead>
+            {showScores && <TableHead>Score</TableHead>}
             <TableHead>Categories</TableHead>
             <TableHead>Class</TableHead>
             <TableHead className="w-[80px]"></TableHead>
@@ -53,8 +54,8 @@ export function ObservationTable({ observations, onViewDetails }: ObservationTab
         </TableHeader>
         <TableBody>
           {observations.map((obs) => {
-            const percentage = obs.totalMaxScore > 0
-              ? Math.round((obs.totalScore / obs.totalMaxScore) * 100)
+            const percentage = showScores && obs.totalMaxScore && obs.totalMaxScore > 0
+              ? Math.round(((obs.totalScore || 0) / obs.totalMaxScore) * 100)
               : 0;
 
             return (
@@ -68,14 +69,16 @@ export function ObservationTable({ observations, onViewDetails }: ObservationTab
                 <TableCell data-testid={`cell-date-${obs.id}`}>
                   {format(new Date(obs.date), "MMM d, yyyy")}
                 </TableCell>
-                <TableCell data-testid={`cell-score-${obs.id}`}>
-                  <div className="flex items-center gap-3">
-                    <Progress value={percentage} className="w-24" />
-                    <span className="text-sm text-muted-foreground min-w-[3rem]">
-                      {percentage}%
-                    </span>
-                  </div>
-                </TableCell>
+                {showScores && (
+                  <TableCell data-testid={`cell-score-${obs.id}`}>
+                    <div className="flex items-center gap-3">
+                      <Progress value={percentage} className="w-24" />
+                      <span className="text-sm text-muted-foreground min-w-[3rem]">
+                        {percentage}%
+                      </span>
+                    </div>
+                  </TableCell>
+                )}
                 <TableCell data-testid={`cell-categories-${obs.id}`}>
                   {obs.categories && obs.categories.length > 0 ? (
                     <div className="flex flex-wrap gap-1">

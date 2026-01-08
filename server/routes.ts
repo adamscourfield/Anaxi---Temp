@@ -3014,6 +3014,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const schoolUsers = await Promise.all(schoolMemberships.map(m => storage.getUser(m.userId)));
       const userMap = new Map(schoolUsers.filter(Boolean).map(u => [u!.id, u!]));
 
+      // Determine if user can see scores (only Creators, Admins, and Leaders can see scores)
+      const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+      const userRole = user.global_role === "Creator" ? "Creator" : (membership?.role || "Teacher");
+      const canSeeScores = userRole === "Creator" || userRole === "Admin" || userRole === "Leader";
+
+      // Helper to strip scores from observation
+      const stripScores = (obs: any) => {
+        const { totalScore, totalMaxScore, ...rest } = obs;
+        return rest;
+      };
+
       // Helper to add teacher name, categories, and habit names to observation
       const enrichObservation = async (obs: any) => {
         const teacher = userMap.get(obs.teacherId);
@@ -3037,7 +3048,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
         }
         
-        return {
+        const enriched = {
           ...obs,
           teacherName,
           habitNames,
@@ -3045,6 +3056,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .filter(cat => cat.habits && cat.habits.length > 0)
             .map(cat => ({ categoryName: cat.name })),
         };
+
+        // Strip scores if user is a Teacher (not Creator, Admin, or Leader)
+        return canSeeScores ? enriched : stripScores(enriched);
       };
 
       // Creators can see all observations across all schools
@@ -3054,9 +3068,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.json(observationsWithDetails);
       }
 
-      // Verify the user has membership in the requested school
-      const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
-      
       if (!membership) {
         return res.status(403).json({ 
           message: "Forbidden: You do not have access to this school's observations" 
@@ -3107,7 +3118,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Observation not found" });
       }
 
-      // Check access permissions
+      // Check access permissions and determine role
+      let canSeeScores = user.global_role === "Creator";
+      
       if (user.global_role !== "Creator") {
         const membership = await storage.getMembershipByUserAndSchool(user.id, observation.schoolId);
         
@@ -3117,6 +3130,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         // Check if user can view this observation
         const role = membership.role || "Teacher";
+        
+        // Determine if user can see scores (only Creators, Admins, and Leaders)
+        canSeeScores = role === "Admin" || role === "Leader";
+        
         if (role !== "Admin") {
           // Teachers and Leaders can only see their own observations or those they have permission for
           const viewPermissions = await storage.getObservationViewPermissionsByViewer(user.id, observation.schoolId);
@@ -3164,20 +3181,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const score = habits.filter(h => h.observed).length;
           const maxScore = habits.length;
 
-          return {
-            id: category.id,
-            name: category.name,
-            habits,
-            score,
-            maxScore,
-          };
+          // Only include scores if user can see them
+          if (canSeeScores) {
+            return {
+              id: category.id,
+              name: category.name,
+              habits,
+              score,
+              maxScore,
+            };
+          } else {
+            return {
+              id: category.id,
+              name: category.name,
+              habits,
+            };
+          }
         })
         .filter((cat): cat is NonNullable<typeof cat> => cat !== null && cat.habits.length > 0); // Only include categories that were used in the observation
 
-      res.json({
-        ...observation,
-        categories,
-      });
+      // Strip observation-level scores for Teachers
+      if (canSeeScores) {
+        res.json({
+          ...observation,
+          categories,
+        });
+      } else {
+        const { totalScore, totalMaxScore, ...observationWithoutScores } = observation;
+        res.json({
+          ...observationWithoutScores,
+          categories,
+        });
+      }
     } catch (error) {
       console.error("Error fetching observation details:", error);
       res.status(500).json({ message: "Failed to fetch observation details" });

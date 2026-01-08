@@ -81,6 +81,7 @@ export default function ObservationHistory() {
   const currentMembership = memberships.find(m => m.schoolId === currentSchoolId);
   const canExport = isCreator || currentMembership?.role === "Leader" || currentMembership?.role === "Admin";
   const isLeaderOrAbove = isCreator || currentMembership?.role === "Leader" || currentMembership?.role === "Admin";
+  const canSeeScores = isLeaderOrAbove;
 
   // Map observations with teacher and observer names
   const observationsWithNames = observations.map((obs: any) => {
@@ -122,18 +123,21 @@ export default function ObservationHistory() {
   });
 
   const exportToCSV = () => {
-    const headers = ["Date", "Teacher", "Observer", "Class", "Score", "Max Score", "Percentage"];
+    const headers = canSeeScores 
+      ? ["Date", "Teacher", "Observer", "Class", "Score", "Max Score", "Percentage"]
+      : ["Date", "Teacher", "Observer", "Class"];
     const rows = filteredObservations.map((obs) => {
-      const percentage = obs.totalMaxScore > 0 ? Math.round((obs.totalScore / obs.totalMaxScore) * 100) : 0;
-      return [
+      const baseRow = [
         format(new Date(obs.date), "yyyy-MM-dd"),
         obs.teacherName,
         obs.observerName,
         obs.classInfo || "",
-        obs.totalScore.toString(),
-        obs.totalMaxScore.toString(),
-        `${percentage}%`,
       ];
+      if (canSeeScores) {
+        const percentage = obs.totalMaxScore > 0 ? Math.round((obs.totalScore / obs.totalMaxScore) * 100) : 0;
+        return [...baseRow, obs.totalScore?.toString() || "0", obs.totalMaxScore?.toString() || "0", `${percentage}%`];
+      }
+      return baseRow;
     });
 
     const csvContent = [
@@ -231,7 +235,7 @@ export default function ObservationHistory() {
             </p>
           </div>
         </div>
-        <FeedbackReport {...feedbackData} />
+        <FeedbackReport {...feedbackData} showScores={canSeeScores} />
       </div>
     );
   }
@@ -318,6 +322,7 @@ export default function ObservationHistory() {
         <ObservationTable
           observations={filteredObservations}
           onViewDetails={(id) => setSelectedObservation(id)}
+          showScores={canSeeScores}
         />
       )}
     </div>
