@@ -2928,6 +2928,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const periodACategories = await getCategoryPerformance(periodAObservations);
       const periodBCategories = await getCategoryPerformance(periodBObservations);
 
+      // Get per-teacher performance for both periods
+      const getTeacherPerformance = async (observations: typeof schoolObservations) => {
+        const teacherObsMap = new Map<string, typeof schoolObservations>();
+        for (const obs of observations) {
+          if (!teacherObsMap.has(obs.teacherId)) {
+            teacherObsMap.set(obs.teacherId, []);
+          }
+          teacherObsMap.get(obs.teacherId)!.push(obs);
+        }
+
+        const teacherIds = [...teacherObsMap.keys()];
+        const teacherUsers = await Promise.all(teacherIds.map(id => storage.getUser(id)));
+        const teacherMap = new Map(teacherUsers.filter(Boolean).map(u => [u!.id, u!]));
+
+        const teacherPerformance: Array<{
+          teacherId: string;
+          teacherName: string;
+          observationCount: number;
+          averageScore: number;
+          categoryPerformance: Array<{ name: string; percentage: number }>;
+        }> = [];
+
+        for (const [teacherId, teacherObs] of teacherObsMap) {
+          const teacher = teacherMap.get(teacherId);
+          const teacherName = teacher 
+            ? `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim() || teacher.email
+            : "Unknown";
+
+          const validObs = teacherObs.filter(o => o.totalMaxScore > 0);
+          const avgScore = validObs.length > 0
+            ? validObs.reduce((sum, o) => sum + (o.totalScore / o.totalMaxScore) * 100, 0) / validObs.length
+            : 0;
+
+          const obsHabits = await Promise.all(
+            teacherObs.map(obs => storage.getObservationHabitsByObservation(obs.id))
+          );
+          const flatHabits = obsHabits.flat();
+          
+          const categoryIds = [...new Set(flatHabits.map(h => h.categoryId))];
+          const categories = await Promise.all(categoryIds.map(id => storage.getCategory(id)));
+          const categoryNameMap = new Map(categories.filter(Boolean).map(c => [c!.id, c!.name]));
+
+          const categoryScores: Record<string, { observed: number; total: number }> = {};
+          for (const habit of flatHabits) {
+            const catName = categoryNameMap.get(habit.categoryId) || "Unknown";
+            if (!categoryScores[catName]) {
+              categoryScores[catName] = { observed: 0, total: 0 };
+            }
+            categoryScores[catName].total++;
+            if (habit.observed) {
+              categoryScores[catName].observed++;
+            }
+          }
+
+          const categoryPerformance = Object.entries(categoryScores).map(([name, data]) => ({
+            name,
+            percentage: data.total > 0 ? (data.observed / data.total) * 100 : 0
+          }));
+
+          teacherPerformance.push({
+            teacherId,
+            teacherName,
+            observationCount: teacherObs.length,
+            averageScore: avgScore,
+            categoryPerformance
+          });
+        }
+
+        return teacherPerformance;
+      };
+
+      const periodATeachers = await getTeacherPerformance(periodAObservations);
+      const periodBTeachers = await getTeacherPerformance(periodBObservations);
+
+      const allTeacherIds = new Set([
+        ...periodATeachers.map(t => t.teacherId),
+        ...periodBTeachers.map(t => t.teacherId)
+      ]);
+
+      const teacherChanges = Array.from(allTeacherIds).map(teacherId => {
+        const teacherA = periodATeachers.find(t => t.teacherId === teacherId);
+        const teacherB = periodBTeachers.find(t => t.teacherId === teacherId);
+        
+        const scoreA = teacherA?.averageScore || 0;
+        const scoreB = teacherB?.averageScore || 0;
+        const scoreDelta = scoreB - scoreA;
+        
+        const allCats = new Set([
+          ...(teacherA?.categoryPerformance.map(c => c.name) || []),
+          ...(teacherB?.categoryPerformance.map(c => c.name) || [])
+        ]);
+        
+        const catChanges = Array.from(allCats).map(catName => {
+          const catA = teacherA?.categoryPerformance.find(c => c.name === catName);
+          const catB = teacherB?.categoryPerformance.find(c => c.name === catName);
+          const percentA = catA?.percentage || 0;
+          const percentB = catB?.percentage || 0;
+          const delta = percentB - percentA;
+          return {
+            categoryName: catName,
+            percentageA: percentA,
+            percentageB: percentB,
+            delta,
+            direction: delta > 1 ? "up" : delta < -1 ? "down" : "same" as "up" | "down" | "same"
+          };
+        }).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+
+        const improvements = catChanges.filter(c => c.direction === "up").slice(0, 3);
+        const declines = catChanges.filter(c => c.direction === "down").slice(0, 3);
+
+        return {
+          teacherId,
+          teacherName: teacherA?.teacherName || teacherB?.teacherName || "Unknown",
+          observationCountA: teacherA?.observationCount || 0,
+          observationCountB: teacherB?.observationCount || 0,
+          averageScoreA: scoreA,
+          averageScoreB: scoreB,
+          scoreDelta,
+          direction: scoreDelta > 1 ? "up" : scoreDelta < -1 ? "down" : "same" as "up" | "down" | "same",
+          topImprovements: improvements,
+          topDeclines: declines,
+          allCategoryChanges: catChanges
+        };
+      }).sort((a, b) => Math.abs(b.scoreDelta) - Math.abs(a.scoreDelta));
+
       // Calculate deltas - include habits/categories from BOTH periods (union)
       // Create a map of all unique habits from both periods
       const allHabitNames = new Set([
@@ -2989,7 +3114,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           observationCount: periodBObservations.length - periodAObservations.length,
           averageScore: periodBAvgScore - periodAAvgScore,
           habitChanges,
-          categoryChanges
+          categoryChanges,
+          teacherChanges
         }
       });
     } catch (error) {

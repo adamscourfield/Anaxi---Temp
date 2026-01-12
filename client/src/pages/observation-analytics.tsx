@@ -39,12 +39,15 @@ import {
   Target,
   Award,
   ChevronRight,
+  ChevronDown,
   Calendar,
   ArrowUpRight,
   ArrowDownRight,
   Minus,
-  GitCompare
+  GitCompare,
+  User
 } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type ChartDisplayMode = "both" | "observations" | "quality";
 
@@ -85,6 +88,28 @@ interface AnalyticsData {
   qualitativeFeedback: Array<{ teacherName: string; observerName: string; date: string; feedback: string }>;
 }
 
+interface TeacherCategoryChange {
+  categoryName: string;
+  percentageA: number;
+  percentageB: number;
+  delta: number;
+  direction: "up" | "down" | "same";
+}
+
+interface TeacherChange {
+  teacherId: string;
+  teacherName: string;
+  observationCountA: number;
+  observationCountB: number;
+  averageScoreA: number;
+  averageScoreB: number;
+  scoreDelta: number;
+  direction: "up" | "down" | "same";
+  topImprovements: TeacherCategoryChange[];
+  topDeclines: TeacherCategoryChange[];
+  allCategoryChanges: TeacherCategoryChange[];
+}
+
 interface ComparisonData {
   periodA: {
     startDate: string;
@@ -107,6 +132,7 @@ interface ComparisonData {
     averageScore: number;
     habitChanges: Array<{ habitName: string; categoryName: string; percentageChange: number; direction: "up" | "down" | "same" }>;
     categoryChanges: Array<{ name: string; percentageChange: number; direction: "up" | "down" | "same" }>;
+    teacherChanges?: TeacherChange[];
   };
 }
 
@@ -132,6 +158,19 @@ export default function ObservationAnalytics() {
     from: startOfMonth(lastMonth),
     to: endOfMonth(lastMonth)
   });
+  const [expandedTeachers, setExpandedTeachers] = useState<Set<string>>(new Set());
+
+  const toggleTeacherExpand = (teacherId: string) => {
+    setExpandedTeachers(prev => {
+      const next = new Set(prev);
+      if (next.has(teacherId)) {
+        next.delete(teacherId);
+      } else {
+        next.add(teacherId);
+      }
+      return next;
+    });
+  };
 
   const { data: memberships = [] } = useQuery<any[]>({
     queryKey: ["/api/memberships", user?.id],
@@ -596,6 +635,133 @@ export default function ObservationAnalytics() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Teacher Performance Comparison */}
+            {comparisonData.deltas.teacherChanges && comparisonData.deltas.teacherChanges.length > 0 && (
+              <Card className="col-span-full" data-testid="card-teacher-comparison">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" />
+                    Teacher Performance Comparison
+                  </CardTitle>
+                  <CardDescription>
+                    Individual teacher progress between periods, sorted by change magnitude
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {comparisonData.deltas.teacherChanges.slice(0, 20).map((teacher, idx) => (
+                      <Collapsible 
+                        key={teacher.teacherId}
+                        open={expandedTeachers.has(teacher.teacherId)}
+                        onOpenChange={() => toggleTeacherExpand(teacher.teacherId)}
+                      >
+                        <div 
+                          className="border rounded-lg overflow-hidden"
+                          data-testid={`teacher-comparison-${idx}`}
+                        >
+                          <CollapsibleTrigger className="w-full">
+                            <div className="flex items-center justify-between p-3 hover-elevate cursor-pointer">
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center">
+                                  <User className="h-4 w-4 text-muted-foreground" />
+                                </div>
+                                <div className="text-left">
+                                  <span className="font-medium block">{teacher.teacherName}</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {teacher.observationCountA} → {teacher.observationCountB} observations
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                <div className="text-right text-sm">
+                                  <span className="text-muted-foreground">{teacher.averageScoreA.toFixed(0)}%</span>
+                                  <span className="text-muted-foreground mx-1">→</span>
+                                  <span className="font-medium">{teacher.averageScoreB.toFixed(0)}%</span>
+                                </div>
+                                <Badge 
+                                  variant={teacher.direction === "up" ? "default" : teacher.direction === "down" ? "destructive" : "secondary"}
+                                  className="min-w-16 justify-center"
+                                >
+                                  {teacher.direction === "up" && <ArrowUpRight className="h-3 w-3 mr-1" />}
+                                  {teacher.direction === "down" && <ArrowDownRight className="h-3 w-3 mr-1" />}
+                                  {teacher.direction === "same" && <Minus className="h-3 w-3 mr-1" />}
+                                  {teacher.scoreDelta > 0 ? "+" : ""}{teacher.scoreDelta.toFixed(1)}%
+                                </Badge>
+                                {expandedTeachers.has(teacher.teacherId) ? (
+                                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="px-3 pb-3 pt-1 border-t bg-muted/30">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                                {/* Top Improvements */}
+                                <div>
+                                  <h4 className="text-sm font-medium text-green-600 dark:text-green-400 mb-2 flex items-center gap-1">
+                                    <TrendingUp className="h-4 w-4" />
+                                    Biggest Improvements
+                                  </h4>
+                                  {teacher.topImprovements.length > 0 ? (
+                                    <div className="space-y-1">
+                                      {teacher.topImprovements.map((cat, catIdx) => (
+                                        <div 
+                                          key={catIdx} 
+                                          className="flex items-center justify-between text-sm p-2 bg-green-50 dark:bg-green-950/30 rounded"
+                                        >
+                                          <span className="truncate">{cat.categoryName}</span>
+                                          <Badge variant="default" className="text-xs">
+                                            +{cat.delta.toFixed(0)}%
+                                          </Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground">No improvements recorded</p>
+                                  )}
+                                </div>
+                                {/* Top Declines */}
+                                <div>
+                                  <h4 className="text-sm font-medium text-red-600 dark:text-red-400 mb-2 flex items-center gap-1">
+                                    <TrendingDown className="h-4 w-4" />
+                                    Areas to Watch
+                                  </h4>
+                                  {teacher.topDeclines.length > 0 ? (
+                                    <div className="space-y-1">
+                                      {teacher.topDeclines.map((cat, catIdx) => (
+                                        <div 
+                                          key={catIdx} 
+                                          className="flex items-center justify-between text-sm p-2 bg-red-50 dark:bg-red-950/30 rounded"
+                                        >
+                                          <span className="truncate">{cat.categoryName}</span>
+                                          <Badge variant="destructive" className="text-xs">
+                                            {cat.delta.toFixed(0)}%
+                                          </Badge>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-muted-foreground">No declines recorded</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    ))}
+                    {comparisonData.deltas.teacherChanges.length > 20 && (
+                      <p className="text-sm text-muted-foreground text-center pt-2">
+                        Showing top 20 of {comparisonData.deltas.teacherChanges.length} teachers by change magnitude
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
           </div>
         ) : (
           <Card className="p-8">
