@@ -25,6 +25,16 @@ import {
   Users,
   GraduationCap,
 } from "lucide-react";
+import {
+  ComposedChart,
+  Line,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 interface DashboardStats {
   totalObservations: number;
@@ -38,6 +48,16 @@ interface AnalyticsData {
   byTeacher: Record<string, { name: string; count: number; avgScore: number }>;
   byObserver: Record<string, { name: string; count: number }>;
   recentTrend: { month: string; count: number; avgScore: number }[];
+}
+
+interface ObservationTrendData {
+  summary: {
+    totalObservations: number;
+    uniqueTeachers: number;
+    averageScore: number;
+    scoreChange: number;
+  };
+  observationTrend: Array<{ label: string; value: number; quality: number; sortKey: number }>;
 }
 
 interface LeaveStats {
@@ -122,6 +142,16 @@ export default function Dashboard() {
     queryFn: async () => {
       const response = await fetch(`/api/observations?schoolId=${currentSchoolId}`);
       if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  const { data: observationTrendData, isLoading: trendLoading } = useQuery<ObservationTrendData>({
+    queryKey: ["/api/observation-analytics", currentSchoolId, "month"],
+    enabled: !!currentSchoolId && hasObservations && isLeaderOrAbove,
+    queryFn: async () => {
+      const response = await fetch(`/api/observation-analytics?schoolId=${currentSchoolId}&timePeriod=month`);
+      if (!response.ok) throw new Error("Failed to fetch trend data");
       return response.json();
     },
   });
@@ -396,55 +426,135 @@ export default function Dashboard() {
               <Card data-testid="card-observations-detail" variant="glass">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
-                    <CardTitle className="text-lg">Observations</CardTitle>
-                    <CardDescription>Recent activity and quick actions</CardDescription>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Observation Trend
+                    </CardTitle>
+                    <CardDescription>Weekly observation count and quality score</CardDescription>
                   </div>
-                  <Link href="/observe">
-                    <Button size="sm" data-testid="button-new-observation">
-                      <Plus className="h-4 w-4 mr-1" />
-                      New
-                    </Button>
-                  </Link>
+                  <div className="flex gap-2">
+                    <Link href="/analytics">
+                      <Button size="sm" variant="outline" data-testid="button-view-analytics">
+                        <BarChart3 className="h-4 w-4 mr-1" />
+                        Analytics
+                      </Button>
+                    </Link>
+                    <Link href="/observe">
+                      <Button size="sm" data-testid="button-new-observation">
+                        <Plus className="h-4 w-4 mr-1" />
+                        New
+                      </Button>
+                    </Link>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  {recentObsLoading ? (
-                    <div className="space-y-2">
-                      <Skeleton className="h-12 w-full" />
-                      <Skeleton className="h-12 w-full" />
-                    </div>
-                  ) : recentObservations.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No observations yet. Start by creating one!</p>
-                  ) : (
-                    <div className="space-y-5">
-                      {recentObservations.slice(0, 4).map((obs: any) => (
-                        <Link key={obs.id} href={`/history?observationId=${obs.id}`} className="block">
-                          <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`observation-item-${obs.id}`}>
-                            <div className="flex items-center gap-3">
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                              <div>
-                                <p className="text-sm font-medium">{obs.teacherName || "Teacher"}</p>
-                                <p className="text-xs text-muted-foreground">{formatDate(obs.date)}</p>
+                  {!isLeaderOrAbove ? (
+                    <div className="space-y-4">
+                      {recentObsLoading ? (
+                        <Skeleton className="h-[200px] w-full" />
+                      ) : recentObservations.length === 0 ? (
+                        <p className="text-muted-foreground text-sm">No observations yet. Start by creating one!</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {recentObservations.slice(0, 3).map((obs: any) => (
+                            <Link key={obs.id} href={`/history?observationId=${obs.id}`} className="block">
+                              <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`observation-item-${obs.id}`}>
+                                <div className="flex items-center gap-3">
+                                  <Eye className="h-4 w-4 text-muted-foreground" />
+                                  <div>
+                                    <p className="text-sm font-medium">{obs.teacherName || "Teacher"}</p>
+                                    <p className="text-xs text-muted-foreground">{formatDate(obs.date)}</p>
+                                  </div>
+                                </div>
+                                <ArrowRight className="h-4 w-4 text-muted-foreground" />
                               </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {obs.status && (
-                                <Badge variant={obs.status === "completed" ? "secondary" : "outline"}>
-                                  {obs.status}
-                                </Badge>
-                              )}
-                              <ArrowRight className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                          </div>
-                        </Link>
-                      ))}
-                      {recentObservations.length > 4 && (
-                        <Link href="/history">
-                          <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-observations">
-                            View all {recentObservations.length} observations
-                            <ArrowRight className="h-4 w-4 ml-1" />
-                          </Button>
-                        </Link>
+                            </Link>
+                          ))}
+                          <Link href="/history">
+                            <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-observations">
+                              View all observations
+                              <ArrowRight className="h-4 w-4 ml-1" />
+                            </Button>
+                          </Link>
+                        </div>
                       )}
+                    </div>
+                  ) : trendLoading ? (
+                    <Skeleton className="h-[200px] w-full" />
+                  ) : observationTrendData?.observationTrend && observationTrendData.observationTrend.length > 0 ? (
+                    <div className="space-y-4">
+                      <ResponsiveContainer width="100%" height={200}>
+                        <ComposedChart data={observationTrendData.observationTrend}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis 
+                            dataKey="label" 
+                            className="text-xs"
+                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                            angle={-45}
+                            textAnchor="end"
+                            height={50}
+                          />
+                          <YAxis 
+                            yAxisId="left"
+                            className="text-xs"
+                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                            width={30}
+                          />
+                          <YAxis 
+                            yAxisId="right"
+                            orientation="right"
+                            domain={[0, 100]}
+                            className="text-xs"
+                            tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
+                            width={30}
+                            tickFormatter={(value) => `${value}%`}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--card))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px'
+                            }}
+                            formatter={(value: number, name: string) => {
+                              if (name === "quality") return [`${value.toFixed(0)}%`, "Quality Score"];
+                              return [value, "Observations"];
+                            }}
+                          />
+                          <Bar 
+                            yAxisId="left"
+                            dataKey="value" 
+                            fill="hsl(var(--primary))" 
+                            radius={[4, 4, 0, 0]}
+                            name="Observations"
+                          />
+                          <Line 
+                            yAxisId="right"
+                            type="monotone" 
+                            dataKey="quality" 
+                            stroke="hsl(var(--success))" 
+                            strokeWidth={2}
+                            dot={{ fill: 'hsl(var(--success))', strokeWidth: 2 }}
+                            name="quality"
+                          />
+                        </ComposedChart>
+                      </ResponsiveContainer>
+                      <Link href="/history">
+                        <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-observations">
+                          View all observations
+                          <ArrowRight className="h-4 w-4 ml-1" />
+                        </Button>
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <BarChart3 className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                      <p className="text-muted-foreground text-sm">No observation data available yet.</p>
+                      <Link href="/observe">
+                        <Button variant="outline" size="sm" className="mt-3">
+                          <Plus className="h-4 w-4 mr-1" />
+                          Create First Observation
+                        </Button>
+                      </Link>
                     </div>
                   )}
                 </CardContent>
