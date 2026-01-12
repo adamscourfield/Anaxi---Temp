@@ -35,6 +35,24 @@ This comprehensive system tracks student incidents with real-time notifications 
 ### Observation Analytics
 A dedicated analytics page provides insights into teacher observations, accessible to Leaders, Admins, and Creators. Features include summary cards, trend charts, top/lowest performer lists, category and habit performance breakdowns, common phrase analysis from feedback, and time period filtering. A period comparison feature allows for comparing performance between two distinct timeframes.
 
+### Period Comparison Feature
+- **Location**: Analytics page (`/analytics`) with "Compare Periods" toggle
+- **Access**: Leaders, Admins, and Creators only
+- **Features**:
+  - Two date range pickers (Period A = baseline, Period B = comparison)
+  - Summary cards with observation counts and score deltas
+  - Category performance comparison with visual bars and percentage changes
+  - Habit performance comparison sorted by magnitude of change
+  - **Teacher Performance Comparison**: Expandable rows showing each teacher's progress with:
+    - Observation count changes between periods
+    - Average score changes with directional badges
+    - Top 3 improvements and top 3 declines by category
+    - Teachers sorted by change magnitude (biggest changes first)
+- **API Endpoint**: GET `/api/observation-comparison`
+- **Key Features**:
+  - Union-based delta calculation ensures all items from both periods are compared
+  - Per-teacher metrics with category-level breakdowns for coaching insights
+
 ### Birthday Tracking
 The platform tracks birthdays for both staff and students, with corresponding fields in `users` and `students` tables. API endpoints are available to retrieve upcoming birthdays, and access to this information is restricted to Leaders, Admins, and Creators.
 
