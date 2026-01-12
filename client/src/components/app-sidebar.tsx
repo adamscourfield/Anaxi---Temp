@@ -178,9 +178,9 @@ export function AppSidebar() {
                             "flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200",
                             "bg-white/60 dark:bg-black/40 backdrop-blur-sm",
                             "border border-white/50 dark:border-white/20",
-                            "shadow-sm hover:shadow-md",
+                            "shadow-sm hover:shadow-lg hover:scale-110 active:scale-95",
                             "hover:bg-white/80 dark:hover:bg-black/60",
-                            isActive && "bg-foreground/90 dark:bg-foreground/80 text-background shadow-md",
+                            isActive && "bg-foreground/90 dark:bg-foreground/80 text-background shadow-md scale-105",
                             !isActive && "text-foreground/70 dark:text-foreground/60 hover:text-foreground"
                           )}
                         >
@@ -208,9 +208,9 @@ export function AppSidebar() {
                 "flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200",
                 "bg-white/60 dark:bg-black/40 backdrop-blur-sm",
                 "border border-white/50 dark:border-white/20",
-                "shadow-sm hover:shadow-md",
+                "shadow-sm hover:shadow-lg hover:scale-110 active:scale-95",
                 "hover:bg-white/80 dark:hover:bg-black/60",
-                location === "/profile" && "bg-foreground/90 dark:bg-foreground/80 text-background shadow-md",
+                location === "/profile" && "bg-foreground/90 dark:bg-foreground/80 text-background shadow-md scale-105",
                 location !== "/profile" && "text-foreground/70 dark:text-foreground/60 hover:text-foreground"
               )}
             >
