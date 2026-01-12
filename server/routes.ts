@@ -2789,6 +2789,215 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Observation Period Comparison endpoint
+  app.get("/api/observation-comparison", isAuthenticated, async (req: any, res) => {
+    try {
+      const schoolId = req.query.schoolId as string;
+      const periodAStart = req.query.periodAStart as string;
+      const periodAEnd = req.query.periodAEnd as string;
+      const periodBStart = req.query.periodBStart as string;
+      const periodBEnd = req.query.periodBEnd as string;
+      const user = req.user;
+
+      if (!schoolId || !periodAStart || !periodAEnd || !periodBStart || !periodBEnd) {
+        return res.status(400).json({ message: "All date parameters are required" });
+      }
+
+      // Verify user has access to this school and is Leader/Admin/Creator
+      let hasAccess = false;
+      if (user.global_role === "Creator") {
+        hasAccess = true;
+      } else {
+        const membership = await storage.getMembershipByUserAndSchool(user.id, schoolId);
+        if (membership && (membership.role === "Leader" || membership.role === "Admin")) {
+          hasAccess = true;
+        }
+      }
+
+      if (!hasAccess) {
+        return res.status(403).json({ message: "Forbidden: Comparison requires Leader or Admin access" });
+      }
+
+      // Parse dates - normalize end dates to include the full day (add one day and use < comparison)
+      const periodAStartDate = new Date(periodAStart);
+      const periodAEndDate = new Date(periodAEnd);
+      periodAEndDate.setDate(periodAEndDate.getDate() + 1); // Move to start of next day
+      const periodBStartDate = new Date(periodBStart);
+      const periodBEndDate = new Date(periodBEnd);
+      periodBEndDate.setDate(periodBEndDate.getDate() + 1); // Move to start of next day
+
+      // Get all observations for this school
+      const schoolObservations = await storage.getObservationsBySchool(schoolId);
+
+      // Filter observations for each period (using < for end date to include full day)
+      const periodAObservations = schoolObservations.filter(obs => {
+        const obsDate = new Date(obs.date);
+        return obsDate >= periodAStartDate && obsDate < periodAEndDate;
+      });
+
+      const periodBObservations = schoolObservations.filter(obs => {
+        const obsDate = new Date(obs.date);
+        return obsDate >= periodBStartDate && obsDate < periodBEndDate;
+      });
+
+      // Calculate averages for each period
+      const calcAvgScore = (observations: typeof schoolObservations) => {
+        const valid = observations.filter(obs => obs.totalMaxScore > 0);
+        if (valid.length === 0) return 0;
+        return valid.reduce((sum, obs) => sum + (obs.totalScore / obs.totalMaxScore) * 5, 0) / valid.length;
+      };
+
+      const periodAAvgScore = calcAvgScore(periodAObservations);
+      const periodBAvgScore = calcAvgScore(periodBObservations);
+
+      // Get habit data for both periods
+      const getHabitPerformance = async (observations: typeof schoolObservations) => {
+        const obsHabits = await Promise.all(
+          observations.map(obs => storage.getObservationHabitsByObservation(obs.id))
+        );
+        const flatHabits = obsHabits.flat();
+        
+        // Get categories and habits for lookups
+        const categoryIds = [...new Set(flatHabits.map(h => h.categoryId))];
+        const categories = await Promise.all(categoryIds.map(id => storage.getCategory(id)));
+        const categoryMap = new Map(categories.filter(Boolean).map(c => [c!.id, c!.name]));
+        
+        const habitIds = [...new Set(flatHabits.map(h => h.habitId))];
+        const habits = await Promise.all(habitIds.map(id => storage.getHabit(id)));
+        const habitMap = new Map(habits.filter(Boolean).map(h => [h!.id, h!]));
+
+        // Count habits
+        const habitCounts: Record<string, { observed: number; total: number; name: string; category: string }> = {};
+        for (const obsHabit of flatHabits) {
+          const habit = habitMap.get(obsHabit.habitId);
+          if (!habit) continue;
+          const catName = categoryMap.get(obsHabit.categoryId) || "Unknown";
+          
+          if (!habitCounts[obsHabit.habitId]) {
+            habitCounts[obsHabit.habitId] = {
+              observed: 0,
+              total: 0,
+              name: habit.text,
+              category: catName
+            };
+          }
+          habitCounts[obsHabit.habitId].total++;
+          if (obsHabit.observed) {
+            habitCounts[obsHabit.habitId].observed++;
+          }
+        }
+
+        return Object.values(habitCounts).map(h => ({
+          habitName: h.name,
+          categoryName: h.category,
+          percentage: h.total > 0 ? (h.observed / h.total) * 100 : 0,
+          count: h.total
+        }));
+      };
+
+      const getCategoryPerformance = async (observations: typeof schoolObservations) => {
+        const obsHabits = await Promise.all(
+          observations.map(obs => storage.getObservationHabitsByObservation(obs.id))
+        );
+        const flatHabits = obsHabits.flat();
+        
+        const categoryIds = [...new Set(flatHabits.map(h => h.categoryId))];
+        const categories = await Promise.all(categoryIds.map(id => storage.getCategory(id)));
+        const categoryMap = new Map(categories.filter(Boolean).map(c => [c!.id, c!.name]));
+
+        const categoryScores: Record<string, { totalScore: number; totalMax: number }> = {};
+        for (const habit of flatHabits) {
+          const catName = categoryMap.get(habit.categoryId) || "Unknown";
+          if (!categoryScores[catName]) {
+            categoryScores[catName] = { totalScore: 0, totalMax: 0 };
+          }
+          categoryScores[catName].totalScore += habit.observed ? 1 : 0;
+          categoryScores[catName].totalMax += 1;
+        }
+
+        return Object.entries(categoryScores).map(([name, data]) => ({
+          name,
+          avgScore: data.totalScore,
+          maxScore: data.totalMax,
+          percentage: data.totalMax > 0 ? (data.totalScore / data.totalMax) * 100 : 0
+        }));
+      };
+
+      const periodAHabits = await getHabitPerformance(periodAObservations);
+      const periodBHabits = await getHabitPerformance(periodBObservations);
+      const periodACategories = await getCategoryPerformance(periodAObservations);
+      const periodBCategories = await getCategoryPerformance(periodBObservations);
+
+      // Calculate deltas - include habits/categories from BOTH periods (union)
+      // Create a map of all unique habits from both periods
+      const allHabitNames = new Set([
+        ...periodAHabits.map(h => h.habitName),
+        ...periodBHabits.map(h => h.habitName)
+      ]);
+      
+      const habitChanges = Array.from(allHabitNames).map(habitName => {
+        const habitA = periodAHabits.find(h => h.habitName === habitName);
+        const habitB = periodBHabits.find(h => h.habitName === habitName);
+        const percentageA = habitA?.percentage || 0;
+        const percentageB = habitB?.percentage || 0;
+        const change = percentageB - percentageA;
+        return {
+          habitName,
+          categoryName: habitA?.categoryName || habitB?.categoryName || "Unknown",
+          percentageChange: change,
+          direction: change > 1 ? "up" : change < -1 ? "down" : "same" as "up" | "down" | "same"
+        };
+      });
+
+      // Create a map of all unique categories from both periods
+      const allCategoryNames = new Set([
+        ...periodACategories.map(c => c.name),
+        ...periodBCategories.map(c => c.name)
+      ]);
+
+      const categoryChanges = Array.from(allCategoryNames).map(name => {
+        const catA = periodACategories.find(c => c.name === name);
+        const catB = periodBCategories.find(c => c.name === name);
+        const percentageA = catA?.percentage || 0;
+        const percentageB = catB?.percentage || 0;
+        const change = percentageB - percentageA;
+        return {
+          name,
+          percentageChange: change,
+          direction: change > 1 ? "up" : change < -1 ? "down" : "same" as "up" | "down" | "same"
+        };
+      });
+
+      res.json({
+        periodA: {
+          startDate: periodAStart,
+          endDate: periodAEnd,
+          totalObservations: periodAObservations.length,
+          averageScore: periodAAvgScore,
+          habitPerformance: periodAHabits,
+          categoryPerformance: periodACategories
+        },
+        periodB: {
+          startDate: periodBStart,
+          endDate: periodBEnd,
+          totalObservations: periodBObservations.length,
+          averageScore: periodBAvgScore,
+          habitPerformance: periodBHabits,
+          categoryPerformance: periodBCategories
+        },
+        deltas: {
+          observationCount: periodBObservations.length - periodAObservations.length,
+          averageScore: periodBAvgScore - periodAAvgScore,
+          habitChanges,
+          categoryChanges
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching observation comparison:", error);
+      res.status(500).json({ message: "Failed to fetch comparison data" });
+    }
+  });
+
   // Dashboard stats endpoint
   app.get("/api/dashboard/stats", isAuthenticated, async (req: any, res) => {
     try {

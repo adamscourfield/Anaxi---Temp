@@ -11,7 +11,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { format } from "date-fns";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
+import { format, subMonths, startOfMonth, endOfMonth, subDays } from "date-fns";
+import { DateRange } from "react-day-picker";
 import { 
   ComposedChart, 
   Line, 
@@ -34,7 +39,11 @@ import {
   Target,
   Award,
   ChevronRight,
-  Calendar
+  Calendar,
+  ArrowUpRight,
+  ArrowDownRight,
+  Minus,
+  GitCompare
 } from "lucide-react";
 
 type ChartDisplayMode = "both" | "observations" | "quality";
@@ -76,6 +85,31 @@ interface AnalyticsData {
   qualitativeFeedback: Array<{ teacherName: string; observerName: string; date: string; feedback: string }>;
 }
 
+interface ComparisonData {
+  periodA: {
+    startDate: string;
+    endDate: string;
+    totalObservations: number;
+    averageScore: number;
+    habitPerformance: Array<{ habitName: string; categoryName: string; percentage: number; count: number }>;
+    categoryPerformance: Array<{ name: string; avgScore: number; maxScore: number; percentage: number }>;
+  };
+  periodB: {
+    startDate: string;
+    endDate: string;
+    totalObservations: number;
+    averageScore: number;
+    habitPerformance: Array<{ habitName: string; categoryName: string; percentage: number; count: number }>;
+    categoryPerformance: Array<{ name: string; avgScore: number; maxScore: number; percentage: number }>;
+  };
+  deltas: {
+    observationCount: number;
+    averageScore: number;
+    habitChanges: Array<{ habitName: string; categoryName: string; percentageChange: number; direction: "up" | "down" | "same" }>;
+    categoryChanges: Array<{ name: string; percentageChange: number; direction: "up" | "down" | "same" }>;
+  };
+}
+
 export default function ObservationAnalytics() {
   const { user, isCreator } = useAuth();
   const { currentSchoolId, currentSchool } = useSchool();
@@ -84,6 +118,20 @@ export default function ObservationAnalytics() {
   const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>("both");
   const [drillDownOpen, setDrillDownOpen] = useState(false);
   const [drillDownFilter, setDrillDownFilter] = useState<DrillDownFilter | null>(null);
+  
+  // Comparison mode state
+  const [compareMode, setCompareMode] = useState(false);
+  const now = new Date();
+  const lastMonth = subMonths(now, 1);
+  const twoMonthsAgo = subMonths(now, 2);
+  const [periodA, setPeriodA] = useState<DateRange>({
+    from: startOfMonth(twoMonthsAgo),
+    to: endOfMonth(twoMonthsAgo)
+  });
+  const [periodB, setPeriodB] = useState<DateRange>({
+    from: startOfMonth(lastMonth),
+    to: endOfMonth(lastMonth)
+  });
 
   const { data: memberships = [] } = useQuery<any[]>({
     queryKey: ["/api/memberships", user?.id],
@@ -128,6 +176,24 @@ export default function ObservationAnalytics() {
     queryFn: async () => {
       const response = await fetch(`/api/users?schoolId=${currentSchoolId}`);
       if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  // Fetch comparison data when in compare mode
+  const { data: comparisonData, isLoading: comparisonLoading } = useQuery<ComparisonData>({
+    queryKey: ["/api/observation-comparison", currentSchoolId, periodA, periodB],
+    enabled: !!currentSchoolId && isLeaderOrAbove && compareMode && !!periodA.from && !!periodA.to && !!periodB.from && !!periodB.to,
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        schoolId: currentSchoolId!,
+        periodAStart: periodA.from!.toISOString(),
+        periodAEnd: periodA.to!.toISOString(),
+        periodBStart: periodB.from!.toISOString(),
+        periodBEnd: periodB.to!.toISOString(),
+      });
+      const response = await fetch(`/api/observation-comparison?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch comparison data");
       return response.json();
     },
   });
@@ -221,20 +287,330 @@ export default function ObservationAnalytics() {
             </p>
           </div>
         </div>
-        <Select value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
-          <SelectTrigger className="w-[150px]" data-testid="select-time-period">
-            <SelectValue placeholder="Time Period" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="year">This Year</SelectItem>
-            <SelectItem value="all">All Time</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Switch
+              id="compare-mode"
+              checked={compareMode}
+              onCheckedChange={setCompareMode}
+              data-testid="switch-compare-mode"
+            />
+            <Label htmlFor="compare-mode" className="flex items-center gap-1.5 cursor-pointer">
+              <GitCompare className="h-4 w-4" />
+              Compare Periods
+            </Label>
+          </div>
+          {!compareMode && (
+            <Select value={timePeriod} onValueChange={(v) => setTimePeriod(v as TimePeriod)}>
+              <SelectTrigger className="w-[150px]" data-testid="select-time-period">
+                <SelectValue placeholder="Time Period" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="week">This Week</SelectItem>
+                <SelectItem value="month">This Month</SelectItem>
+                <SelectItem value="year">This Year</SelectItem>
+                <SelectItem value="all">All Time</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
-      {isLoading ? (
+      {/* Comparison Date Pickers */}
+      {compareMode && (
+        <Card className="p-4" data-testid="card-comparison-dates">
+          <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center">
+            <div className="flex-1 space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">Period A</Badge>
+                Baseline Period
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal" data-testid="button-period-a">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {periodA.from ? (
+                      periodA.to ? (
+                        <>
+                          {format(periodA.from, "dd MMM yyyy")} - {format(periodA.to, "dd MMM yyyy")}
+                        </>
+                      ) : (
+                        format(periodA.from, "dd MMM yyyy")
+                      )
+                    ) : (
+                      "Select date range"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="range"
+                    selected={periodA}
+                    onSelect={(range) => range && setPeriodA(range)}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <div className="hidden lg:flex items-center justify-center">
+              <ArrowUpRight className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <div className="flex-1 space-y-2">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300">Period B</Badge>
+                Comparison Period
+              </Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start text-left font-normal" data-testid="button-period-b">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    {periodB.from ? (
+                      periodB.to ? (
+                        <>
+                          {format(periodB.from, "dd MMM yyyy")} - {format(periodB.to, "dd MMM yyyy")}
+                        </>
+                      ) : (
+                        format(periodB.from, "dd MMM yyyy")
+                      )
+                    ) : (
+                      "Select date range"
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <CalendarComponent
+                    mode="range"
+                    selected={periodB}
+                    onSelect={(range) => range && setPeriodB(range)}
+                    numberOfMonths={2}
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Comparison Results */}
+      {compareMode && (
+        comparisonLoading ? (
+          <div className="text-center text-muted-foreground py-12">Loading comparison data...</div>
+        ) : comparisonData ? (
+          <div className="space-y-6">
+            {/* Summary Comparison Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card data-testid="card-comparison-obs-a">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">A</Badge>
+                    Observations
+                  </CardTitle>
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{comparisonData.periodA.totalObservations}</div>
+                  <p className="text-xs text-muted-foreground">baseline period</p>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-comparison-obs-b">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300">B</Badge>
+                    Observations
+                  </CardTitle>
+                  <Eye className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold">{comparisonData.periodB.totalObservations}</span>
+                    {comparisonData.deltas.observationCount !== 0 && (
+                      <Badge variant={comparisonData.deltas.observationCount > 0 ? "default" : "secondary"} className="text-xs">
+                        {comparisonData.deltas.observationCount > 0 ? "+" : ""}{comparisonData.deltas.observationCount}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">comparison period</p>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-comparison-score-a">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">A</Badge>
+                    Avg Score
+                  </CardTitle>
+                  <Target className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{comparisonData.periodA.averageScore.toFixed(2)}</div>
+                  <p className="text-xs text-muted-foreground">out of 5.0</p>
+                </CardContent>
+              </Card>
+              <Card data-testid="card-comparison-score-b">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2">
+                    <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300">B</Badge>
+                    Avg Score
+                  </CardTitle>
+                  {comparisonData.deltas.averageScore >= 0 ? (
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl font-bold">{comparisonData.periodB.averageScore.toFixed(2)}</span>
+                    {Math.abs(comparisonData.deltas.averageScore) > 0.01 && (
+                      <Badge 
+                        variant={comparisonData.deltas.averageScore > 0 ? "default" : "destructive"} 
+                        className="text-xs"
+                      >
+                        {comparisonData.deltas.averageScore > 0 ? "+" : ""}{comparisonData.deltas.averageScore.toFixed(2)}
+                      </Badge>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">out of 5.0</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Category Comparison */}
+            <Card data-testid="card-category-comparison">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5" />
+                  Category Performance Comparison
+                </CardTitle>
+                <CardDescription>
+                  How each category performed between the two periods
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {comparisonData.deltas.categoryChanges.length > 0 ? (
+                  <div className="space-y-4">
+                    {comparisonData.deltas.categoryChanges
+                      .sort((a, b) => Math.abs(b.percentageChange) - Math.abs(a.percentageChange))
+                      .map((cat, idx) => {
+                        const periodACat = comparisonData.periodA.categoryPerformance.find(c => c.name === cat.name);
+                        const periodBCat = comparisonData.periodB.categoryPerformance.find(c => c.name === cat.name);
+                        return (
+                          <div key={idx} className="space-y-2" data-testid={`category-comparison-${idx}`}>
+                            <div className="flex items-center justify-between">
+                              <span className="font-medium">{cat.name}</span>
+                              <div className="flex items-center gap-3">
+                                <span className="text-sm text-muted-foreground">
+                                  {(periodACat?.percentage || 0).toFixed(0)}%
+                                </span>
+                                <span className="text-muted-foreground">→</span>
+                                <span className="text-sm font-medium">
+                                  {(periodBCat?.percentage || 0).toFixed(0)}%
+                                </span>
+                                <Badge 
+                                  variant={cat.direction === "up" ? "default" : cat.direction === "down" ? "destructive" : "secondary"}
+                                  className="min-w-16 justify-center"
+                                >
+                                  {cat.direction === "up" && <ArrowUpRight className="h-3 w-3 mr-1" />}
+                                  {cat.direction === "down" && <ArrowDownRight className="h-3 w-3 mr-1" />}
+                                  {cat.direction === "same" && <Minus className="h-3 w-3 mr-1" />}
+                                  {cat.percentageChange > 0 ? "+" : ""}{cat.percentageChange.toFixed(1)}%
+                                </Badge>
+                              </div>
+                            </div>
+                            <div className="flex gap-1 h-2">
+                              <div 
+                                className="bg-blue-200 dark:bg-blue-800 rounded-l-full" 
+                                style={{ width: `${periodACat?.percentage || 0}%` }}
+                              />
+                              <div 
+                                className="bg-green-400 dark:bg-green-600 rounded-r-full" 
+                                style={{ width: `${periodBCat?.percentage || 0}%` }}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No category data available for comparison.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Habit Comparison */}
+            <Card data-testid="card-habit-comparison">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Award className="h-5 w-5" />
+                  Habit Performance Comparison
+                </CardTitle>
+                <CardDescription>
+                  Changes in habit observation rates between periods
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {comparisonData.deltas.habitChanges.length > 0 ? (
+                  <div className="space-y-3">
+                    {comparisonData.deltas.habitChanges
+                      .sort((a, b) => Math.abs(b.percentageChange) - Math.abs(a.percentageChange))
+                      .slice(0, 15)
+                      .map((habit, idx) => {
+                        const periodAHabit = comparisonData.periodA.habitPerformance.find(h => h.habitName === habit.habitName);
+                        const periodBHabit = comparisonData.periodB.habitPerformance.find(h => h.habitName === habit.habitName);
+                        return (
+                          <div 
+                            key={idx} 
+                            className="flex items-center justify-between p-3 border rounded-lg"
+                            data-testid={`habit-comparison-${idx}`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <span className="font-medium block truncate">{habit.habitName}</span>
+                              <span className="text-xs text-muted-foreground">{habit.categoryName}</span>
+                            </div>
+                            <div className="flex items-center gap-3 ml-4">
+                              <div className="text-right text-sm">
+                                <span className="text-muted-foreground">{(periodAHabit?.percentage || 0).toFixed(0)}%</span>
+                                <span className="text-muted-foreground mx-1">→</span>
+                                <span className="font-medium">{(periodBHabit?.percentage || 0).toFixed(0)}%</span>
+                              </div>
+                              <Badge 
+                                variant={habit.direction === "up" ? "default" : habit.direction === "down" ? "destructive" : "secondary"}
+                                className="min-w-16 justify-center"
+                              >
+                                {habit.direction === "up" && <ArrowUpRight className="h-3 w-3 mr-1" />}
+                                {habit.direction === "down" && <ArrowDownRight className="h-3 w-3 mr-1" />}
+                                {habit.direction === "same" && <Minus className="h-3 w-3 mr-1" />}
+                                {habit.percentageChange > 0 ? "+" : ""}{habit.percentageChange.toFixed(1)}%
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    {comparisonData.deltas.habitChanges.length > 15 && (
+                      <p className="text-sm text-muted-foreground text-center pt-2">
+                        Showing top 15 of {comparisonData.deltas.habitChanges.length} habits by change magnitude
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">No habit data available for comparison.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        ) : (
+          <Card className="p-8">
+            <div className="text-center space-y-3">
+              <GitCompare className="h-12 w-12 text-muted-foreground mx-auto" />
+              <p className="text-lg font-medium">Select Date Ranges to Compare</p>
+              <p className="text-sm text-muted-foreground">
+                Choose Period A (baseline) and Period B (comparison) above to see performance changes.
+              </p>
+            </div>
+          </Card>
+        )
+      )}
+
+      {!compareMode && (isLoading ? (
         <div className="text-center text-muted-foreground py-12">Loading analytics...</div>
       ) : analyticsData ? (
         <div className="space-y-6">
@@ -689,7 +1065,7 @@ export default function ObservationAnalytics() {
             </p>
           </div>
         </Card>
-      )}
+      ))}
 
       {/* Drill-down Sheet */}
       <Sheet open={drillDownOpen} onOpenChange={setDrillDownOpen}>
