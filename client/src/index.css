@@ -303,16 +303,16 @@
  */
 @layer components {
   .glass-card {
-    background: rgba(255, 255, 255, 0.3) !important;
-    border: 1px solid rgba(255, 255, 255, 0.5) !important;
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    border: 1px solid rgba(200, 200, 200, 0.4) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08) !important;
   }
   
   .dark .glass-card {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border-color: rgba(255, 255, 255, 0.2) !important;
+    background: rgba(30, 35, 40, 0.95) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
   }
 
   .glass-popup {

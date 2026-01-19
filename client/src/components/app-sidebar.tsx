@@ -176,11 +176,11 @@ export function AppSidebar() {
                           data-testid={`link-${item.title.toLowerCase().replace(/\s+/g, '-')}`}
                           className={cn(
                             "flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200",
-                            "bg-white/60 dark:bg-black/40 backdrop-blur-sm",
-                            "border border-white/50 dark:border-white/20",
+                            "bg-white dark:bg-gray-800",
+                            "border border-gray-200 dark:border-gray-700",
                             "shadow-sm hover:shadow-lg hover:scale-110 active:scale-95",
-                            "hover:bg-white/80 dark:hover:bg-black/60",
-                            isActive && "bg-foreground/90 dark:bg-foreground/80 text-background shadow-md scale-105",
+                            "hover:bg-gray-50 dark:hover:bg-gray-700",
+                            isActive && "bg-primary text-primary-foreground shadow-md scale-105 border-primary",
                             !isActive && "text-foreground/70 dark:text-foreground/60 hover:text-foreground"
                           )}
                         >
@@ -206,11 +206,11 @@ export function AppSidebar() {
               data-testid="link-profile"
               className={cn(
                 "flex items-center justify-center w-11 h-11 rounded-xl transition-all duration-200",
-                "bg-white/60 dark:bg-black/40 backdrop-blur-sm",
-                "border border-white/50 dark:border-white/20",
+                "bg-white dark:bg-gray-800",
+                "border border-gray-200 dark:border-gray-700",
                 "shadow-sm hover:shadow-lg hover:scale-110 active:scale-95",
-                "hover:bg-white/80 dark:hover:bg-black/60",
-                location === "/profile" && "bg-foreground/90 dark:bg-foreground/80 text-background shadow-md scale-105",
+                "hover:bg-gray-50 dark:hover:bg-gray-700",
+                location === "/profile" && "bg-primary text-primary-foreground shadow-md scale-105 border-primary",
                 location !== "/profile" && "text-foreground/70 dark:text-foreground/60 hover:text-foreground"
               )}
             >
