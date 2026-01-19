@@ -92,8 +92,15 @@ function AppContent() {
     <SchoolProvider>
       <TooltipProvider>
         <SidebarProvider style={style as React.CSSProperties}>
-          <div className="flex flex-col h-screen w-full bg-gradient-to-br from-emerald-100/60 via-teal-50/50 to-cyan-100/40 dark:from-emerald-950/60 dark:via-teal-950/50 dark:to-cyan-950/40">
-            <header className="flex items-center justify-between gap-6 px-6 py-4 z-20">
+          <div className="relative flex flex-col h-screen w-full bg-gray-50 dark:bg-gray-950 overflow-hidden">
+            {/* Decorative color swirls */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute -top-40 -right-40 w-96 h-96 bg-teal-200/40 dark:bg-teal-800/20 rounded-full blur-3xl" />
+              <div className="absolute top-1/4 -left-20 w-72 h-72 bg-emerald-200/50 dark:bg-emerald-800/20 rounded-full blur-3xl" />
+              <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-200/40 dark:bg-cyan-800/15 rounded-full blur-3xl" />
+              <div className="absolute -bottom-20 left-1/3 w-64 h-64 bg-teal-100/60 dark:bg-teal-900/20 rounded-full blur-3xl" />
+            </div>
+            <header className="relative flex items-center justify-between gap-6 px-6 py-4 z-20">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">
                   <img src={anaxiLogo} alt="Anaxi" className="h-9 w-9 dark:invert dark:brightness-200" />

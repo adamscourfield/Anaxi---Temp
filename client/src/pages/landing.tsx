@@ -13,8 +13,15 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100/60 via-teal-50/50 to-cyan-100/40 dark:from-emerald-950/60 dark:via-teal-950/50 dark:to-cyan-950/40">
-      <div className="w-full max-w-md px-4">
+    <div className="relative min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 overflow-hidden">
+      {/* Decorative color swirls */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-teal-200/40 dark:bg-teal-800/20 rounded-full blur-3xl" />
+        <div className="absolute top-1/4 -left-20 w-72 h-72 bg-emerald-200/50 dark:bg-emerald-800/20 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-cyan-200/40 dark:bg-cyan-800/15 rounded-full blur-3xl" />
+        <div className="absolute -bottom-20 left-1/3 w-64 h-64 bg-teal-100/60 dark:bg-teal-900/20 rounded-full blur-3xl" />
+      </div>
+      <div className="relative w-full max-w-md px-4 z-10">
         {/* Logo and Name */}
         <div className="text-center mb-12">
           <div className="flex justify-center mb-6">
