@@ -21,7 +21,13 @@ Drizzle ORM manages interactions with a Neon serverless PostgreSQL database. The
 Replit Object Storage (Google Cloud Storage) is integrated via `ObjectStorageService`. An `ObjectAcl.ts` framework handles owner-based permissions and public/private visibility. File uploads are managed by `ObjectUploader.tsx` with authenticated uploads and ACL checks.
 
 ### Design System
-The design system is characterized by a warm gradient foundation, elevated card designs, and a clear data hierarchy. It includes CSS-based hover/active states, custom variables, a shadow system, comprehensive button and badge variants, and a mobile-first responsive approach.
+The design system uses a Microsoft Forms-inspired sage/teal color scheme with glassmorphism effects. Key characteristics:
+- **Color palette**: Soft sage/mint backgrounds (HSL 155), teal green accents for buttons and interactive elements
+- **Gradients**: Emerald/teal/cyan gradient backgrounds with transparency
+- **Glass effects**: Semi-transparent cards and sidebar with backdrop-blur
+- **Cards**: Clean white with subtle shadows for contrast
+- **Dark mode**: Dark teal/green tinted backgrounds with preserved glass effects
+- CSS-based hover/active states, custom variables, a shadow system, comprehensive button and badge variants, and a mobile-first responsive approach.
 
 ### Feature Flag System
 Major features are feature-flagged per school via an `enabled_features` array on the `schools` table. Available flags include `observations`, `meetings`, `absence_management`, and `behaviour`. The UI and API routes adapt based on these flags, ensuring modularity and controlled feature rollout.
