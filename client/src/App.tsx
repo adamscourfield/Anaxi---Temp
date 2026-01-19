@@ -92,7 +92,7 @@ function AppContent() {
     <SchoolProvider>
       <TooltipProvider>
         <SidebarProvider style={style as React.CSSProperties}>
-          <div className="flex flex-col h-screen w-full bg-gradient-to-br from-slate-300 via-gray-200 to-slate-100 dark:from-slate-950 dark:via-gray-950 dark:to-slate-900">
+          <div className="flex flex-col h-screen w-full bg-gradient-to-br from-emerald-100/60 via-teal-50/50 to-cyan-100/40 dark:from-emerald-950/60 dark:via-teal-950/50 dark:to-cyan-950/40">
             <header className="flex items-center justify-between gap-6 px-6 py-4 z-20">
               <div className="flex items-center gap-6">
                 <div className="flex items-center gap-3">

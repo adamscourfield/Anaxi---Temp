@@ -13,7 +13,7 @@ export default function Landing() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-300 via-gray-200 to-slate-100 dark:from-slate-950 dark:via-gray-950 dark:to-slate-900">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-100/60 via-teal-50/50 to-cyan-100/40 dark:from-emerald-950/60 dark:via-teal-950/50 dark:to-cyan-950/40">
       <div className="w-full max-w-md px-4">
         {/* Logo and Name */}
         <div className="text-center mb-12">
