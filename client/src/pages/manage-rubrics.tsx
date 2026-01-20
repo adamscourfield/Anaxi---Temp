@@ -521,6 +521,25 @@ export default function ManageRubrics({ isEmbedded = false }: { isEmbedded?: boo
                   Upload a CSV file and map columns to rubric fields
                 </DialogDescription>
               </DialogHeader>
+              
+              {/* Column Instructions */}
+              <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+                <h4 className="font-medium text-sm">Required Columns:</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                  <div className="space-y-1">
+                    <p className="font-medium">Category Name</p>
+                    <p className="text-muted-foreground text-xs">The category grouping for habits (e.g., "Classroom Management", "Assessment")</p>
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-medium">Habit Description</p>
+                    <p className="text-muted-foreground text-xs">The specific behaviour or practice to observe (e.g., "Uses clear learning objectives")</p>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground border-t pt-2 mt-2">
+                  <p><strong>Tip:</strong> Habits with the same Category Name will be grouped together automatically.</p>
+                </div>
+              </div>
+
               <div className="py-4">
                 <CsvColumnMapper
                   onFileLoad={setCsvData}
