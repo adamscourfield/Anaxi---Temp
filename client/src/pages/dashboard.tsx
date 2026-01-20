@@ -303,7 +303,7 @@ export default function Dashboard() {
                     <Skeleton className="h-8 w-20" />
                   ) : (
                     <>
-                      <div className="text-2xl font-bold" data-testid="text-observations-count">
+                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-observations-count">
                         {observationStats?.totalObservations || 0}
                       </div>
                       <p className="text-xs text-muted-foreground">this month</p>
@@ -330,7 +330,7 @@ export default function Dashboard() {
                     <Skeleton className="h-8 w-20" />
                   ) : (
                     <>
-                      <div className="text-2xl font-bold" data-testid="text-meetings-count">
+                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-meetings-count">
                         {meetings.length}
                       </div>
                       <p className="text-xs text-muted-foreground">total recorded</p>
@@ -357,7 +357,7 @@ export default function Dashboard() {
                     <Skeleton className="h-8 w-20" />
                   ) : canApproveLeave ? (
                     <>
-                      <div className="text-2xl font-bold" data-testid="text-pending-leave-count">
+                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-pending-leave-count">
                         {leaveStats.pendingCount}
                       </div>
                       <p className="text-xs text-muted-foreground">pending approval</p>
@@ -370,7 +370,7 @@ export default function Dashboard() {
                     </>
                   ) : (
                     <>
-                      <div className="text-2xl font-bold" data-testid="text-my-leave-count">
+                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-my-leave-count">
                         {leaveStats.myPendingCount}
                       </div>
                       <p className="text-xs text-muted-foreground">pending request{leaveStats.myPendingCount !== 1 ? "s" : ""}</p>
@@ -398,7 +398,7 @@ export default function Dashboard() {
                       <Skeleton className="h-8 w-20" />
                     ) : (
                       <>
-                        <div className="text-2xl font-bold" data-testid="text-open-oncalls-count">
+                        <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-open-oncalls-count">
                           {behaviourStats.openOncallsCount}
                         </div>
                         <p className="text-xs text-muted-foreground">open on-call{behaviourStats.openOncallsCount !== 1 ? "s" : ""}</p>
@@ -412,7 +412,7 @@ export default function Dashboard() {
                     )
                   ) : (
                     <>
-                      <div className="text-2xl font-bold" data-testid="text-behaviour-placeholder">On-Call</div>
+                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-behaviour-placeholder">On-Call</div>
                       <p className="text-xs text-muted-foreground">Report incidents</p>
                     </>
                   )}
