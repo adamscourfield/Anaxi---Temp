@@ -232,7 +232,7 @@ export default function OnCallPage() {
                 />
 
                 <div className="bg-muted p-4 rounded-md flex gap-3">
-                  <AlertCircle className="h-5 w-5 text-muted-foreground flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 accent-icon flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-muted-foreground">
                     <p className="font-medium mb-1">What happens next?</p>
                     <p>

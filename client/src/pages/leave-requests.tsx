@@ -600,7 +600,7 @@ export default function LeaveRequests() {
                           onClick={() => setSelectedRequest(request)}
                           data-testid={`button-view-request-${request.id}`}
                         >
-                          <Eye className="w-4 h-4 mr-1" />
+                          <Eye className="w-4 h-4 mr-1 accent-icon" />
                           View
                         </Button>
                         {canApprove && request.status === "pending" && (

@@ -444,10 +444,10 @@ export default function ObservationAnalytics() {
                     <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">A</Badge>
                     Observations
                   </CardTitle>
-                  <Eye className="h-4 w-4 text-muted-foreground" />
+                  <Eye className="h-4 w-4 accent-icon" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{comparisonData.periodA.totalObservations}</div>
+                  <div className="text-2xl font-bold accent-number">{comparisonData.periodA.totalObservations}</div>
                   <p className="text-xs text-muted-foreground">baseline period</p>
                 </CardContent>
               </Card>
@@ -457,11 +457,11 @@ export default function ObservationAnalytics() {
                     <Badge variant="outline" className="bg-green-50 dark:bg-green-950 text-green-700 dark:text-green-300">B</Badge>
                     Observations
                   </CardTitle>
-                  <Eye className="h-4 w-4 text-muted-foreground" />
+                  <Eye className="h-4 w-4 accent-icon" />
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold">{comparisonData.periodB.totalObservations}</span>
+                    <span className="text-2xl font-bold accent-number">{comparisonData.periodB.totalObservations}</span>
                     {comparisonData.deltas.observationCount !== 0 && (
                       <Badge variant={comparisonData.deltas.observationCount > 0 ? "default" : "secondary"} className="text-xs">
                         {comparisonData.deltas.observationCount > 0 ? "+" : ""}{comparisonData.deltas.observationCount}
@@ -477,10 +477,10 @@ export default function ObservationAnalytics() {
                     <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300">A</Badge>
                     Avg Score
                   </CardTitle>
-                  <Target className="h-4 w-4 text-muted-foreground" />
+                  <Target className="h-4 w-4 accent-icon" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{comparisonData.periodA.averageScore.toFixed(2)}</div>
+                  <div className="text-2xl font-bold accent-number">{comparisonData.periodA.averageScore.toFixed(2)}</div>
                   <p className="text-xs text-muted-foreground">out of 5.0</p>
                 </CardContent>
               </Card>
@@ -498,7 +498,7 @@ export default function ObservationAnalytics() {
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center gap-2">
-                    <span className="text-2xl font-bold">{comparisonData.periodB.averageScore.toFixed(2)}</span>
+                    <span className="text-2xl font-bold accent-number">{comparisonData.periodB.averageScore.toFixed(2)}</span>
                     {Math.abs(comparisonData.deltas.averageScore) > 0.01 && (
                       <Badge 
                         variant={comparisonData.deltas.averageScore > 0 ? "default" : "destructive"} 
@@ -785,10 +785,10 @@ export default function ObservationAnalytics() {
             <Card data-testid="card-total-observations">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                 <CardTitle className="text-sm font-medium">Total Observations</CardTitle>
-                <Eye className="h-4 w-4 text-muted-foreground" />
+                <Eye className="h-4 w-4 accent-icon" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold" data-testid="text-total-obs">
+                <div className="text-2xl font-bold accent-number" data-testid="text-total-obs">
                   {analyticsData.summary.totalObservations}
                 </div>
                 <p className="text-xs text-muted-foreground">in selected period</p>
@@ -797,10 +797,10 @@ export default function ObservationAnalytics() {
             <Card data-testid="card-unique-teachers">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                 <CardTitle className="text-sm font-medium">Unique Teachers</CardTitle>
-                <Users className="h-4 w-4 text-muted-foreground" />
+                <Users className="h-4 w-4 accent-icon" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold" data-testid="text-unique-teachers">
+                <div className="text-2xl font-bold accent-number" data-testid="text-unique-teachers">
                   {analyticsData.summary.uniqueTeachers}
                 </div>
                 <p className="text-xs text-muted-foreground">observed</p>
@@ -809,10 +809,10 @@ export default function ObservationAnalytics() {
             <Card data-testid="card-average-score">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                 <CardTitle className="text-sm font-medium">Average Score</CardTitle>
-                <Target className="h-4 w-4 text-muted-foreground" />
+                <Target className="h-4 w-4 accent-icon" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold" data-testid="text-avg-score">
+                <div className="text-2xl font-bold accent-number" data-testid="text-avg-score">
                   {analyticsData.summary.averageScore.toFixed(2)}
                 </div>
                 <p className="text-xs text-muted-foreground">out of 5.0</p>

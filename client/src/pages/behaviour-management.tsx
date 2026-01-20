@@ -814,7 +814,7 @@ export default function BehaviourManagementPage() {
                     </CardDescription>
                   </div>
                   <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 accent-icon" />
                     <Input
                       placeholder="Search students..."
                       value={studentSearchQuery}
@@ -1125,7 +1125,7 @@ export default function BehaviourManagementPage() {
                       <CardTitle className="text-sm font-medium text-muted-foreground">Total On-Calls</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold" data-testid="stat-total-oncalls">
+                      <div className="text-3xl font-bold accent-number" data-testid="stat-total-oncalls">
                         {analyticsData?.totalOncalls || 0}
                       </div>
                     </CardContent>
@@ -1135,7 +1135,7 @@ export default function BehaviourManagementPage() {
                       <CardTitle className="text-sm font-medium text-muted-foreground">Open On-Calls</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold" data-testid="stat-open-oncalls">
+                      <div className="text-3xl font-bold accent-number" data-testid="stat-open-oncalls">
                         {analyticsData?.openOncalls || 0}
                       </div>
                     </CardContent>
@@ -1145,7 +1145,7 @@ export default function BehaviourManagementPage() {
                       <CardTitle className="text-sm font-medium text-muted-foreground">Completed On-Calls</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-3xl font-bold" data-testid="stat-completed-oncalls">
+                      <div className="text-3xl font-bold accent-number" data-testid="stat-completed-oncalls">
                         {analyticsData?.completedOncalls || 0}
                       </div>
                     </CardContent>

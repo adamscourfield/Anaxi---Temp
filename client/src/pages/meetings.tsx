@@ -798,7 +798,7 @@ export default function Meetings() {
             </div>
           ) : filteredMeetings.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground" data-testid="meetings-empty">
-              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-50 accent-icon" />
               <p>No meetings found</p>
               <p className="text-sm">Create your first meeting to get started</p>
             </div>
@@ -859,7 +859,7 @@ export default function Meetings() {
                           onClick={() => setLocation(`/meetings/${meeting.id}`)}
                           data-testid={`button-view-meeting-${meeting.id}`}
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-4 h-4 accent-icon" />
                         </Button>
                       </TableCell>
                     </TableRow>

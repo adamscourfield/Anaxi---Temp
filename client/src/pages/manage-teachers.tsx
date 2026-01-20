@@ -892,7 +892,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       {/* Search Bar */}
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 accent-icon" />
           <Input
             placeholder="Search teachers by name or email..."
             value={searchQuery}

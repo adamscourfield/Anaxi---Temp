@@ -296,14 +296,14 @@ export default function Dashboard() {
               <Card data-testid="card-observations-widget" variant="glass">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Observations</CardTitle>
-                  <Eye className="h-4 w-4" style={{ color: '#4761d6' }} />
+                  <Eye className="h-4 w-4 accent-icon" />
                 </CardHeader>
                 <CardContent>
                   {observationStatsLoading ? (
                     <Skeleton className="h-8 w-20" />
                   ) : (
                     <>
-                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-observations-count">
+                      <div className="text-2xl font-bold accent-number" data-testid="text-observations-count">
                         {observationStats?.totalObservations || 0}
                       </div>
                       <p className="text-xs text-muted-foreground">this month</p>
@@ -323,14 +323,14 @@ export default function Dashboard() {
               <Card data-testid="card-meetings-widget" variant="glass">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Meetings</CardTitle>
-                  <MessageSquare className="h-4 w-4" style={{ color: '#4761d6' }} />
+                  <MessageSquare className="h-4 w-4 accent-icon" />
                 </CardHeader>
                 <CardContent>
                   {meetingsLoading ? (
                     <Skeleton className="h-8 w-20" />
                   ) : (
                     <>
-                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-meetings-count">
+                      <div className="text-2xl font-bold accent-number" data-testid="text-meetings-count">
                         {meetings.length}
                       </div>
                       <p className="text-xs text-muted-foreground">total recorded</p>
@@ -350,14 +350,14 @@ export default function Dashboard() {
               <Card data-testid="card-leave-widget" variant="glass">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">{canApproveLeave ? "Leave Requests" : "My Leave"}</CardTitle>
-                  <Calendar className="h-4 w-4" style={{ color: '#4761d6' }} />
+                  <Calendar className="h-4 w-4 accent-icon" />
                 </CardHeader>
                 <CardContent>
                   {leaveLoading ? (
                     <Skeleton className="h-8 w-20" />
                   ) : canApproveLeave ? (
                     <>
-                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-pending-leave-count">
+                      <div className="text-2xl font-bold accent-number" data-testid="text-pending-leave-count">
                         {leaveStats.pendingCount}
                       </div>
                       <p className="text-xs text-muted-foreground">pending approval</p>
@@ -370,7 +370,7 @@ export default function Dashboard() {
                     </>
                   ) : (
                     <>
-                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-my-leave-count">
+                      <div className="text-2xl font-bold accent-number" data-testid="text-my-leave-count">
                         {leaveStats.myPendingCount}
                       </div>
                       <p className="text-xs text-muted-foreground">pending request{leaveStats.myPendingCount !== 1 ? "s" : ""}</p>
@@ -390,7 +390,7 @@ export default function Dashboard() {
               <Card data-testid="card-behaviour-widget" variant="glass">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
                   <CardTitle className="text-sm font-medium">Behaviour</CardTitle>
-                  <AlertCircle className="h-4 w-4" style={{ color: '#4761d6' }} />
+                  <AlertCircle className="h-4 w-4 accent-icon" />
                 </CardHeader>
                 <CardContent>
                   {canManageBehaviour ? (
@@ -398,7 +398,7 @@ export default function Dashboard() {
                       <Skeleton className="h-8 w-20" />
                     ) : (
                       <>
-                        <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-open-oncalls-count">
+                        <div className="text-2xl font-bold accent-number" data-testid="text-open-oncalls-count">
                           {behaviourStats.openOncallsCount}
                         </div>
                         <p className="text-xs text-muted-foreground">open on-call{behaviourStats.openOncallsCount !== 1 ? "s" : ""}</p>
@@ -412,7 +412,7 @@ export default function Dashboard() {
                     )
                   ) : (
                     <>
-                      <div className="text-2xl font-bold" style={{ color: '#4761d6' }} data-testid="text-behaviour-placeholder">On-Call</div>
+                      <div className="text-2xl font-bold accent-number" data-testid="text-behaviour-placeholder">On-Call</div>
                       <p className="text-xs text-muted-foreground">Report incidents</p>
                     </>
                   )}

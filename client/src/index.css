@@ -302,6 +302,15 @@
  * need to be distinguished from eachother visually.
  */
 @layer components {
+  /* Accent blue color for icons and key numbers */
+  .accent-icon {
+    color: #4761d6 !important;
+  }
+  
+  .accent-number {
+    color: #4761d6 !important;
+  }
+
   .glass-card {
     background: rgba(255, 255, 255, 0.95) !important;
     border: 1px solid rgba(200, 200, 200, 0.4) !important;
