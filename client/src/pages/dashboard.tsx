@@ -423,26 +423,26 @@ export default function Dashboard() {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             {hasObservations && (
-              <Card data-testid="card-observations-detail" variant="glass">
-                <CardHeader className="flex flex-row items-center justify-between gap-2">
-                  <div>
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <BarChart3 className="h-5 w-5" />
-                      Observation Trend
+              <Card data-testid="card-observations-detail" variant="glass" className="overflow-hidden">
+                <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5 shrink-0" />
+                      <span className="truncate">Observation Trend</span>
                     </CardTitle>
-                    <CardDescription>Weekly observation count and quality score</CardDescription>
+                    <CardDescription className="text-xs sm:text-sm">Weekly count and quality</CardDescription>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 shrink-0">
                     <Link href="/analytics">
                       <Button size="sm" variant="outline" data-testid="button-view-analytics">
-                        <BarChart3 className="h-4 w-4 mr-1" />
-                        Analytics
+                        <BarChart3 className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Analytics</span>
                       </Button>
                     </Link>
                     <Link href="/observe">
                       <Button size="sm" data-testid="button-new-observation">
-                        <Plus className="h-4 w-4 mr-1" />
-                        New
+                        <Plus className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">New</span>
                       </Button>
                     </Link>
                   </div>
