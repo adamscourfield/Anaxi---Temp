@@ -4,11 +4,11 @@ import { AlertCircle } from "lucide-react";
 export default function NotFound() {
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center bg-gray-50 dark:bg-gray-950 overflow-hidden">
-      {/* Decorative color swirls */}
+      {/* Decorative pale blue and pink waved gradient */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-200/40 dark:bg-blue-800/20 rounded-full blur-3xl" />
-        <div className="absolute top-1/4 -left-20 w-72 h-72 bg-sky-200/50 dark:bg-sky-800/20 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-indigo-200/40 dark:bg-indigo-800/15 rounded-full blur-3xl" />
+        <div className="absolute -top-32 -right-32 w-[500px] h-[400px] bg-blue-100/50 dark:bg-blue-900/20 rounded-[40%_60%_70%_30%/40%_50%_60%_50%] blur-3xl" />
+        <div className="absolute top-1/3 -left-24 w-[350px] h-[300px] bg-pink-100/40 dark:bg-pink-900/15 rounded-[60%_40%_30%_70%/60%_30%_70%_40%] blur-3xl" />
+        <div className="absolute bottom-1/3 right-1/5 w-[400px] h-[350px] bg-blue-50/60 dark:bg-blue-800/15 rounded-[30%_70%_40%_60%/50%_60%_40%_50%] blur-3xl" />
       </div>
       <Card className="relative w-full max-w-md mx-4 z-10">
         <CardContent className="pt-6">
