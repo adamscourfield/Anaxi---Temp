@@ -102,16 +102,18 @@ function AppContent() {
               <div className="absolute -bottom-24 left-1/4 w-[300px] h-[250px] bg-pink-50/50 dark:bg-pink-800/10 rounded-[50%_50%_60%_40%/40%_60%_50%_50%] blur-3xl" />
               <div className="absolute top-1/2 right-1/3 w-[280px] h-[220px] bg-blue-100/30 dark:bg-blue-900/10 rounded-[70%_30%_50%_50%/50%_40%_60%_50%] blur-3xl" />
             </div>
-            <header className="relative flex items-center justify-between gap-6 px-6 py-4 z-20">
-              <div className="flex items-center gap-6">
-                <div className="flex items-center gap-3">
-                  <img src={anaxiLogo} alt="Anaxi" className="h-9 w-9 dark:invert dark:brightness-200" />
-                  <span className="font-semibold text-foreground text-[16px]">Anaxi</span>
+            <header className="relative flex items-center justify-between gap-3 md:gap-6 px-4 md:px-6 py-3 md:py-4 z-20">
+              <div className="flex items-center gap-3 md:gap-6 flex-1 min-w-0">
+                <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                  <img src={anaxiLogo} alt="Anaxi" className="h-8 w-8 md:h-9 md:w-9 dark:invert dark:brightness-200" />
+                  <span className="font-semibold text-foreground text-sm md:text-[16px] hidden sm:inline">Anaxi</span>
                 </div>
-                <div className="h-7 w-px bg-border/40" />
-                <SchoolSelector />
+                <div className="h-6 md:h-7 w-px bg-border/40 hidden sm:block" />
+                <div className="flex-1 min-w-0">
+                  <SchoolSelector />
+                </div>
               </div>
-              <div className="flex items-center gap-5">
+              <div className="flex items-center gap-3 md:gap-5 shrink-0">
                 <UserMenu />
                 <ThemeToggle />
               </div>

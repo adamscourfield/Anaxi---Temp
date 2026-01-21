@@ -265,13 +265,13 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="min-h-full p-6 space-y-8">
+    <div className="min-h-full p-4 md:p-6 space-y-6 md:space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight" data-testid="text-welcome">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight" data-testid="text-welcome">
             Welcome back, {userName}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm md:text-base">
             Here's what's happening at {currentSchool?.name || "your school"}
           </p>
         </div>
@@ -291,7 +291,7 @@ export default function Dashboard() {
 
       {hasAnyFeatures && (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
             {hasObservations && (
               <Card data-testid="card-observations-widget" variant="glass">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 gap-2">
@@ -421,7 +421,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
             {hasObservations && (
               <Card data-testid="card-observations-detail" variant="glass">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
@@ -760,7 +760,7 @@ export default function Dashboard() {
           </div>
 
           {isLeaderOrAbove && (staffBirthdays.length > 0 || studentBirthdays.length > 0) && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6">
               {staffBirthdays.length > 0 && (
                 <Card data-testid="card-staff-birthdays" variant="glass">
                   <CardHeader>

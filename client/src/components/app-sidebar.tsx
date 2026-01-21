@@ -160,7 +160,7 @@ export function AppSidebar() {
   });
 
   return (
-    <Sidebar collapsible="none">
+    <Sidebar collapsible="none" className="hidden md:flex">
       <SidebarContent className="py-4 px-2">
         <SidebarGroup>
           <SidebarGroupContent>
