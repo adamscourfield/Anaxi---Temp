@@ -59,8 +59,8 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
   const [isAssignOpen, setIsAssignOpen] = useState(false);
   const [assignedSchools, setAssignedSchools] = useState<string[]>([]);
-  // Map of schoolId -> { membershipId, canApproveLeaveRequests, canManageBehaviour }
-  const [membershipPermissions, setMembershipPermissions] = useState<Record<string, { membershipId: string; canApproveLeaveRequests: boolean; canManageBehaviour: boolean }>>({});
+  // Map of schoolId -> { membershipId, canApproveAllLeave, leaveApprovalTargets, canManageBehaviour }
+  const [membershipPermissions, setMembershipPermissions] = useState<Record<string, { membershipId: string; canApproveAllLeave: boolean; leaveApprovalTargets: string[]; canManageBehaviour: boolean }>>({});
 
   // Observation permissions state
   const [isObsPermOpen, setIsObsPermOpen] = useState(false);
@@ -236,9 +236,10 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
 
   // Update membership permission mutation
   const updateMembershipPermissionMutation = useMutation({
-    mutationFn: async (data: { membershipId: string; canApproveLeaveRequests?: boolean; canManageBehaviour?: boolean }) => {
+    mutationFn: async (data: { membershipId: string; canApproveAllLeave?: boolean; leaveApprovalTargets?: string[] | null; canManageBehaviour?: boolean }) => {
       return await apiRequest("PATCH", `/api/memberships/${data.membershipId}`, {
-        ...(data.canApproveLeaveRequests !== undefined && { canApproveLeaveRequests: data.canApproveLeaveRequests }),
+        ...(data.canApproveAllLeave !== undefined && { canApproveAllLeave: data.canApproveAllLeave }),
+        ...(data.leaveApprovalTargets !== undefined && { leaveApprovalTargets: data.leaveApprovalTargets }),
         ...(data.canManageBehaviour !== undefined && { canManageBehaviour: data.canManageBehaviour }),
       });
     },
@@ -521,11 +522,12 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       setAssignedSchools(schoolIds);
       
       // Populate membership permissions with existing values
-      const permissions: Record<string, { membershipId: string; canApproveLeaveRequests: boolean; canManageBehaviour: boolean }> = {};
+      const permissions: Record<string, { membershipId: string; canApproveAllLeave: boolean; leaveApprovalTargets: string[]; canManageBehaviour: boolean }> = {};
       memberships.forEach(m => {
         permissions[m.schoolId] = {
           membershipId: m.id,
-          canApproveLeaveRequests: m.canApproveLeaveRequests || false,
+          canApproveAllLeave: m.canApproveAllLeave || false,
+          leaveApprovalTargets: m.leaveApprovalTargets || [],
           canManageBehaviour: m.canManageBehaviour || false,
         };
       });
@@ -563,25 +565,53 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     );
   };
 
-  const togglePermission = (schoolId: string) => {
+  const toggleApproveAllLeave = (schoolId: string) => {
     const permission = membershipPermissions[schoolId];
     if (!permission) return;
     
-    const newValue = !permission.canApproveLeaveRequests;
+    const newValue = !permission.canApproveAllLeave;
     
     // Optimistically update local state
     setMembershipPermissions(prev => ({
       ...prev,
       [schoolId]: {
         ...prev[schoolId],
-        canApproveLeaveRequests: newValue,
+        canApproveAllLeave: newValue,
+        // Clear targets when enabling "all"
+        leaveApprovalTargets: newValue ? [] : prev[schoolId].leaveApprovalTargets,
       },
     }));
     
     // Call mutation to update on backend
     updateMembershipPermissionMutation.mutate({
       membershipId: permission.membershipId,
-      canApproveLeaveRequests: newValue,
+      canApproveAllLeave: newValue,
+      leaveApprovalTargets: newValue ? null : permission.leaveApprovalTargets,
+    });
+  };
+
+  const toggleLeaveApprovalTarget = (schoolId: string, targetMembershipId: string) => {
+    const permission = membershipPermissions[schoolId];
+    if (!permission) return;
+    
+    const currentTargets = permission.leaveApprovalTargets || [];
+    const newTargets = currentTargets.includes(targetMembershipId)
+      ? currentTargets.filter(id => id !== targetMembershipId)
+      : [...currentTargets, targetMembershipId];
+    
+    // Optimistically update local state
+    setMembershipPermissions(prev => ({
+      ...prev,
+      [schoolId]: {
+        ...prev[schoolId],
+        leaveApprovalTargets: newTargets,
+      },
+    }));
+    
+    // Call mutation to update on backend
+    updateMembershipPermissionMutation.mutate({
+      membershipId: permission.membershipId,
+      leaveApprovalTargets: newTargets,
     });
   };
 
@@ -1189,21 +1219,71 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                     </div>
                     
                     {isAssigned && permission && (
-                      <div className="ml-6 pl-4 border-l-2 border-border space-y-2">
-                        <div className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`permission-${school.id}`}
-                            checked={permission.canApproveLeaveRequests}
-                            onCheckedChange={() => togglePermission(school.id)}
-                            data-testid={`checkbox-permission-${school.id}`}
-                          />
-                          <label
-                            htmlFor={`permission-${school.id}`}
-                            className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                          >
-                            Can approve leave requests
-                          </label>
-                        </div>
+                      <div className="ml-6 pl-4 border-l-2 border-border space-y-3">
+                        {school.enabled_features?.includes("absence_management") && (
+                          <div className="space-y-2">
+                            <div className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`approve-all-leave-${school.id}`}
+                                checked={permission.canApproveAllLeave}
+                                onCheckedChange={() => toggleApproveAllLeave(school.id)}
+                                data-testid={`checkbox-approve-all-leave-${school.id}`}
+                              />
+                              <label
+                                htmlFor={`approve-all-leave-${school.id}`}
+                                className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                              >
+                                Can approve all leave requests
+                              </label>
+                            </div>
+                            
+                            {!permission.canApproveAllLeave && (
+                              <div className="ml-6 space-y-2">
+                                <p className="text-xs text-muted-foreground">
+                                  Or select specific people to approve leave for:
+                                </p>
+                                <div className="max-h-32 overflow-y-auto space-y-1 border rounded p-2">
+                                  {teachers
+                                    .filter(t => {
+                                      const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
+                                      return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
+                                    })
+                                    .map(teacher => {
+                                      const teacherMembership = allMemberships.find(m => m.userId === teacher.id && m.schoolId === school.id);
+                                      if (!teacherMembership) return null;
+                                      const displayName = teacher.first_name || teacher.last_name
+                                        ? `${teacher.first_name || ""} ${teacher.last_name || ""}`.trim()
+                                        : teacher.email;
+                                      const isTarget = permission.leaveApprovalTargets?.includes(teacherMembership.id);
+                                      
+                                      return (
+                                        <div key={teacher.id} className="flex items-center space-x-2">
+                                          <Checkbox
+                                            id={`leave-target-${school.id}-${teacher.id}`}
+                                            checked={isTarget}
+                                            onCheckedChange={() => toggleLeaveApprovalTarget(school.id, teacherMembership.id)}
+                                            data-testid={`checkbox-leave-target-${school.id}-${teacher.id}`}
+                                          />
+                                          <label
+                                            htmlFor={`leave-target-${school.id}-${teacher.id}`}
+                                            className="text-xs leading-none cursor-pointer"
+                                          >
+                                            {displayName}
+                                          </label>
+                                        </div>
+                                      );
+                                    })}
+                                  {teachers.filter(t => {
+                                    const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
+                                    return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
+                                  }).length === 0 && (
+                                    <p className="text-xs text-muted-foreground">No other teachers in this school</p>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                         
                         {school.enabled_features?.includes("behaviour") && (
                           <div className="flex items-center space-x-2">
