@@ -436,7 +436,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         displayName: z.string().optional(),
         profilePicture: z.string().optional(),
         groupId: z.string().optional(),
-        canApproveLeaveRequests: z.boolean().optional(),
+        canApproveAllLeave: z.boolean().optional(),
+        leaveApprovalTargets: z.array(z.string()).nullable().optional(),
         canManageBehaviour: z.boolean().optional(),
       });
 
@@ -1771,12 +1772,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Filter by membership if regular user or myRequests is true
       if (userMembership) {
-        const canApprove = userMembership.canApproveLeaveRequests;
+        const canApproveAll = userMembership.canApproveAllLeave;
+        const approvalTargets = userMembership.leaveApprovalTargets || [];
+        const hasApprovalPermission = canApproveAll || approvalTargets.length > 0;
         
         // Users without approval permission can only see their own requests
-        // Users with permission can see all, but can filter to myRequests
-        if (!canApprove || myRequests) {
+        // Users with permission can see all (or specific targets), but can filter to myRequests
+        if (!hasApprovalPermission || myRequests) {
           leaveRequests = leaveRequests.filter(lr => lr.membershipId === userMembership.id);
+        } else if (!canApproveAll && approvalTargets.length > 0) {
+          // Can only see their own requests plus requests from their approval targets
+          leaveRequests = leaveRequests.filter(lr => 
+            lr.membershipId === userMembership.id || approvalTargets.includes(lr.membershipId)
+          );
         }
       } else if (myRequests && user.global_role === "Creator") {
         // Creators with myRequests=true should get empty array (they have no membership)
@@ -1853,12 +1861,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: "Forbidden: You don't have access to this school" });
         }
         
-        const canApprove = userMembership.canApproveLeaveRequests;
+        const canApproveAll = userMembership.canApproveAllLeave;
+        const approvalTargets = userMembership.leaveApprovalTargets || [];
         const isOwnRequest = userMembership.id === leaveRequest.membershipId;
+        const canApproveThisRequest = canApproveAll || approvalTargets.includes(leaveRequest.membershipId);
         
         // Users without approval permission can only see their own requests
-        // Users with permission can see all requests for their school
-        if (!canApprove && !isOwnRequest) {
+        // Users with permission can see requests they can approve
+        if (!canApproveThisRequest && !isOwnRequest) {
           return res.status(403).json({ message: "Forbidden: You can only view your own leave requests" });
         }
       }
@@ -1898,7 +1908,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Only users with approve permission can approve/deny
-      if (!userMembership.canApproveLeaveRequests) {
+      const canApproveAll = userMembership.canApproveAllLeave;
+      const approvalTargets = userMembership.leaveApprovalTargets || [];
+      const canApproveThisRequest = canApproveAll || approvalTargets.includes(existingRequest.membershipId);
+      
+      if (!canApproveThisRequest) {
         return res.status(403).json({ message: "Forbidden: You don't have permission to approve or deny leave requests" });
       }
       

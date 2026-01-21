@@ -140,9 +140,10 @@ export function AppSidebar() {
       return enabledFeatures.includes("absence_management");
     }
 
-    // Approve Leave requires "absence_management" feature and canApproveLeaveRequests permission (even for Creators)
+    // Approve Leave requires "absence_management" feature and leave approval permission (even for Creators)
     if (item.title === "Approve Leave") {
-      return enabledFeatures.includes("absence_management") && (currentMembership?.canApproveLeaveRequests || false);
+      const canApprove = currentMembership?.canApproveAllLeave || (currentMembership?.leaveApprovalTargets && currentMembership.leaveApprovalTargets.length > 0);
+      return enabledFeatures.includes("absence_management") && canApprove;
     }
 
     // On-Call requires "behaviour" feature to be enabled

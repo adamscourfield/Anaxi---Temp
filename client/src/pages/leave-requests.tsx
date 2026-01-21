@@ -164,7 +164,7 @@ export default function LeaveRequests() {
 
   // Get current membership for selected school
   const currentMembership = memberships.find(m => m.schoolId === currentSchoolId);
-  const canApprove = currentMembership?.canApproveLeaveRequests || false;
+  const canApprove = currentMembership?.canApproveAllLeave || (currentMembership?.leaveApprovalTargets && currentMembership.leaveApprovalTargets.length > 0) || false;
 
   // Fetch leave requests for the current school
   const { data: leaveRequests = [], isLoading: requestsLoading } = useQuery<EnrichedLeaveRequest[]>({

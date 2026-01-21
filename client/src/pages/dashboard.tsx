@@ -111,7 +111,7 @@ export default function Dashboard() {
   });
 
   const currentMembership = userMemberships.find(m => m.schoolId === currentSchoolId);
-  const canApproveLeave = currentMembership?.canApproveLeaveRequests || false;
+  const canApproveLeave = currentMembership?.canApproveAllLeave || (currentMembership?.leaveApprovalTargets && currentMembership.leaveApprovalTargets.length > 0) || false;
   const canManageBehaviour = currentMembership?.canManageBehaviour || false;
   const userRole = currentMembership?.role || "Teacher";
   const isLeaderOrAbove = userRole === "Leader" || userRole === "Admin" || user?.global_role === "Creator";

@@ -99,7 +99,7 @@ export default function ApproveLeave() {
       const response = await fetch("/api/my-memberships");
       if (!response.ok) throw new Error("Failed to fetch memberships");
       const memberships = await response.json();
-      return memberships.filter((m: any) => m.canApproveLeaveRequests === true);
+      return memberships.filter((m: any) => m.canApproveAllLeave === true || (m.leaveApprovalTargets && m.leaveApprovalTargets.length > 0));
     },
   });
 
@@ -237,7 +237,8 @@ export default function ApproveLeave() {
   }
 
   // Check authorization - user must have approval permission in current school (even Creators)
-  const isAuthorized = currentMembership && currentMembership.canApproveLeaveRequests;
+  const canApproveAny = currentMembership?.canApproveAllLeave || (currentMembership?.leaveApprovalTargets && currentMembership.leaveApprovalTargets.length > 0);
+  const isAuthorized = currentMembership && canApproveAny;
 
   if (!isAuthorized) {
     return (
