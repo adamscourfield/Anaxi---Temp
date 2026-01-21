@@ -35,6 +35,13 @@ Major features are feature-flagged per school via an `enabled_features` array on
 ### Flexible Dashboard
 The dashboard dynamically adjusts its widgets and content based on enabled school features and user permissions, offering personalized greetings, feature-specific data summaries (e.g., observations, meetings, leave, behaviour), upcoming birthday alerts, and a summary of assigned action items.
 
+### Leave Approval Permissions
+The platform supports granular leave approval permissions at the school membership level:
+- **canApproveAllLeave**: When true, the user can approve all leave requests in the school
+- **leaveApprovalTargets**: Array of membership IDs this user can approve leave for (used when canApproveAllLeave is false)
+
+Admins and Creators can configure these permissions in the School Assignment dialog within App Management. When "Can approve all leave requests" is unchecked, a list of specific teachers appears for selecting individual approval targets. A warning is displayed if no targets are selected.
+
 ### Behaviour Management System
 This comprehensive system tracks student incidents with real-time notifications and analytics. It includes student record management (with CSV import), on-call incident logging with status workflows and email notifications, and an analytics dashboard with various visualizations and filtering options. Access is controlled via the `canManageBehaviour` permission on school memberships.
 
