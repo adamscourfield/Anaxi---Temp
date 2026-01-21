@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Link } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -104,10 +104,10 @@ function AppContent() {
             </div>
             <header className="relative flex items-center justify-between gap-3 md:gap-6 px-4 md:px-6 py-3 md:py-4 z-20">
               <div className="flex items-center gap-3 md:gap-6 flex-1 min-w-0">
-                <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                <Link href="/" className="flex items-center gap-2 md:gap-3 shrink-0" data-testid="link-home">
                   <img src={anaxiLogo} alt="Anaxi" className="h-8 w-8 md:h-9 md:w-9 dark:invert dark:brightness-200" />
                   <span className="font-semibold text-foreground text-sm md:text-[16px] hidden sm:inline">Anaxi</span>
-                </div>
+                </Link>
                 <div className="h-6 md:h-7 w-px bg-border/40 hidden sm:block" />
                 <div className="flex-1 min-w-0">
                   <SchoolSelector />

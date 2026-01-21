@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { ClipboardCheck, CalendarOff, Phone, Eye, User, LayoutDashboard } from "lucide-react";
+import { Eye, History, Calendar, AlertCircle, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useSchool } from "@/hooks/use-school";
@@ -7,7 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { SchoolMembership } from "@shared/schema";
 
 interface NavItem {
-  icon: typeof ClipboardCheck;
+  icon: typeof Eye;
   label: string;
   href: string;
   testId: string;
@@ -16,32 +16,32 @@ interface NavItem {
 
 const allNavItems: NavItem[] = [
   {
-    icon: ClipboardCheck,
-    label: "Create",
+    icon: Eye,
+    label: "Observe",
     href: "/observe",
-    testId: "nav-create-observation",
+    testId: "nav-observe",
     featureFlag: "observations",
   },
   {
-    icon: CalendarOff,
+    icon: History,
+    label: "History",
+    href: "/history",
+    testId: "nav-history",
+    featureFlag: "observations",
+  },
+  {
+    icon: Calendar,
     label: "Leave",
     href: "/leave-requests",
-    testId: "nav-request-leave",
+    testId: "nav-leave",
     featureFlag: "absence_management",
   },
   {
-    icon: Phone,
-    label: "On Call",
+    icon: AlertCircle,
+    label: "On-Call",
     href: "/on-call",
     testId: "nav-on-call",
     featureFlag: "behaviour",
-  },
-  {
-    icon: Eye,
-    label: "View",
-    href: "/history",
-    testId: "nav-view-observations",
-    featureFlag: "observations",
   },
   {
     icon: User,
@@ -69,14 +69,10 @@ export function MobileBottomNav() {
     return enabledFeatures.includes(item.featureFlag);
   });
 
-  const displayItems = visibleNavItems.length < 3 
-    ? [{ icon: LayoutDashboard, label: "Home", href: "/", testId: "nav-dashboard" }, ...visibleNavItems]
-    : visibleNavItems;
-
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-lg">
       <div className="flex items-center justify-around h-16 px-2">
-        {displayItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isActive = location === item.href;
           const Icon = item.icon;
           
