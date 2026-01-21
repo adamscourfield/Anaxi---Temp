@@ -89,7 +89,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   });
 
   // Fetch memberships for all teachers
-  const { data: allMemberships = [] } = useQuery<SchoolMembership[]>({
+  const { data: allMemberships = [], isLoading: membershipsLoading } = useQuery<SchoolMembership[]>({
     queryKey: ["/api/all-memberships"],
     queryFn: async () => {
       // Fetch memberships for each teacher
@@ -571,14 +571,17 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     
     const newValue = !permission.canApproveAllLeave;
     
+    // When turning ON "approve all", clear targets since they're not needed
+    // When turning OFF "approve all", preserve existing targets (user can then select specific people)
+    const newTargets = newValue ? [] : permission.leaveApprovalTargets;
+    
     // Optimistically update local state
     setMembershipPermissions(prev => ({
       ...prev,
       [schoolId]: {
         ...prev[schoolId],
         canApproveAllLeave: newValue,
-        // Clear targets when enabling "all"
-        leaveApprovalTargets: newValue ? [] : prev[schoolId].leaveApprovalTargets,
+        leaveApprovalTargets: newTargets,
       },
     }));
     
@@ -586,7 +589,8 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     updateMembershipPermissionMutation.mutate({
       membershipId: permission.membershipId,
       canApproveAllLeave: newValue,
-      leaveApprovalTargets: newValue ? null : permission.leaveApprovalTargets,
+      // Only send targets when turning approve-all ON (to clear them)
+      ...(newValue && { leaveApprovalTargets: [] }),
     });
   };
 
@@ -1242,44 +1246,55 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                                 <p className="text-xs text-muted-foreground">
                                   Or select specific people to approve leave for:
                                 </p>
-                                <div className="max-h-32 overflow-y-auto space-y-1 border rounded p-2">
-                                  {teachers
-                                    .filter(t => {
-                                      const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
-                                      return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
-                                    })
-                                    .map(teacher => {
-                                      const teacherMembership = allMemberships.find(m => m.userId === teacher.id && m.schoolId === school.id);
-                                      if (!teacherMembership) return null;
-                                      const displayName = teacher.first_name || teacher.last_name
-                                        ? `${teacher.first_name || ""} ${teacher.last_name || ""}`.trim()
-                                        : teacher.email;
-                                      const isTarget = permission.leaveApprovalTargets?.includes(teacherMembership.id);
-                                      
-                                      return (
-                                        <div key={teacher.id} className="flex items-center space-x-2">
-                                          <Checkbox
-                                            id={`leave-target-${school.id}-${teacher.id}`}
-                                            checked={isTarget}
-                                            onCheckedChange={() => toggleLeaveApprovalTarget(school.id, teacherMembership.id)}
-                                            data-testid={`checkbox-leave-target-${school.id}-${teacher.id}`}
-                                          />
-                                          <label
-                                            htmlFor={`leave-target-${school.id}-${teacher.id}`}
-                                            className="text-xs leading-none cursor-pointer"
-                                          >
-                                            {displayName}
-                                          </label>
-                                        </div>
-                                      );
-                                    })}
-                                  {teachers.filter(t => {
-                                    const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
-                                    return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
-                                  }).length === 0 && (
-                                    <p className="text-xs text-muted-foreground">No other teachers in this school</p>
-                                  )}
-                                </div>
+                                {membershipsLoading ? (
+                                  <p className="text-xs text-muted-foreground italic">Loading teachers...</p>
+                                ) : (
+                                  <>
+                                    <div className="max-h-32 overflow-y-auto space-y-1 border rounded p-2">
+                                      {teachers
+                                        .filter(t => {
+                                          const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
+                                          return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
+                                        })
+                                        .map(teacher => {
+                                          const teacherMembership = allMemberships.find(m => m.userId === teacher.id && m.schoolId === school.id);
+                                          if (!teacherMembership) return null;
+                                          const displayName = teacher.first_name || teacher.last_name
+                                            ? `${teacher.first_name || ""} ${teacher.last_name || ""}`.trim()
+                                            : teacher.email;
+                                          const isTarget = permission.leaveApprovalTargets?.includes(teacherMembership.id);
+                                          
+                                          return (
+                                            <div key={teacher.id} className="flex items-center space-x-2">
+                                              <Checkbox
+                                                id={`leave-target-${school.id}-${teacher.id}`}
+                                                checked={isTarget}
+                                                onCheckedChange={() => toggleLeaveApprovalTarget(school.id, teacherMembership.id)}
+                                                data-testid={`checkbox-leave-target-${school.id}-${teacher.id}`}
+                                              />
+                                              <label
+                                                htmlFor={`leave-target-${school.id}-${teacher.id}`}
+                                                className="text-xs leading-none cursor-pointer"
+                                              >
+                                                {displayName}
+                                              </label>
+                                            </div>
+                                          );
+                                        })}
+                                      {teachers.filter(t => {
+                                        const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
+                                        return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
+                                      }).length === 0 && (
+                                        <p className="text-xs text-muted-foreground">No other teachers in this school</p>
+                                      )}
+                                    </div>
+                                    {permission.leaveApprovalTargets?.length === 0 && (
+                                      <p className="text-xs text-amber-600">
+                                        No one selected - this user cannot approve any leave requests
+                                      </p>
+                                    )}
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>
