@@ -194,8 +194,8 @@ export default function Dashboard() {
 
   const meetingStats: MeetingStats = {
     upcomingCount: meetings.filter(m => m.scheduledAt && new Date(m.scheduledAt) > new Date()).length,
-    overdueActionsCount: myActions.filter((a: any) => a.status === "open" && a.dueDate && new Date(a.dueDate) < new Date()).length,
-    myActionsCount: myActions.filter((a: any) => a.status === "open").length,
+    overdueActionsCount: myActions.filter((a: any) => !a.completed && !a.userCompleted && a.dueDate && new Date(a.dueDate) < new Date()).length,
+    myActionsCount: myActions.filter((a: any) => !a.completed && !a.userCompleted).length,
   };
 
   const upcomingMeetings = meetings
@@ -601,11 +601,11 @@ export default function Dashboard() {
                       </div>
                     )}
                     
-                    {myActions.filter((a: any) => a.status === "open").length > 0 && (
+                    {myActions.filter((a: any) => !a.completed && !a.userCompleted && (a.status === "open" || a.status === "in_progress")).length > 0 && (
                       <div>
                         <h4 className="text-sm font-medium mb-2">My Action Items</h4>
                         <div className="space-y-4">
-                          {myActions.filter((a: any) => a.status === "open").slice(0, 3).map((action: any) => {
+                          {myActions.filter((a: any) => !a.completed && !a.userCompleted && (a.status === "open" || a.status === "in_progress")).slice(0, 3).map((action: any) => {
                             const isOverdue = action.dueDate && new Date(action.dueDate) < new Date();
                             return (
                               <Link key={action.id} href={`/meetings?meetingId=${action.meetingId}`} className="block">
@@ -630,7 +630,7 @@ export default function Dashboard() {
                       </div>
                     )}
 
-                    {upcomingMeetings.length === 0 && myActions.filter((a: any) => a.status === "open").length === 0 && (
+                    {upcomingMeetings.length === 0 && myActions.filter((a: any) => !a.completed && !a.userCompleted && (a.status === "open" || a.status === "in_progress")).length === 0 && (
                       <p className="text-muted-foreground text-sm">No upcoming meetings or pending actions.</p>
                     )}
 

@@ -1649,12 +1649,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Meeting not found" });
       }
       
+      const userMemberships = await storage.getMembershipsByUser(user.id);
+
       if (user.global_role !== "Creator") {
-        const userMemberships = await storage.getMembershipsByUser(user.id);
         const hasAccess = userMemberships.some(m => m.schoolId === meeting.schoolId);
         
         if (!hasAccess) {
           return res.status(403).json({ message: "Forbidden: You don't have access to this meeting" });
+        }
+      }
+      
+      // If trying to set completed=true, enforce dual-completion:
+      // 1. Only Leader/Admin/Creator can confirm completion
+      // 2. The assignee must have marked userCompleted first
+      if (updates.completed === true) {
+        const membership = userMemberships.find(m => m.schoolId === meeting.schoolId);
+        const isManagerOrAbove = user.global_role === "Creator" || 
+          (membership && (membership.role === "Admin" || membership.role === "Leader"));
+        
+        if (!isManagerOrAbove) {
+          return res.status(403).json({ message: "Only Leaders, Admins, or Creators can confirm action completion" });
+        }
+        
+        // Check the current action to ensure user has self-completed first
+        const [currentAction] = await db
+          .select()
+          .from(meetingActions)
+          .where(eq(meetingActions.id, actionId));
+        
+        if (currentAction && !currentAction.userCompleted) {
+          return res.status(400).json({ message: "The assignee must mark this action as complete before a manager can confirm it" });
         }
       }
       
@@ -2095,6 +2119,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching user's actions:", error);
       res.status(500).json({ message: "Failed to fetch actions" });
+    }
+  });
+
+  // PATCH /api/my-actions/:actionId/user-complete - Toggle user self-completion
+  app.patch("/api/my-actions/:actionId/user-complete", isAuthenticated, async (req, res) => {
+    try {
+      const user = req.user!;
+      const { actionId } = req.params;
+
+      // Get all user's memberships
+      const memberships = await storage.getMembershipsByUser(user.id);
+      const membershipIds = memberships.map(m => m.id);
+
+      // Fetch the action
+      const [action] = await db
+        .select()
+        .from(meetingActions)
+        .where(eq(meetingActions.id, actionId));
+
+      if (!action) {
+        return res.status(404).json({ message: "Action not found" });
+      }
+
+      // Verify the action is assigned to the current user
+      if (!membershipIds.includes(action.assignedToMembershipId)) {
+        return res.status(403).json({ message: "This action is not assigned to you" });
+      }
+
+      // Toggle user completion
+      const newUserCompleted = !action.userCompleted;
+      const [updated] = await db
+        .update(meetingActions)
+        .set({
+          userCompleted: newUserCompleted,
+          userCompletedAt: newUserCompleted ? new Date() : null,
+          updatedAt: new Date(),
+        })
+        .where(eq(meetingActions.id, actionId))
+        .returning();
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Error toggling user completion:", error);
+      res.status(500).json({ message: "Failed to update action" });
     }
   });
 

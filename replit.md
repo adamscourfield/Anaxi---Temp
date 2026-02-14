@@ -66,6 +66,13 @@ A dedicated analytics page provides insights into teacher observations, accessib
   - Union-based delta calculation ensures all items from both periods are compared
   - Per-teacher metrics with category-level breakdowns for coaching insights
 
+### Meeting Actions Dual-Completion System
+Meeting actions use a two-step completion workflow:
+- **User Self-Completion**: The assignee marks an action as complete via `PATCH /api/my-actions/:actionId/user-complete` (toggles `userCompleted` field). Available on Profile page.
+- **Manager Confirmation**: Leaders, Admins, or Creators confirm completion via `PATCH /api/meetings/:id/actions/:actionId` (sets `completed` field). Only available when `userCompleted` is true. Available on Meeting Details page.
+- Actions flow through states: Open/In Progress → User Completed (awaiting confirmation) → Fully Completed.
+- Dashboard and Profile page filter out user-completed actions from active counts.
+
 ### Birthday Tracking
 The platform tracks birthdays for both staff and students, with corresponding fields in `users` and `students` tables. API endpoints are available to retrieve upcoming birthdays, and access to this information is restricted to Leaders, Admins, and Creators.
 

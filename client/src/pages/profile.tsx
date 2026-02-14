@@ -239,20 +239,38 @@ export default function Profile() {
     return <Badge>{status}</Badge>;
   };
 
-  // Helper function to get action status badge
-  const getActionStatusBadge = (status: string, completed: boolean) => {
-    if (completed) {
-      return <Badge variant="default" className="gap-1"><CheckCircle className="w-3 h-3" /> Done</Badge>;
-    } else if (status === "in_progress") {
+  // Mutation for user self-completion toggle
+  const userCompleteMutation = useMutation({
+    mutationFn: async (actionId: string) => {
+      const res = await apiRequest("PATCH", `/api/my-actions/${actionId}/user-complete`);
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/my-actions"] });
+      toast({ title: "Action updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update action", variant: "destructive" });
+    },
+  });
+
+  // Helper function to get action status badge with dual-completion info
+  const getActionStatusBadge = (action: MeetingAction) => {
+    if (action.completed) {
+      return <Badge variant="default" className="gap-1"><CheckCircle className="w-3 h-3" /> Fully Completed</Badge>;
+    } else if (action.userCompleted) {
+      return <Badge variant="outline" className="gap-1 border-green-500 text-green-600"><Clock className="w-3 h-3" /> Awaiting Manager Confirmation</Badge>;
+    } else if (action.status === "in_progress") {
       return <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" /> In Progress</Badge>;
     } else {
       return <Badge variant="secondary" className="gap-1">Open</Badge>;
     }
   };
 
-  // Group actions by status
-  const openActions = meetingActions.filter(a => !a.completed && a.status === "open");
-  const inProgressActions = meetingActions.filter(a => !a.completed && a.status === "in_progress");
+  // Group actions by status - userCompleted but not manager-confirmed goes into a separate group
+  const openActions = meetingActions.filter(a => !a.completed && !a.userCompleted && a.status === "open");
+  const inProgressActions = meetingActions.filter(a => !a.completed && !a.userCompleted && a.status === "in_progress");
+  const awaitingConfirmationActions = meetingActions.filter(a => !a.completed && a.userCompleted);
   const completedActions = meetingActions.filter(a => a.completed);
 
   return (
@@ -579,12 +597,12 @@ export default function Profile() {
                     {openActions.map((action) => (
                       <div
                         key={action.id}
-                        className="flex items-start p-4 rounded-lg border hover-elevate"
+                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate"
                         data-testid={`action-${action.id}`}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            {getActionStatusBadge(action.status, action.completed)}
+                            {getActionStatusBadge(action)}
                           </div>
                           <p className="text-sm font-medium">{action.description}</p>
                           {action.dueDate && (
@@ -593,6 +611,16 @@ export default function Profile() {
                             </p>
                           )}
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => userCompleteMutation.mutate(action.id)}
+                          disabled={userCompleteMutation.isPending}
+                          data-testid={`button-complete-action-${action.id}`}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Mark Complete
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -607,12 +635,12 @@ export default function Profile() {
                     {inProgressActions.map((action) => (
                       <div
                         key={action.id}
-                        className="flex items-start p-4 rounded-lg border hover-elevate"
+                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate"
                         data-testid={`action-${action.id}`}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            {getActionStatusBadge(action.status, action.completed)}
+                            {getActionStatusBadge(action)}
                           </div>
                           <p className="text-sm font-medium">{action.description}</p>
                           {action.dueDate && (
@@ -621,6 +649,54 @@ export default function Profile() {
                             </p>
                           )}
                         </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => userCompleteMutation.mutate(action.id)}
+                          disabled={userCompleteMutation.isPending}
+                          data-testid={`button-complete-action-${action.id}`}
+                        >
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                          Mark Complete
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Awaiting Manager Confirmation */}
+              {awaitingConfirmationActions.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-semibold mb-3 text-muted-foreground">Awaiting Confirmation ({awaitingConfirmationActions.length})</h3>
+                  <div className="space-y-2">
+                    {awaitingConfirmationActions.map((action) => (
+                      <div
+                        key={action.id}
+                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate"
+                        data-testid={`action-${action.id}`}
+                      >
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            {getActionStatusBadge(action)}
+                          </div>
+                          <p className="text-sm font-medium">{action.description}</p>
+                          {action.userCompletedAt && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              You completed: {format(new Date(action.userCompletedAt), "MMM d, yyyy")}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => userCompleteMutation.mutate(action.id)}
+                          disabled={userCompleteMutation.isPending}
+                          data-testid={`button-undo-complete-action-${action.id}`}
+                        >
+                          <XCircle className="w-4 h-4 mr-1" />
+                          Undo
+                        </Button>
                       </div>
                     ))}
                   </div>
@@ -640,12 +716,12 @@ export default function Profile() {
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            {getActionStatusBadge(action.status, action.completed)}
+                            {getActionStatusBadge(action)}
                           </div>
                           <p className="text-sm font-medium line-through">{action.description}</p>
                           {action.completedAt && (
                             <p className="text-sm text-muted-foreground mt-1">
-                              Completed: {format(new Date(action.completedAt), "MMM d, yyyy")}
+                              Confirmed: {format(new Date(action.completedAt), "MMM d, yyyy")}
                             </p>
                           )}
                         </div>

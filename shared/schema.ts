@@ -231,7 +231,9 @@ export const meetingActions = pgTable("meeting_actions", {
   createdByMembershipId: varchar("created_by_membership_id").notNull().references(() => schoolMemberships.id),
   description: text("description").notNull(),
   status: text("status").notNull().default("open"), // "open", "in_progress", "done"
-  completed: boolean("completed").notNull().default(false), // Simple toggle for completion
+  completed: boolean("completed").notNull().default(false), // Manager/line manager confirmation of completion
+  userCompleted: boolean("user_completed").notNull().default(false), // Assignee self-completion
+  userCompletedAt: timestamp("user_completed_at"),
   originalMeetingId: varchar("original_meeting_id").references(() => meetings.id), // Tracks which meeting this action originated from (for carryover)
   dueDate: timestamp("due_date"),
   completedAt: timestamp("completed_at"),

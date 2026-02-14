@@ -1,20 +1,23 @@
 import { useEffect, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Users, Calendar, CheckSquare, User } from "lucide-react";
+import { ArrowLeft, Users, Calendar, CheckSquare, User, CheckCircle, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { useSchool } from "@/hooks/use-school";
 import { useAuth } from "@/hooks/use-auth";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function MeetingDetails() {
   const { id } = useParams();
   const [, setLocation] = useLocation();
   const { currentSchoolId } = useSchool();
   const { user } = useAuth();
+  const { toast } = useToast();
 
   const { data: meeting, isLoading } = useQuery({
     queryKey: ["/api/meetings", id],
@@ -29,6 +32,24 @@ export default function MeetingDetails() {
   const { data: actions = [] } = useQuery({
     queryKey: ["/api/meetings", id, "actions"],
     enabled: !!id,
+  });
+
+  // Manager confirmation mutation - toggles the 'completed' field
+  const managerConfirmMutation = useMutation({
+    mutationFn: async ({ actionId, completed }: { actionId: string; completed: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/meetings/${id}/actions/${actionId}`, {
+        completed,
+        completedAt: completed ? new Date().toISOString() : null,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings", id, "actions"] });
+      toast({ title: "Action updated" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update action", variant: "destructive" });
+    },
   });
 
   // Filter out current user from attendees
@@ -219,18 +240,20 @@ export default function MeetingDetails() {
                   {actions.map((action: any) => (
                     <div
                       key={action.id}
-                      className="flex items-start gap-3 p-4 rounded-lg border"
+                      className={`flex items-start gap-3 p-4 rounded-lg border ${action.completed ? "opacity-75" : ""}`}
                       data-testid={`action-${action.id}`}
                     >
                       <CheckSquare
                         className={`w-5 h-5 mt-0.5 flex-shrink-0 ${
-                          action.status === "completed"
+                          action.completed
                             ? "text-green-600"
+                            : action.userCompleted
+                            ? "text-amber-500"
                             : "text-muted-foreground"
                         }`}
                       />
                       <div className="flex-1 space-y-2">
-                        <p className="font-medium">{action.description}</p>
+                        <p className={`font-medium ${action.completed ? "line-through" : ""}`}>{action.description}</p>
                         <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                           {action.assignedTo && (
                             <span className="flex items-center gap-1">
@@ -245,17 +268,47 @@ export default function MeetingDetails() {
                             </span>
                           )}
                         </div>
-                        <Badge
-                          variant={
-                            action.status === "completed"
-                              ? "default"
-                              : action.status === "in_progress"
-                              ? "secondary"
-                              : "outline"
-                          }
-                        >
-                          {action.status || "open"}
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {action.completed ? (
+                            <Badge variant="default" className="gap-1">
+                              <CheckCircle className="w-3 h-3" /> Fully Completed
+                            </Badge>
+                          ) : action.userCompleted ? (
+                            <Badge variant="outline" className="gap-1 border-amber-500 text-amber-600">
+                              <Clock className="w-3 h-3" /> User Marked Complete
+                            </Badge>
+                          ) : (
+                            <Badge variant={action.status === "in_progress" ? "secondary" : "outline"}>
+                              {action.status || "open"}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex-shrink-0">
+                        {action.completed ? (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => managerConfirmMutation.mutate({ actionId: action.id, completed: false })}
+                            disabled={managerConfirmMutation.isPending}
+                            data-testid={`button-undo-confirm-${action.id}`}
+                          >
+                            Undo
+                          </Button>
+                        ) : action.userCompleted ? (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={() => managerConfirmMutation.mutate({ actionId: action.id, completed: true })}
+                            disabled={managerConfirmMutation.isPending}
+                            data-testid={`button-confirm-action-${action.id}`}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Confirm Complete
+                          </Button>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">Awaiting user</p>
+                        )}
                       </div>
                     </div>
                   ))}
