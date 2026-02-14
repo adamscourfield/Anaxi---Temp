@@ -696,8 +696,8 @@ export default function Meetings() {
                   data-testid="button-submit"
                 >
                   {createMeetingMutation.isPending
-                    ? "Creating..."
-                    : `Create ${formType === "conversation" ? "Conversation" : "Meeting"}`}
+                    ? "Saving..."
+                    : `Save ${formType === "conversation" ? "Conversation" : "Meeting"}`}
                 </Button>
                 <Button
                   type="button"
