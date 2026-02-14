@@ -28,6 +28,7 @@ import { CsvColumnMapper } from "@/components/csv-column-mapper";
 const addStudentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   upn: z.string().optional(),
+  yearGroup: z.string().optional(),
   send: z.boolean().default(false),
   pp: z.boolean().default(false),
   dateOfBirth: z.string().optional(),
@@ -44,6 +45,7 @@ type CompleteOncallFormValues = z.infer<typeof completeOncallSchema>;
 const editStudentSchema = z.object({
   name: z.string().min(1, "Name is required"),
   upn: z.string().optional(),
+  yearGroup: z.string().optional(),
   send: z.boolean().default(false),
   pp: z.boolean().default(false),
   dateOfBirth: z.string().optional(),
@@ -200,6 +202,7 @@ export default function BehaviourManagementPage() {
     defaultValues: {
       name: "",
       upn: "",
+      yearGroup: "",
       send: false,
       pp: false,
       dateOfBirth: "",
@@ -212,6 +215,7 @@ export default function BehaviourManagementPage() {
     defaultValues: {
       name: "",
       upn: "",
+      yearGroup: "",
       send: false,
       pp: false,
       dateOfBirth: "",
@@ -569,6 +573,19 @@ export default function BehaviourManagementPage() {
                       />
                       <FormField
                         control={addStudentForm.control}
+                        name="yearGroup"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Year Group</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. 7, 8, 9..." {...field} data-testid="input-student-year-group" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={addStudentForm.control}
                         name="send"
                         render={({ field }) => (
                           <FormItem className="flex flex-row items-start space-x-3 space-y-0">
@@ -731,6 +748,19 @@ export default function BehaviourManagementPage() {
                       />
                       <FormField
                         control={editStudentForm.control}
+                        name="yearGroup"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Year Group</FormLabel>
+                            <FormControl>
+                              <Input placeholder="e.g. 7, 8, 9..." {...field} data-testid="input-edit-student-year-group" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={editStudentForm.control}
                         name="send"
                         render={({ field }) => (
                           <FormItem className="flex flex-row items-start space-x-3 space-y-0">
@@ -842,6 +872,7 @@ export default function BehaviourManagementPage() {
                       <TableRow>
                         <TableHead>Name</TableHead>
                         <TableHead>UPN</TableHead>
+                        <TableHead>Year</TableHead>
                         <TableHead>SEND</TableHead>
                         <TableHead>PP</TableHead>
                         <TableHead>On-Calls</TableHead>
@@ -856,6 +887,7 @@ export default function BehaviourManagementPage() {
                         <TableRow key={student.id}>
                           <TableCell className="font-medium">{student.name}</TableCell>
                           <TableCell className="text-muted-foreground font-mono text-sm">{student.upn || "-"}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{student.yearGroup || "-"}</TableCell>
                           <TableCell>
                             {student.send ? (
                               <Badge variant="default">Yes</Badge>
@@ -892,6 +924,7 @@ export default function BehaviourManagementPage() {
                                   editStudentForm.reset({
                                     name: student.name,
                                     upn: student.upn || "",
+                                    yearGroup: student.yearGroup || "",
                                     send: student.send,
                                     pp: student.pp,
                                     dateOfBirth: student.dateOfBirth || "",
