@@ -57,7 +57,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
 import { CalendarIcon, Plus, Eye, Check, X, FileText, ExternalLink, Search, CalendarDays, List, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, eachDayOfInterval, startOfMonth, endOfMonth, getDay, addMonths, subMonths, isSameMonth, isSameDay } from "date-fns";
@@ -606,15 +605,18 @@ export default function LeaveRequests() {
 
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
           <div className="flex items-center gap-2 flex-wrap">
-            <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-              <TabsList data-testid="tabs-status-filter">
-                <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
-                <TabsTrigger value="pending" data-testid="tab-pending">Pending</TabsTrigger>
-                <TabsTrigger value="approved_with_pay" data-testid="tab-approved-with-pay">With Pay</TabsTrigger>
-                <TabsTrigger value="approved_without_pay" data-testid="tab-approved-without-pay">Without Pay</TabsTrigger>
-                <TabsTrigger value="denied" data-testid="tab-denied">Denied</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+              <SelectTrigger className="w-[180px]" data-testid="select-status-filter">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="approved_with_pay">Approved (With Pay)</SelectItem>
+                <SelectItem value="approved_without_pay">Approved (Without Pay)</SelectItem>
+                <SelectItem value="denied">Denied</SelectItem>
+              </SelectContent>
+            </Select>
             <div className="flex border rounded-md">
               <Button
                 variant="ghost"
