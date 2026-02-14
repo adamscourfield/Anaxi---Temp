@@ -662,7 +662,7 @@ export default function LeaveRequests() {
                             </TooltipTrigger>
                             <TooltipContent>View details</TooltipContent>
                           </Tooltip>
-                          {canApprove && request.status === "pending" && !isOwnRequest && (
+                          {canApprove && request.status === "pending" && (
                             <>
                               <Tooltip>
                                 <TooltipTrigger asChild>
@@ -811,7 +811,7 @@ export default function LeaveRequests() {
                   </div>
                 )}
 
-                {canApprove && selectedRequest.status === "pending" && (!currentMembership || selectedRequest.membershipId !== currentMembership.id) && (
+                {canApprove && selectedRequest.status === "pending" && (
                   <div className="flex justify-end gap-2 pt-4 border-t">
                     <Button
                       variant="destructive"
