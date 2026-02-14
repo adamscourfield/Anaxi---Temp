@@ -15,7 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { User, Mail, Image as ImageIcon, Upload, Calendar, CheckCircle, XCircle, Clock, FileText, ExternalLink } from "lucide-react";
+import { User, Mail, Image as ImageIcon, Upload, Calendar, CheckCircle, XCircle, Clock, FileText, ExternalLink, ChevronRight } from "lucide-react";
+import { useLocation } from "wouter";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from "@uppy/core";
 import type { LeaveRequest, MeetingAction } from "@shared/schema";
@@ -55,6 +56,7 @@ interface EnrichedLeaveRequest extends LeaveRequest {
 export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
   const [isEditing, setIsEditing] = useState(false);
   const [selectedLeave, setSelectedLeave] = useState<EnrichedLeaveRequest | null>(null);
   const [formData, setFormData] = useState({
@@ -597,8 +599,9 @@ export default function Profile() {
                     {openActions.map((action) => (
                       <div
                         key={action.id}
-                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate"
+                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate cursor-pointer"
                         data-testid={`action-${action.id}`}
+                        onClick={() => navigate(`/meetings/${action.meetingId}`)}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -611,16 +614,19 @@ export default function Profile() {
                             </p>
                           )}
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => userCompleteMutation.mutate(action.id)}
-                          disabled={userCompleteMutation.isPending}
-                          data-testid={`button-complete-action-${action.id}`}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Mark Complete
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => { e.stopPropagation(); userCompleteMutation.mutate(action.id); }}
+                            disabled={userCompleteMutation.isPending}
+                            data-testid={`button-complete-action-${action.id}`}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Mark Complete
+                          </Button>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -635,8 +641,9 @@ export default function Profile() {
                     {inProgressActions.map((action) => (
                       <div
                         key={action.id}
-                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate"
+                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate cursor-pointer"
                         data-testid={`action-${action.id}`}
+                        onClick={() => navigate(`/meetings/${action.meetingId}`)}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -649,16 +656,19 @@ export default function Profile() {
                             </p>
                           )}
                         </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => userCompleteMutation.mutate(action.id)}
-                          disabled={userCompleteMutation.isPending}
-                          data-testid={`button-complete-action-${action.id}`}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Mark Complete
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => { e.stopPropagation(); userCompleteMutation.mutate(action.id); }}
+                            disabled={userCompleteMutation.isPending}
+                            data-testid={`button-complete-action-${action.id}`}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Mark Complete
+                          </Button>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -673,8 +683,9 @@ export default function Profile() {
                     {awaitingConfirmationActions.map((action) => (
                       <div
                         key={action.id}
-                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate"
+                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate cursor-pointer"
                         data-testid={`action-${action.id}`}
+                        onClick={() => navigate(`/meetings/${action.meetingId}`)}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -687,16 +698,19 @@ export default function Profile() {
                             </p>
                           )}
                         </div>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => userCompleteMutation.mutate(action.id)}
-                          disabled={userCompleteMutation.isPending}
-                          data-testid={`button-undo-complete-action-${action.id}`}
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Undo
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => { e.stopPropagation(); userCompleteMutation.mutate(action.id); }}
+                            disabled={userCompleteMutation.isPending}
+                            data-testid={`button-undo-complete-action-${action.id}`}
+                          >
+                            <XCircle className="w-4 h-4 mr-1" />
+                            Undo
+                          </Button>
+                          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -711,8 +725,9 @@ export default function Profile() {
                     {completedActions.map((action) => (
                       <div
                         key={action.id}
-                        className="flex items-start p-4 rounded-lg border hover-elevate opacity-75"
+                        className="flex items-start gap-3 p-4 rounded-lg border hover-elevate opacity-75 cursor-pointer"
                         data-testid={`action-${action.id}`}
+                        onClick={() => navigate(`/meetings/${action.meetingId}`)}
                       >
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
@@ -725,6 +740,7 @@ export default function Profile() {
                             </p>
                           )}
                         </div>
+                        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-1" />
                       </div>
                     ))}
                   </div>
