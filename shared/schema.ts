@@ -290,6 +290,7 @@ export const students = pgTable("students", {
   name: text("name").notNull(),
   upn: varchar("upn"), // Unique Pupil Number - national identifier for students
   dateOfBirth: date("date_of_birth"), // Student date of birth for birthday tracking
+  yearGroup: varchar("year_group"), // Year group e.g. "7", "8", "9", "10", "11", "12", "13"
   send: boolean("send").default(false).notNull(), // Special Educational Needs and Disabilities
   pp: boolean("pp").default(false).notNull(), // Pupil Premium
   isArchived: boolean("is_archived").default(false).notNull(),
