@@ -1,16 +1,34 @@
-import { useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Users, Calendar, CheckSquare, User, CheckCircle, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, Users, Calendar, CheckSquare, User, CheckCircle, Clock, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { useSchool } from "@/hooks/use-school";
 import { useAuth } from "@/hooks/use-auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+
+interface Teacher {
+  id: string;
+  userId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+}
 
 export default function MeetingDetails() {
   const { id } = useParams();
@@ -18,6 +36,10 @@ export default function MeetingDetails() {
   const { currentSchoolId } = useSchool();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [showAddAction, setShowAddAction] = useState(false);
+  const [newActionDescription, setNewActionDescription] = useState("");
+  const [newActionAssignee, setNewActionAssignee] = useState("");
+  const [newActionDueDate, setNewActionDueDate] = useState("");
 
   const { data: meeting, isLoading } = useQuery({
     queryKey: ["/api/meetings", id],
@@ -33,6 +55,80 @@ export default function MeetingDetails() {
     queryKey: ["/api/meetings", id, "actions"],
     enabled: !!id,
   });
+
+  const { data: teachers = [] } = useQuery<Teacher[]>({
+    queryKey: ["/api/schools", meeting?.schoolId, "memberships"],
+    enabled: !!meeting?.schoolId,
+    queryFn: async () => {
+      const response = await fetch(`/api/schools/${meeting?.schoolId}/memberships`);
+      if (!response.ok) throw new Error("Failed to fetch teachers");
+      const memberships = await response.json();
+      return memberships.map((m: any) => ({
+        id: m.id,
+        userId: m.userId,
+        email: m.user?.email || "",
+        firstName: m.user?.first_name || "",
+        lastName: m.user?.last_name || "",
+        role: m.role,
+      }));
+    },
+  });
+
+  const { data: currentMembership } = useQuery({
+    queryKey: ["/api/my-membership-role", meeting?.schoolId],
+    enabled: !!user && !!meeting?.schoolId,
+    queryFn: async () => {
+      try {
+        const response = await fetch(`/api/schools/${meeting?.schoolId}/memberships`);
+        if (!response.ok) return null;
+        const memberships = await response.json();
+        return memberships.find((m: any) => m.userId === user?.id) || null;
+      } catch {
+        return null;
+      }
+    },
+  });
+
+  const isCreator = user?.global_role === "Creator";
+  const isManagerOrAbove = isCreator || 
+    (currentMembership && (currentMembership.role === "Admin" || currentMembership.role === "Leader"));
+
+  const addActionMutation = useMutation({
+    mutationFn: async (data: { description: string; assignedToMembershipId: string; dueDate?: string }) => {
+      const createdByMembershipId = isCreator
+        ? teachers.find((t: Teacher) => t.userId === user?.id)?.id || data.assignedToMembershipId
+        : currentMembership?.id;
+      const res = await apiRequest("POST", `/api/meetings/${id}/actions`, {
+        ...data,
+        createdByMembershipId,
+        dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/meetings", id, "actions"] });
+      toast({ title: "Action item added" });
+      setNewActionDescription("");
+      setNewActionAssignee("");
+      setNewActionDueDate("");
+      setShowAddAction(false);
+    },
+    onError: () => {
+      toast({ title: "Failed to add action item", variant: "destructive" });
+    },
+  });
+
+  const handleAddAction = () => {
+    if (!newActionDescription.trim() || !newActionAssignee) {
+      toast({ title: "Please fill in the description and assign to someone", variant: "destructive" });
+      return;
+    }
+    addActionMutation.mutate({
+      description: newActionDescription.trim(),
+      assignedToMembershipId: newActionAssignee,
+      dueDate: newActionDueDate || undefined,
+    });
+  };
 
   // Manager confirmation mutation - toggles the 'completed' field
   const managerConfirmMutation = useMutation({
@@ -228,13 +324,88 @@ export default function MeetingDetails() {
 
           {/* Action Items Card */}
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between gap-2">
               <CardTitle className="flex items-center gap-2">
                 <CheckSquare className="w-5 h-5" />
                 Action Items {actions.length > 0 && `(${actions.length})`}
               </CardTitle>
+              {isManagerOrAbove && !showAddAction && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowAddAction(true)}
+                  data-testid="button-add-action"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Action
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
+              {showAddAction && (
+                <div className="space-y-4 p-4 rounded-lg border mb-4" data-testid="form-add-action">
+                  <div>
+                    <Label htmlFor="action-description">Description</Label>
+                    <Input
+                      id="action-description"
+                      placeholder="Describe the action item..."
+                      value={newActionDescription}
+                      onChange={(e) => setNewActionDescription(e.target.value)}
+                      data-testid="input-action-description"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="action-assignee">Assign To</Label>
+                      <Select value={newActionAssignee} onValueChange={setNewActionAssignee}>
+                        <SelectTrigger data-testid="select-action-assignee">
+                          <SelectValue placeholder="Select a person" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {teachers.map((teacher) => (
+                            <SelectItem key={teacher.id} value={teacher.id}>
+                              {teacher.firstName} {teacher.lastName}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="action-due-date">Due Date (Optional)</Label>
+                      <Input
+                        id="action-due-date"
+                        type="date"
+                        value={newActionDueDate}
+                        onChange={(e) => setNewActionDueDate(e.target.value)}
+                        data-testid="input-action-due-date"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      onClick={handleAddAction}
+                      disabled={addActionMutation.isPending}
+                      data-testid="button-save-action"
+                    >
+                      {addActionMutation.isPending ? "Saving..." : "Save Action"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setShowAddAction(false);
+                        setNewActionDescription("");
+                        setNewActionAssignee("");
+                        setNewActionDueDate("");
+                      }}
+                      data-testid="button-cancel-action"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
               {actions.length > 0 ? (
                 <div className="space-y-3">
                   {actions.map((action: any) => (
