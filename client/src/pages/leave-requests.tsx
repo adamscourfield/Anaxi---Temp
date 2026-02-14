@@ -59,7 +59,7 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plus, Eye, Check, X, DollarSign, CheckCircle, XCircle, FileText, ExternalLink, Search } from "lucide-react";
+import { CalendarIcon, Plus, Eye, Check, X, FileText, ExternalLink, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ObjectUploader } from "@/components/object-uploader";
@@ -141,7 +141,8 @@ export default function LeaveRequests() {
   const [selectedRequest, setSelectedRequest] = useState<EnrichedLeaveRequest | null>(null);
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
-  const [currentAction, setCurrentAction] = useState<{ requestId: string; status: string } | null>(null);
+  const [approvalMode, setApprovalMode] = useState<"approve" | "deny">("approve");
+  const [approvalPayType, setApprovalPayType] = useState<"approved_with_pay" | "approved_without_pay">("approved_with_pay");
   const [responseNotes, setResponseNotes] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -246,7 +247,6 @@ export default function LeaveRequests() {
       setSelectedRequest(null);
       setDetailsDialogOpen(false);
       setApprovalDialogOpen(false);
-      setCurrentAction(null);
       setResponseNotes("");
     },
     onError: () => {
@@ -277,44 +277,41 @@ export default function LeaveRequests() {
     createRequestMutation.mutate(submitData);
   };
 
-  const handleApprovalAction = (request: EnrichedLeaveRequest, status: "approved_with_pay" | "approved_without_pay" | "denied") => {
+  const openApproveDialog = (request: EnrichedLeaveRequest) => {
     setSelectedRequest(request);
-    setCurrentAction({ requestId: request.id, status });
+    setApprovalMode("approve");
+    setApprovalPayType("approved_with_pay");
+    setResponseNotes("");
+    setApprovalDialogOpen(true);
+  };
+
+  const openDenyDialog = (request: EnrichedLeaveRequest) => {
+    setSelectedRequest(request);
+    setApprovalMode("deny");
     setResponseNotes("");
     setApprovalDialogOpen(true);
   };
 
   const confirmApproval = () => {
-    if (!currentAction) return;
+    if (!selectedRequest) return;
 
-    if (currentAction.status === "denied" && !responseNotes.trim()) {
+    if (approvalMode === "deny" && !responseNotes.trim()) {
       toast({
         title: "Error",
-        description: "Response notes are required when denying a request",
+        description: "Please provide a reason for denying this request",
         variant: "destructive",
       });
       return;
     }
 
+    const status = approvalMode === "deny" ? "denied" : approvalPayType;
+
     updateRequestMutation.mutate({
-      id: currentAction.requestId,
-      status: currentAction.status,
+      id: selectedRequest.id,
+      status,
       notes: responseNotes,
       approvedBy: currentMembership?.id,
     });
-  };
-
-  const getActionLabel = (status: string) => {
-    switch (status) {
-      case "approved_with_pay":
-        return "Approve with Pay";
-      case "approved_without_pay":
-        return "Approve without Pay";
-      case "denied":
-        return "Deny Request";
-      default:
-        return "";
-    }
   };
 
   const requiresAdditionalDetails = watchedType === "medical" ||
@@ -662,47 +659,27 @@ export default function LeaveRequests() {
                             </TooltipTrigger>
                             <TooltipContent>View details</TooltipContent>
                           </Tooltip>
-                          {canApprove && request.status === "pending" && (
+                          {canApprove && request.status === "pending" && !isOwnRequest && (
                             <>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="default"
-                                    onClick={() => handleApprovalAction(request, "approved_with_pay")}
-                                    data-testid={`button-approve-with-pay-${request.id}`}
-                                  >
-                                    <DollarSign className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Approve with pay</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="secondary"
-                                    onClick={() => handleApprovalAction(request, "approved_without_pay")}
-                                    data-testid={`button-approve-without-pay-${request.id}`}
-                                  >
-                                    <CheckCircle className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Approve without pay</TooltipContent>
-                              </Tooltip>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="icon"
-                                    variant="destructive"
-                                    onClick={() => handleApprovalAction(request, "denied")}
-                                    data-testid={`button-deny-${request.id}`}
-                                  >
-                                    <XCircle className="h-4 w-4" />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent>Deny request</TooltipContent>
-                              </Tooltip>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openApproveDialog(request)}
+                                data-testid={`button-approve-${request.id}`}
+                              >
+                                <Check className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-destructive"
+                                onClick={() => openDenyDialog(request)}
+                                data-testid={`button-deny-${request.id}`}
+                              >
+                                <X className="h-4 w-4 mr-1" />
+                                Deny
+                              </Button>
                             </>
                           )}
                         </div>
@@ -811,30 +788,23 @@ export default function LeaveRequests() {
                   </div>
                 )}
 
-                {canApprove && selectedRequest.status === "pending" && (
+                {canApprove && selectedRequest.status === "pending" && (!currentMembership || selectedRequest.membershipId !== currentMembership.id) && (
                   <div className="flex justify-end gap-2 pt-4 border-t">
                     <Button
-                      variant="destructive"
-                      onClick={() => handleApprovalAction(selectedRequest, "denied")}
+                      variant="outline"
+                      className="text-destructive"
+                      onClick={() => { setDetailsDialogOpen(false); openDenyDialog(selectedRequest); }}
                       data-testid="button-details-deny"
                     >
-                      <XCircle className="w-4 h-4 mr-2" />
+                      <X className="w-4 h-4 mr-1" />
                       Deny
                     </Button>
                     <Button
-                      variant="secondary"
-                      onClick={() => handleApprovalAction(selectedRequest, "approved_without_pay")}
-                      data-testid="button-details-approve-without-pay"
+                      onClick={() => { setDetailsDialogOpen(false); openApproveDialog(selectedRequest); }}
+                      data-testid="button-details-approve"
                     >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      Approve Without Pay
-                    </Button>
-                    <Button
-                      onClick={() => handleApprovalAction(selectedRequest, "approved_with_pay")}
-                      data-testid="button-details-approve-with-pay"
-                    >
-                      <DollarSign className="w-4 h-4 mr-2" />
-                      Approve With Pay
+                      <Check className="w-4 h-4 mr-1" />
+                      Approve
                     </Button>
                   </div>
                 )}
@@ -843,27 +813,49 @@ export default function LeaveRequests() {
           </DialogContent>
         </Dialog>
 
-        {/* Approval Confirmation Dialog */}
-        <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+        {/* Approval / Deny Dialog */}
+        <Dialog open={approvalDialogOpen} onOpenChange={(open) => {
+          if (!open) {
+            setApprovalDialogOpen(false);
+            setResponseNotes("");
+          }
+        }}>
           <DialogContent data-testid="dialog-approval">
             <DialogHeader>
               <DialogTitle>
-                {currentAction ? getActionLabel(currentAction.status) : "Confirm Action"}
+                {approvalMode === "approve" ? "Approve Leave Request" : "Deny Leave Request"}
               </DialogTitle>
               <DialogDescription>
-                {currentAction?.status === "denied"
-                  ? "Please provide notes explaining your decision. This is required when denying a request."
-                  : "Please provide notes for your decision. This will be visible to the staff member."}
+                {approvalMode === "approve"
+                  ? "Choose the approval type and add any comments for the staff member."
+                  : "Please provide a reason for denying this request. This is required."}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              {approvalMode === "approve" && (
+                <div className="space-y-2">
+                  <Label>Approval Type</Label>
+                  <Select
+                    value={approvalPayType}
+                    onValueChange={(v) => setApprovalPayType(v as "approved_with_pay" | "approved_without_pay")}
+                  >
+                    <SelectTrigger data-testid="select-approval-type">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="approved_with_pay">Approved with Pay</SelectItem>
+                      <SelectItem value="approved_without_pay">Approved without Pay</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="response-notes">
-                  Response Notes {currentAction?.status === "denied" && <span className="text-destructive">*</span>}
+                  Comments {approvalMode === "deny" && <span className="text-destructive">*</span>}
                 </Label>
                 <Textarea
                   id="response-notes"
-                  placeholder="Enter your notes here..."
+                  placeholder={approvalMode === "deny" ? "Reason for denial..." : "Any notes for the staff member (optional)..."}
                   value={responseNotes}
                   onChange={(e) => setResponseNotes(e.target.value)}
                   rows={4}
@@ -876,20 +868,30 @@ export default function LeaveRequests() {
                 variant="outline"
                 onClick={() => {
                   setApprovalDialogOpen(false);
-                  setCurrentAction(null);
                   setResponseNotes("");
                 }}
                 data-testid="button-cancel-approval"
               >
                 Cancel
               </Button>
-              <Button
-                onClick={confirmApproval}
-                disabled={updateRequestMutation.isPending}
-                data-testid="button-confirm-approval"
-              >
-                {updateRequestMutation.isPending ? "Processing..." : "Confirm"}
-              </Button>
+              {approvalMode === "deny" ? (
+                <Button
+                  variant="destructive"
+                  onClick={confirmApproval}
+                  disabled={updateRequestMutation.isPending}
+                  data-testid="button-confirm-deny"
+                >
+                  {updateRequestMutation.isPending ? "Processing..." : "Deny Request"}
+                </Button>
+              ) : (
+                <Button
+                  onClick={confirmApproval}
+                  disabled={updateRequestMutation.isPending}
+                  data-testid="button-confirm-approve"
+                >
+                  {updateRequestMutation.isPending ? "Processing..." : "Approve"}
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
