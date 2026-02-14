@@ -9,16 +9,54 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { User, Mail, Image as ImageIcon, Upload, Calendar, CheckCircle, XCircle, Clock } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { User, Mail, Image as ImageIcon, Upload, Calendar, CheckCircle, XCircle, Clock, FileText, ExternalLink } from "lucide-react";
 import { ObjectUploader } from "@/components/ObjectUploader";
 import type { UploadResult } from "@uppy/core";
 import type { LeaveRequest, MeetingAction } from "@shared/schema";
 import { format } from "date-fns";
 
+const leaveTypeLabels: Record<string, string> = {
+  medical: "Medical",
+  professional_development: "Professional Development",
+  annual_leave: "Annual Leave",
+  interview: "Interview",
+  other: "Other",
+};
+
+const statusLabels: Record<string, string> = {
+  pending: "Pending",
+  approved_with_pay: "Approved (With Pay)",
+  approved_without_pay: "Approved (Without Pay)",
+  denied: "Denied",
+};
+
+const formatTime12h = (time: string) => {
+  const [h, m] = time.split(":");
+  const hour = parseInt(h, 10);
+  const ampm = hour >= 12 ? "pm" : "am";
+  const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+  return `${displayHour}:${m} ${ampm}`;
+};
+
+interface EnrichedLeaveRequest extends LeaveRequest {
+  approver?: {
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null;
+}
+
 export default function Profile() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedLeave, setSelectedLeave] = useState<EnrichedLeaveRequest | null>(null);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -27,7 +65,7 @@ export default function Profile() {
   });
 
   // Fetch user's leave requests
-  const { data: leaveRequests = [], isLoading: isLoadingLeave } = useQuery<LeaveRequest[]>({
+  const { data: leaveRequests = [], isLoading: isLoadingLeave } = useQuery<EnrichedLeaveRequest[]>({
     queryKey: ["/api/my-leave-requests"],
     enabled: !!user,
   });
@@ -387,29 +425,136 @@ export default function Profile() {
           ) : (
             <div className="space-y-3">
               {leaveRequests.map((request) => (
-                <div
+                <button
                   key={request.id}
-                  className="flex items-center p-4 rounded-lg border hover-elevate"
+                  className="w-full text-left flex items-center p-4 rounded-lg border hover-elevate cursor-pointer"
+                  onClick={() => setSelectedLeave(request)}
                   data-testid={`leave-request-${request.id}`}
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <p className="font-medium">{request.type}</p>
+                      <p className="font-medium">{leaveTypeLabels[request.type] || request.type}</p>
                       {getLeaveStatusBadge(request.status)}
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {format(new Date(request.startDate), "MMM d, yyyy")} - {format(new Date(request.endDate), "MMM d, yyyy")}
+                      {format(new Date(request.startDate), "MMM d, yyyy")}
+                      {request.startTime && ` at ${formatTime12h(request.startTime)}`}
+                      {" - "}
+                      {format(new Date(request.endDate), "MMM d, yyyy")}
+                      {request.endTime && ` at ${formatTime12h(request.endTime)}`}
                     </p>
-                    {request.additionalDetails && (
-                      <p className="text-sm text-muted-foreground mt-1">{request.additionalDetails}</p>
-                    )}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Leave Request Details Dialog */}
+      <Dialog open={!!selectedLeave} onOpenChange={(open) => { if (!open) setSelectedLeave(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto" data-testid="dialog-leave-details">
+          <DialogHeader>
+            <DialogTitle>Leave Request Details</DialogTitle>
+          </DialogHeader>
+          {selectedLeave && (
+            <div className="space-y-4 py-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Leave Type</Label>
+                  <p className="text-sm font-medium" data-testid="text-leave-type">
+                    {leaveTypeLabels[selectedLeave.type] || selectedLeave.type}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">Status</Label>
+                  <div className="mt-1" data-testid="text-leave-status">
+                    {getLeaveStatusBadge(selectedLeave.status)}
+                    {selectedLeave.status !== "pending" && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {statusLabels[selectedLeave.status] || selectedLeave.status}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm text-muted-foreground">Start</Label>
+                  <p className="text-sm" data-testid="text-leave-start">
+                    {format(new Date(selectedLeave.startDate), "PPP")}
+                    {selectedLeave.startTime && (
+                      <span className="text-muted-foreground"> at {formatTime12h(selectedLeave.startTime)}</span>
+                    )}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm text-muted-foreground">End</Label>
+                  <p className="text-sm" data-testid="text-leave-end">
+                    {format(new Date(selectedLeave.endDate), "PPP")}
+                    {selectedLeave.endTime && (
+                      <span className="text-muted-foreground"> at {formatTime12h(selectedLeave.endTime)}</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm text-muted-foreground">Cover Arrangements</Label>
+                <p className="text-sm" data-testid="text-leave-cover">{selectedLeave.coverDetails}</p>
+              </div>
+
+              {selectedLeave.additionalDetails && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Additional Details</Label>
+                  <p className="text-sm whitespace-pre-wrap" data-testid="text-leave-additional">
+                    {selectedLeave.additionalDetails}
+                  </p>
+                </div>
+              )}
+
+              {selectedLeave.attachmentUrl && (
+                <div>
+                  <Label className="text-sm text-muted-foreground">Attachment</Label>
+                  <a
+                    href={selectedLeave.attachmentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                    data-testid="link-leave-attachment"
+                  >
+                    <FileText className="h-4 w-4" />
+                    View document
+                    <ExternalLink className="h-3 w-3" />
+                  </a>
+                </div>
+              )}
+
+              {selectedLeave.responseNotes && (
+                <div className="rounded-md border p-3 bg-muted/50">
+                  <Label className="text-sm text-muted-foreground">Approver Comments</Label>
+                  <p className="text-sm whitespace-pre-wrap mt-1" data-testid="text-leave-response-notes">
+                    {selectedLeave.responseNotes}
+                  </p>
+                  {selectedLeave.approver && (
+                    <p className="text-xs text-muted-foreground mt-2" data-testid="text-leave-approver">
+                      By {selectedLeave.approver.firstName} {selectedLeave.approver.lastName}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              <div>
+                <Label className="text-sm text-muted-foreground">Submitted</Label>
+                <p className="text-xs text-muted-foreground" data-testid="text-leave-submitted">
+                  {selectedLeave.createdAt ? format(new Date(selectedLeave.createdAt), "PPP 'at' p") : "-"}
+                </p>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Meeting Actions Section */}
       <Card data-testid="card-meeting-actions">

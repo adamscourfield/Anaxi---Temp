@@ -2043,8 +2043,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const leaveRequests = allLeaveRequests
         .flat()
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      // Enrich with approver info
+      const enriched = await Promise.all(
+        leaveRequests.map(async (request) => {
+          let approver = null;
+          if (request.approvedBy) {
+            const approverMembership = await storage.getMembership(request.approvedBy);
+            if (approverMembership) {
+              const approverUser = await storage.getUser(approverMembership.userId);
+              approver = approverUser ? {
+                firstName: approverUser.first_name,
+                lastName: approverUser.last_name,
+                email: approverUser.email,
+              } : null;
+            }
+          }
+          return { ...request, approver };
+        })
+      );
       
-      res.json(leaveRequests);
+      res.json(enriched);
     } catch (error) {
       console.error("Error fetching user's leave requests:", error);
       res.status(500).json({ message: "Failed to fetch leave requests" });
