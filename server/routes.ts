@@ -439,6 +439,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         canApproveAllLeave: z.boolean().optional(),
         leaveApprovalTargets: z.array(z.string()).nullable().optional(),
         canManageBehaviour: z.boolean().optional(),
+        canViewAllObservations: z.boolean().optional(),
       });
 
       const validatedData = updateSchema.parse(req.body);
@@ -3520,6 +3521,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Leaders and Teachers: See their own observations + observations for teachers they have explicit permission to view
+      // Check if user has "view all observations" permission
+      if (membership?.canViewAllObservations) {
+        const observations = await storage.getObservationsBySchool(schoolId);
+        const observationsWithDetails = await Promise.all(observations.map(enrichObservation));
+        return res.json(observationsWithDetails);
+      }
+
       // Get the list of teachers this user can view
       const viewPermissions = await storage.getObservationViewPermissionsByViewer(user.id, schoolId);
       const viewableTeacherIds = viewPermissions.map(p => p.viewableTeacherId);
@@ -3571,13 +3579,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         canSeeScores = role === "Admin" || role === "Leader";
         
         if (role !== "Admin") {
-          // Teachers and Leaders can only see their own observations or those they have permission for
-          const viewPermissions = await storage.getObservationViewPermissionsByViewer(user.id, observation.schoolId);
-          const viewableTeacherIds = viewPermissions.map(p => p.viewableTeacherId);
-          const allowedTeacherIds = new Set([user.id, ...viewableTeacherIds]);
+          // Check if user has "view all observations" permission
+          if (!membership.canViewAllObservations) {
+            // Teachers and Leaders can only see their own observations or those they have permission for
+            const viewPermissions = await storage.getObservationViewPermissionsByViewer(user.id, observation.schoolId);
+            const viewableTeacherIds = viewPermissions.map(p => p.viewableTeacherId);
+            const allowedTeacherIds = new Set([user.id, ...viewableTeacherIds]);
 
-          if (!allowedTeacherIds.has(observation.teacherId)) {
-            return res.status(403).json({ message: "Forbidden: You don't have permission to view this observation" });
+            if (!allowedTeacherIds.has(observation.teacherId)) {
+              return res.status(403).json({ message: "Forbidden: You don't have permission to view this observation" });
+            }
           }
         }
       }

@@ -70,6 +70,8 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [obsPermUser, setObsPermUser] = useState<User | null>(null);
   const [obsPermSchoolId, setObsPermSchoolId] = useState<string>("");
   const [viewableTeacherIds, setViewableTeacherIds] = useState<string[]>([]);
+  const [obsPermViewAll, setObsPermViewAll] = useState(false);
+  const [obsPermMembershipId, setObsPermMembershipId] = useState<string>("");
 
   // Fetch all teachers (include archived for Creators)
   const { data: teachers = [], isLoading: teachersLoading } = useQuery<User[]>({
@@ -657,6 +659,16 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     setObsPermUser(user);
     setObsPermSchoolId(schoolId);
 
+    // Fetch membership to check canViewAllObservations
+    const membership = allMemberships.find(m => m.userId === user.id && m.schoolId === schoolId);
+    if (membership) {
+      setObsPermViewAll(membership.canViewAllObservations || false);
+      setObsPermMembershipId(membership.id);
+    } else {
+      setObsPermViewAll(false);
+      setObsPermMembershipId("");
+    }
+
     // Fetch current permissions for this user in this school
     try {
       const response = await fetch(`/api/observation-view-permissions?schoolId=${schoolId}`);
@@ -679,6 +691,22 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     setObsPermUser(null);
     setObsPermSchoolId("");
     setViewableTeacherIds([]);
+    setObsPermViewAll(false);
+    setObsPermMembershipId("");
+  };
+
+  const toggleObsPermViewAll = async (newValue: boolean) => {
+    if (!obsPermMembershipId) return;
+    setObsPermViewAll(newValue);
+    try {
+      await apiRequest("PATCH", `/api/memberships/${obsPermMembershipId}`, {
+        canViewAllObservations: newValue,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
+    } catch (error) {
+      console.error("Failed to update view all observations:", error);
+      setObsPermViewAll(!newValue);
+    }
   };
 
   const toggleObsPermission = (teacherId: string) => {
@@ -1410,48 +1438,128 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
           <DialogHeader>
             <DialogTitle>Manage Observation Permissions</DialogTitle>
             <DialogDescription>
-              Select which teachers {obsPermUser?.first_name || obsPermUser?.email || "this user"} can view observations for
+              Choose which observations {obsPermUser?.first_name || obsPermUser?.email || "this user"} can view
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="text-sm text-muted-foreground mb-4">
-              Grant {obsPermUser?.first_name || obsPermUser?.email || "this user"} permission to view observations for specific teachers in this school. 
+              Control observation visibility for {obsPermUser?.first_name || obsPermUser?.email || "this user"} in this school.
               This is useful for mentoring relationships, department heads, or peer observation groups.
             </div>
-            <div className="space-y-2">
-              {teachers
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="obs-perm-view-all"
+                checked={obsPermViewAll}
+                onCheckedChange={(checked) => toggleObsPermViewAll(!!checked)}
+                data-testid="checkbox-obs-view-all"
+              />
+              <label
+                htmlFor="obs-perm-view-all"
+                className="text-sm font-medium leading-none cursor-pointer"
+              >
+                All Staff
+              </label>
+            </div>
+
+            {!obsPermViewAll && (() => {
+              const eligibleTeachers = teachers
                 .filter(t => {
-                  // Only show teachers from the same school
                   const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
                   return teacherMemberships.some(m => m.schoolId === obsPermSchoolId) && !t.archived;
                 })
-                .map(teacher => {
-                  const displayName = teacher.first_name || teacher.last_name
-                    ? `${teacher.first_name || ""} ${teacher.last_name || ""}`.trim()
-                    : teacher.email;
-                  const isViewable = viewableTeacherIds.includes(teacher.id);
+                .map(t => ({
+                  teacher: t,
+                  displayName: t.first_name || t.last_name
+                    ? `${t.first_name || ""} ${t.last_name || ""}`.trim()
+                    : t.email,
+                  isSelf: t.id === obsPermUser?.id,
+                }));
 
-                  return (
-                    <div key={teacher.id} className="flex items-center space-x-2 p-2 rounded hover-elevate">
-                      <Checkbox
-                        id={`obs-perm-${teacher.id}`}
-                        checked={isViewable}
-                        onCheckedChange={() => toggleObsPermission(teacher.id)}
-                        data-testid={`checkbox-obs-perm-${teacher.id}`}
-                      />
-                      <label
-                        htmlFor={`obs-perm-${teacher.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex-1"
+              const selectedTeacherItems = eligibleTeachers.filter(item =>
+                viewableTeacherIds.includes(item.teacher.id)
+              );
+
+              return (
+                <div className="ml-6 space-y-2">
+                  <p className="text-xs text-muted-foreground">
+                    Select specific staff members:
+                  </p>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between text-xs"
+                        data-testid="button-obs-perm-select"
                       >
-                        {displayName}
-                        {teacher.id === obsPermUser?.id && (
-                          <Badge variant="secondary" className="ml-2">Self</Badge>
-                        )}
-                      </label>
+                        <span className="truncate">
+                          {selectedTeacherItems.length === 0
+                            ? "Search and select staff..."
+                            : `${selectedTeacherItems.length} staff member${selectedTeacherItems.length !== 1 ? "s" : ""} selected`}
+                        </span>
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search staff..." data-testid="input-obs-perm-search" />
+                        <CommandList>
+                          <CommandEmpty>No staff found.</CommandEmpty>
+                          <CommandGroup>
+                            {eligibleTeachers.map(item => {
+                              const isSelected = viewableTeacherIds.includes(item.teacher.id);
+                              return (
+                                <CommandItem
+                                  key={item.teacher.id}
+                                  value={item.displayName}
+                                  onSelect={() => toggleObsPermission(item.teacher.id)}
+                                  data-testid={`option-obs-perm-${item.teacher.id}`}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                                  {item.displayName}
+                                  {item.isSelf && (
+                                    <Badge variant="secondary" className="ml-2">Self</Badge>
+                                  )}
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+
+                  {selectedTeacherItems.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {selectedTeacherItems.map(item => (
+                        <Badge
+                          key={item.teacher.id}
+                          variant="secondary"
+                          className="text-xs gap-1"
+                        >
+                          {item.displayName}
+                          <button
+                            type="button"
+                            onClick={() => toggleObsPermission(item.teacher.id)}
+                            className="ml-0.5 rounded-full outline-none"
+                            data-testid={`button-remove-obs-perm-${item.teacher.id}`}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
                     </div>
-                  );
-                })}
-            </div>
+                  )}
+
+                  {viewableTeacherIds.length === 0 && (
+                    <p className="text-xs text-amber-600">
+                      No one selected - this user can only view their own observations
+                    </p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
           <DialogFooter>
             <Button

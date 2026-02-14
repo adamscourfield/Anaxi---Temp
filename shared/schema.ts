@@ -72,6 +72,7 @@ export const schoolMemberships = pgTable("school_memberships", {
   canApproveAllLeave: boolean("can_approve_all_leave").default(false).notNull(), // Permission to approve all leave requests in the school
   leaveApprovalTargets: text("leave_approval_targets").array(), // Specific membership IDs this person can approve leave for (null means none unless canApproveAllLeave is true)
   canManageBehaviour: boolean("can_manage_behaviour").default(false).notNull(), // Permission to manage behaviour (access Behaviour Management page)
+  canViewAllObservations: boolean("can_view_all_observations").default(false).notNull(), // Permission to view all observations in the school
   createdAt: timestamp("created_at").defaultNow(),
 });
 
