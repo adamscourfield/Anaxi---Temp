@@ -251,7 +251,9 @@ export const leaveRequests = pgTable("leave_requests", {
   membershipId: varchar("membership_id").notNull().references(() => schoolMemberships.id), // Who is requesting leave
   type: text("type").notNull(), // "Medical", "Professional Development", "Annual Leave", "Other", "Interview"
   startDate: timestamp("start_date").notNull(),
+  startTime: text("start_time"),
   endDate: timestamp("end_date").notNull(),
+  endTime: text("end_time"),
   coverDetails: text("cover_details").notNull(), // Details about cover needed
   additionalDetails: text("additional_details"), // Required for Professional Development, Other
   attachmentUrl: text("attachment_url"), // Required for Medical (proof document)

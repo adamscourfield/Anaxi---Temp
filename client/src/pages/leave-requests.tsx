@@ -63,6 +63,30 @@ import { format, eachDayOfInterval, startOfMonth, endOfMonth, getDay, addMonths,
 import { cn } from "@/lib/utils";
 import { ObjectUploader } from "@/components/object-uploader";
 
+const formatDateTime = (date: string | Date, time?: string | null) => {
+  const dateStr = format(new Date(date), "MMM d, yyyy");
+  if (time) {
+    const [h, m] = time.split(":");
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? "pm" : "am";
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${dateStr} at ${displayHour}:${m} ${ampm}`;
+  }
+  return dateStr;
+};
+
+const formatDateTimeShort = (date: string | Date, time?: string | null) => {
+  const dateStr = format(new Date(date), "MMM d");
+  if (time) {
+    const [h, m] = time.split(":");
+    const hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? "pm" : "am";
+    const displayHour = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    return `${dateStr}, ${displayHour}:${m} ${ampm}`;
+  }
+  return dateStr;
+};
+
 const leaveTypeLabels = {
   medical: "Medical",
   professional_development: "Professional Development",
@@ -87,7 +111,9 @@ const statusColors = {
 
 const formSchema = insertLeaveRequestSchema.extend({
   startDate: z.date({ required_error: "Start date is required" }),
+  startTime: z.string().optional(),
   endDate: z.date({ required_error: "End date is required" }),
+  endTime: z.string().optional(),
   type: z.enum(["medical", "professional_development", "annual_leave", "interview", "other"]),
   coverDetails: z.string().min(1, "Cover arrangements are required"),
   additionalDetails: z.string().optional(),
@@ -156,6 +182,8 @@ export default function LeaveRequests() {
       type: "annual_leave",
       startDate: undefined,
       endDate: undefined,
+      startTime: "",
+      endTime: "",
       coverDetails: "",
       additionalDetails: "",
       attachmentUrl: "",
@@ -201,7 +229,9 @@ export default function LeaveRequests() {
         membershipId: data.membershipId,
         type: data.type,
         startDate: data.startDate.toISOString(),
+        startTime: data.startTime || null,
         endDate: data.endDate.toISOString(),
+        endTime: data.endTime || null,
         coverDetails: data.coverDetails,
         additionalDetails: data.additionalDetails || null,
         attachmentUrl: data.attachmentUrl || null,
@@ -423,80 +453,118 @@ export default function LeaveRequests() {
                     )}
                   />
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <FormField
-                      control={form.control}
-                      name="startDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>Start Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  className={cn(
-                                    "pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                  data-testid="button-start-date"
-                                >
-                                  {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                                initialFocus
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="startDate"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>Start Date</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                    data-testid="button-start-date"
+                                  >
+                                    {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="startTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Start Time (optional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                {...field}
+                                data-testid="input-start-time"
                               />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                    <FormField
-                      control={form.control}
-                      name="endDate"
-                      render={({ field }) => (
-                        <FormItem className="flex flex-col">
-                          <FormLabel>End Date</FormLabel>
-                          <Popover>
-                            <PopoverTrigger asChild>
-                              <FormControl>
-                                <Button
-                                  variant="outline"
-                                  className={cn(
-                                    "pl-3 text-left font-normal",
-                                    !field.value && "text-muted-foreground"
-                                  )}
-                                  data-testid="button-end-date"
-                                >
-                                  {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </Button>
-                              </FormControl>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-0" align="start">
-                              <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                                initialFocus
+                    <div className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="endDate"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col">
+                            <FormLabel>End Date</FormLabel>
+                            <Popover>
+                              <PopoverTrigger asChild>
+                                <FormControl>
+                                  <Button
+                                    variant="outline"
+                                    className={cn(
+                                      "pl-3 text-left font-normal",
+                                      !field.value && "text-muted-foreground"
+                                    )}
+                                    data-testid="button-end-date"
+                                  >
+                                    {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                  </Button>
+                                </FormControl>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                  mode="single"
+                                  selected={field.value}
+                                  onSelect={field.onChange}
+                                  disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                  initialFocus
+                                />
+                              </PopoverContent>
+                            </Popover>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="endTime"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>End Time (optional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                type="time"
+                                {...field}
+                                data-testid="input-end-time"
                               />
-                            </PopoverContent>
-                          </Popover>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
 
                   {requiresAttachment && (
@@ -799,7 +867,7 @@ export default function LeaveRequests() {
                         </Badge>
                       </TableCell>
                       <TableCell data-testid={`cell-dates-${request.id}`} className="text-sm">
-                        {format(new Date(request.startDate), "MMM d")} - {format(new Date(request.endDate), "MMM d, yyyy")}
+                        {formatDateTimeShort(request.startDate, request.startTime)} - {formatDateTimeShort(request.endDate, request.endTime)}
                       </TableCell>
                       <TableCell data-testid={`cell-status-${request.id}`}>
                         <Badge className={statusColors[request.status as keyof typeof statusColors]}>
@@ -887,15 +955,15 @@ export default function LeaveRequests() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-sm text-muted-foreground">Start Date</Label>
+                    <Label className="text-sm text-muted-foreground">Start</Label>
                     <p className="text-sm" data-testid="text-details-start-date">
-                      {format(new Date(selectedRequest.startDate), "PPP")}
+                      {formatDateTime(selectedRequest.startDate, selectedRequest.startTime)}
                     </p>
                   </div>
                   <div>
-                    <Label className="text-sm text-muted-foreground">End Date</Label>
+                    <Label className="text-sm text-muted-foreground">End</Label>
                     <p className="text-sm" data-testid="text-details-end-date">
-                      {format(new Date(selectedRequest.endDate), "PPP")}
+                      {formatDateTime(selectedRequest.endDate, selectedRequest.endTime)}
                     </p>
                   </div>
                 </div>
@@ -1010,7 +1078,7 @@ export default function LeaveRequests() {
                   <p className="text-xs text-muted-foreground">
                     {leaveTypeLabels[selectedRequest.type as keyof typeof leaveTypeLabels] || selectedRequest.type}
                     {" \u2022 "}
-                    {format(new Date(selectedRequest.startDate), "MMM d")} - {format(new Date(selectedRequest.endDate), "MMM d, yyyy")}
+                    {formatDateTimeShort(selectedRequest.startDate, selectedRequest.startTime)} - {formatDateTimeShort(selectedRequest.endDate, selectedRequest.endTime)}
                   </p>
                 </div>
               )}
@@ -1033,7 +1101,7 @@ export default function LeaveRequests() {
                           <div className="flex items-center gap-2">
                             <span className="font-medium text-foreground">{name}</span>
                             <span className="text-muted-foreground">
-                              {format(new Date(lr.startDate), "MMM d")} - {format(new Date(lr.endDate), "MMM d")}
+                              {formatDateTimeShort(lr.startDate, lr.startTime)} - {formatDateTimeShort(lr.endDate, lr.endTime)}
                             </span>
                           </div>
                           <Badge className={cn("text-[10px]", statusColors[lr.status as keyof typeof statusColors])}>
