@@ -59,8 +59,8 @@ import {
 } from "@/components/ui/tooltip";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Plus, Eye, Check, X, FileText, ExternalLink, Search } from "lucide-react";
-import { format } from "date-fns";
+import { CalendarIcon, Plus, Eye, Check, X, FileText, ExternalLink, Search, CalendarDays, List, AlertTriangle, ChevronLeft, ChevronRight } from "lucide-react";
+import { format, eachDayOfInterval, startOfMonth, endOfMonth, getDay, addMonths, subMonths, isSameMonth, isSameDay } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ObjectUploader } from "@/components/object-uploader";
 
@@ -146,6 +146,8 @@ export default function LeaveRequests() {
   const [responseNotes, setResponseNotes] = useState("");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
+  const [calendarMonth, setCalendarMonth] = useState(new Date());
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -329,6 +331,42 @@ export default function LeaveRequests() {
     const searchMatch = !searchQuery || teacherName.includes(searchQuery.toLowerCase());
     return statusMatch && searchMatch;
   });
+
+  const getOverlappingRequests = (request: EnrichedLeaveRequest) => {
+    const start = new Date(request.startDate);
+    const end = new Date(request.endDate);
+    return leaveRequests.filter(lr => {
+      if (lr.id === request.id) return false;
+      if (lr.status === "denied") return false;
+      const lrStart = new Date(lr.startDate);
+      const lrEnd = new Date(lr.endDate);
+      return lrStart <= end && lrEnd >= start;
+    });
+  };
+
+  const overlappingRequests = selectedRequest ? getOverlappingRequests(selectedRequest) : [];
+
+  const calendarDays = eachDayOfInterval({
+    start: startOfMonth(calendarMonth),
+    end: endOfMonth(calendarMonth),
+  });
+
+  const getRequestsForDay = (day: Date) => {
+    return filteredRequests.filter(lr => {
+      const start = new Date(lr.startDate);
+      const end = new Date(lr.endDate);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      return day >= start && day <= end;
+    });
+  };
+
+  const calendarStatusColors: Record<string, string> = {
+    pending: "bg-amber-500",
+    approved_with_pay: "bg-emerald-500",
+    approved_without_pay: "bg-blue-500",
+    denied: "bg-gray-300 dark:bg-gray-600",
+  };
 
   return (
     <TooltipProvider>
@@ -567,15 +605,37 @@ export default function LeaveRequests() {
         )}
 
         <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
-            <TabsList data-testid="tabs-status-filter">
-              <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
-              <TabsTrigger value="pending" data-testid="tab-pending">Pending</TabsTrigger>
-              <TabsTrigger value="approved_with_pay" data-testid="tab-approved-with-pay">With Pay</TabsTrigger>
-              <TabsTrigger value="approved_without_pay" data-testid="tab-approved-without-pay">Without Pay</TabsTrigger>
-              <TabsTrigger value="denied" data-testid="tab-denied">Denied</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+              <TabsList data-testid="tabs-status-filter">
+                <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
+                <TabsTrigger value="pending" data-testid="tab-pending">Pending</TabsTrigger>
+                <TabsTrigger value="approved_with_pay" data-testid="tab-approved-with-pay">With Pay</TabsTrigger>
+                <TabsTrigger value="approved_without_pay" data-testid="tab-approved-without-pay">Without Pay</TabsTrigger>
+                <TabsTrigger value="denied" data-testid="tab-denied">Denied</TabsTrigger>
+              </TabsList>
+            </Tabs>
+            <div className="flex border rounded-md">
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("rounded-r-none", viewMode === "list" && "bg-muted")}
+                onClick={() => setViewMode("list")}
+                data-testid="button-list-view"
+              >
+                <List className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn("rounded-l-none", viewMode === "calendar" && "bg-muted")}
+                onClick={() => setViewMode("calendar")}
+                data-testid="button-calendar-view"
+              >
+                <CalendarDays className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
 
           {canApprove && (
             <div className="relative w-full sm:w-64">
@@ -595,6 +655,112 @@ export default function LeaveRequests() {
           <div className="text-center py-12 text-muted-foreground" data-testid="text-loading">
             Loading leave requests...
           </div>
+        ) : viewMode === "calendar" ? (
+          <Card data-testid="card-calendar-view">
+            <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCalendarMonth(subMonths(calendarMonth, 1))}
+                  data-testid="button-prev-month"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <CardTitle className="text-lg" data-testid="text-calendar-month">
+                  {format(calendarMonth, "MMMM yyyy")}
+                </CardTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setCalendarMonth(addMonths(calendarMonth, 1))}
+                  data-testid="button-next-month"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap text-xs">
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-amber-500" />
+                  <span className="text-muted-foreground">Pending</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
+                  <span className="text-muted-foreground">Approved (Pay)</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-blue-500" />
+                  <span className="text-muted-foreground">Approved (No Pay)</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full bg-gray-300 dark:bg-gray-600" />
+                  <span className="text-muted-foreground">Denied</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-7 gap-px bg-border rounded-md overflow-hidden">
+                {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(day => (
+                  <div key={day} className="bg-muted p-2 text-center text-xs font-medium text-muted-foreground">
+                    {day}
+                  </div>
+                ))}
+                {Array.from({ length: (getDay(calendarDays[0]) + 6) % 7 }).map((_, i) => (
+                  <div key={`empty-${i}`} className="bg-background p-2 min-h-[100px]" />
+                ))}
+                {calendarDays.map(day => {
+                  const dayRequests = getRequestsForDay(day);
+                  const isToday = isSameDay(day, new Date());
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={cn(
+                        "bg-background p-2 min-h-[100px] border-t",
+                        isToday && "ring-2 ring-primary ring-inset"
+                      )}
+                      data-testid={`calendar-day-${format(day, "yyyy-MM-dd")}`}
+                    >
+                      <span className={cn(
+                        "text-xs font-medium",
+                        isToday && "text-primary font-bold",
+                        !isSameMonth(day, calendarMonth) && "text-muted-foreground"
+                      )}>
+                        {format(day, "d")}
+                      </span>
+                      <div className="mt-1 space-y-0.5">
+                        {dayRequests.slice(0, 3).map(req => {
+                          const name = req.requester
+                            ? `${req.requester.firstName} ${req.requester.lastName}`.trim()
+                            : "Unknown";
+                          return (
+                            <button
+                              key={req.id}
+                              className={cn(
+                                "w-full text-left text-[10px] leading-tight px-1 py-0.5 rounded text-white truncate cursor-pointer",
+                                calendarStatusColors[req.status] || "bg-gray-400"
+                              )}
+                              onClick={() => {
+                                setSelectedRequest(req);
+                                setDetailsDialogOpen(true);
+                              }}
+                              data-testid={`calendar-event-${req.id}`}
+                            >
+                              {name}
+                            </button>
+                          );
+                        })}
+                        {dayRequests.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground pl-1">
+                            +{dayRequests.length - 3} more
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
         ) : filteredRequests.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground" data-testid="text-empty-state">
             {searchQuery ? "No leave requests found matching your search." : statusFilter !== "all" ? "No leave requests found for this status." : "No leave requests found."}
@@ -832,6 +998,52 @@ export default function LeaveRequests() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              {selectedRequest && (
+                <div className="rounded-md border p-3 space-y-1 bg-muted/50" data-testid="section-request-summary">
+                  <p className="text-sm font-medium">
+                    {selectedRequest.requester
+                      ? `${selectedRequest.requester.firstName} ${selectedRequest.requester.lastName}`
+                      : "Unknown"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {leaveTypeLabels[selectedRequest.type as keyof typeof leaveTypeLabels] || selectedRequest.type}
+                    {" \u2022 "}
+                    {format(new Date(selectedRequest.startDate), "MMM d")} - {format(new Date(selectedRequest.endDate), "MMM d, yyyy")}
+                  </p>
+                </div>
+              )}
+
+              {overlappingRequests.length > 0 && (
+                <div className="rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 space-y-2" data-testid="section-overlapping-leave">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    <span className="text-sm font-medium text-amber-800 dark:text-amber-300">
+                      {overlappingRequests.length} other {overlappingRequests.length === 1 ? "request" : "requests"} overlap with these dates
+                    </span>
+                  </div>
+                  <div className="space-y-1.5">
+                    {overlappingRequests.map(lr => {
+                      const name = lr.requester
+                        ? `${lr.requester.firstName} ${lr.requester.lastName}`.trim()
+                        : "Unknown";
+                      return (
+                        <div key={lr.id} className="flex items-center justify-between text-xs" data-testid={`overlapping-request-${lr.id}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-foreground">{name}</span>
+                            <span className="text-muted-foreground">
+                              {format(new Date(lr.startDate), "MMM d")} - {format(new Date(lr.endDate), "MMM d")}
+                            </span>
+                          </div>
+                          <Badge className={cn("text-[10px]", statusColors[lr.status as keyof typeof statusColors])}>
+                            {statusLabels[lr.status as keyof typeof statusLabels]}
+                          </Badge>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {approvalMode === "approve" && (
                 <div className="space-y-2">
                   <Label>Approval Type</Label>
