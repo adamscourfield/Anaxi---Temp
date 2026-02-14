@@ -17,6 +17,7 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
   const { toast } = useToast();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [newSchoolName, setNewSchoolName] = useState("");
+  const [newSchoolFeatures, setNewSchoolFeatures] = useState<string[]>(["observations"]);
   
   // Edit school state
   const [editingSchool, setEditingSchool] = useState<School | null>(null);
@@ -39,13 +40,14 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
 
   // Create school mutation
   const createMutation = useMutation({
-    mutationFn: async (name: string) => {
-      return await apiRequest("POST", "/api/schools", { name });
+    mutationFn: async ({ name, enabled_features }: { name: string; enabled_features: string[] }) => {
+      return await apiRequest("POST", "/api/schools", { name, enabled_features });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/schools"] });
       setIsCreateOpen(false);
       setNewSchoolName("");
+      setNewSchoolFeatures(["observations"]);
       toast({
         title: "School created",
         description: "The school has been created successfully.",
@@ -194,7 +196,15 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
       });
       return;
     }
-    createMutation.mutate(newSchoolName);
+    createMutation.mutate({ name: newSchoolName, enabled_features: newSchoolFeatures });
+  };
+
+  const toggleNewFeature = (feature: string) => {
+    setNewSchoolFeatures(prev =>
+      prev.includes(feature)
+        ? prev.filter(f => f !== feature)
+        : [...prev, feature]
+    );
   };
 
   const handleEditSchool = (school: School) => {
@@ -345,11 +355,65 @@ export default function ManageSchools({ isEmbedded = false }: { isEmbedded?: boo
                   placeholder="Enter school name"
                 />
               </div>
+
+              <div className="space-y-3">
+                <Label>Enabled Features</Label>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="new-feature-observations"
+                      checked={newSchoolFeatures.includes("observations")}
+                      onCheckedChange={() => toggleNewFeature("observations")}
+                      data-testid="checkbox-new-feature-observations"
+                    />
+                    <Label htmlFor="new-feature-observations" className="text-sm font-normal cursor-pointer">
+                      Observations
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="new-feature-meetings"
+                      checked={newSchoolFeatures.includes("meetings")}
+                      onCheckedChange={() => toggleNewFeature("meetings")}
+                      data-testid="checkbox-new-feature-meetings"
+                    />
+                    <Label htmlFor="new-feature-meetings" className="text-sm font-normal cursor-pointer">
+                      Meetings
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="new-feature-absence-management"
+                      checked={newSchoolFeatures.includes("absence_management")}
+                      onCheckedChange={() => toggleNewFeature("absence_management")}
+                      data-testid="checkbox-new-feature-absence-management"
+                    />
+                    <Label htmlFor="new-feature-absence-management" className="text-sm font-normal cursor-pointer">
+                      Absence Management
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="new-feature-behaviour"
+                      checked={newSchoolFeatures.includes("behaviour")}
+                      onCheckedChange={() => toggleNewFeature("behaviour")}
+                      data-testid="checkbox-new-feature-behaviour"
+                    />
+                    <Label htmlFor="new-feature-behaviour" className="text-sm font-normal cursor-pointer">
+                      Behaviour Management
+                    </Label>
+                  </div>
+                </div>
+              </div>
             </div>
             <DialogFooter>
               <Button
                 variant="outline"
-                onClick={() => setIsCreateOpen(false)}
+                onClick={() => {
+                  setIsCreateOpen(false);
+                  setNewSchoolName("");
+                  setNewSchoolFeatures(["observations"]);
+                }}
                 data-testid="button-cancel"
               >
                 Cancel
