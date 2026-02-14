@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Upload, Search, Pencil, Users, Archive, ArchiveRestore, Eye, ChevronsUpDown, Check, X } from "lucide-react";
+import { Plus, Upload, Search, Pencil, Archive, ArchiveRestore, ChevronsUpDown, Check, X } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
 
 export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: boolean }) {
@@ -42,8 +44,9 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [newTeacherLastName, setNewTeacherLastName] = useState("");
   const [newTeacherSchools, setNewTeacherSchools] = useState<string[]>([]);
   
-  // Edit teacher state
-  const [isEditOpen, setIsEditOpen] = useState(false);
+  // Unified manage teacher dialog state
+  const [isManageOpen, setIsManageOpen] = useState(false);
+  const [manageTab, setManageTab] = useState("details");
   const [editingTeacher, setEditingTeacher] = useState<User | null>(null);
   const [editFirstName, setEditFirstName] = useState("");
   const [editLastName, setEditLastName] = useState("");
@@ -51,27 +54,21 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   const [editDateOfBirth, setEditDateOfBirth] = useState("");
   const [editRole, setEditRole] = useState<string>("Teacher");
   const [editingMemberships, setEditingMemberships] = useState<SchoolMembership[]>([]);
+  // School assignment state (part of unified dialog)
+  const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
+  const [assignedSchools, setAssignedSchools] = useState<string[]>([]);
+  const [membershipPermissions, setMembershipPermissions] = useState<Record<string, { membershipId: string; canApproveAllLeave: boolean; leaveApprovalTargets: string[]; canManageBehaviour: boolean }>>({});
+  // Observation permissions state (part of unified dialog)
+  const [obsPermSchoolId, setObsPermSchoolId] = useState<string>("");
+  const [viewableTeacherIds, setViewableTeacherIds] = useState<string[]>([]);
+  const [obsPermViewAll, setObsPermViewAll] = useState(false);
+  const [obsPermMembershipId, setObsPermMembershipId] = useState<string>("");
   
   // CSV import state
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [csvData, setCsvData] = useState<{ headers: string[]; rows: string[][]; mappings: Record<string, string> } | null>(null);
   const [importResults, setImportResults] = useState<any>(null);
   const [isImportValid, setIsImportValid] = useState(false);
-  
-  // School assignment state
-  const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
-  const [isAssignOpen, setIsAssignOpen] = useState(false);
-  const [assignedSchools, setAssignedSchools] = useState<string[]>([]);
-  // Map of schoolId -> { membershipId, canApproveAllLeave, leaveApprovalTargets, canManageBehaviour }
-  const [membershipPermissions, setMembershipPermissions] = useState<Record<string, { membershipId: string; canApproveAllLeave: boolean; leaveApprovalTargets: string[]; canManageBehaviour: boolean }>>({});
-
-  // Observation permissions state
-  const [isObsPermOpen, setIsObsPermOpen] = useState(false);
-  const [obsPermUser, setObsPermUser] = useState<User | null>(null);
-  const [obsPermSchoolId, setObsPermSchoolId] = useState<string>("");
-  const [viewableTeacherIds, setViewableTeacherIds] = useState<string[]>([]);
-  const [obsPermViewAll, setObsPermViewAll] = useState(false);
-  const [obsPermMembershipId, setObsPermMembershipId] = useState<string>("");
 
   // Fetch all teachers (include archived for Creators)
   const { data: teachers = [], isLoading: teachersLoading } = useQuery<User[]>({
@@ -205,7 +202,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/users/teachers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/all-memberships"] });
-      handleCloseAssignDialog();
+      handleCloseManageDialog();
       toast({
         title: "Schools updated",
         description: "School assignments have been updated successfully.",
@@ -369,14 +366,15 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     });
   };
 
-  const handleEditTeacher = async (teacher: User) => {
+  const handleManageTeacher = async (teacher: User) => {
     setEditingTeacher(teacher);
+    setSelectedTeacher(teacher);
     setEditFirstName(teacher.first_name || "");
     setEditLastName(teacher.last_name || "");
     setEditEmail(teacher.email);
     setEditDateOfBirth(teacher.date_of_birth || "");
+    setManageTab("details");
     
-    // Fetch teacher's memberships to get current role
     try {
       const memberships = await queryClient.fetchQuery<SchoolMembership[]>({
         queryKey: ["/api/users", teacher.id, "memberships"],
@@ -387,15 +385,54 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
         },
       });
       setEditingMemberships(memberships);
-      // Set the role from the first membership (or default to Teacher)
       setEditRole(memberships.length > 0 ? memberships[0].role : "Teacher");
+      
+      const schoolIds = memberships.map(m => m.schoolId);
+      setAssignedSchools(schoolIds);
+      
+      const permissions: Record<string, { membershipId: string; canApproveAllLeave: boolean; leaveApprovalTargets: string[]; canManageBehaviour: boolean }> = {};
+      memberships.forEach(m => {
+        permissions[m.schoolId] = {
+          membershipId: m.id,
+          canApproveAllLeave: m.canApproveAllLeave || false,
+          leaveApprovalTargets: m.leaveApprovalTargets || [],
+          canManageBehaviour: m.canManageBehaviour || false,
+        };
+      });
+      setMembershipPermissions(permissions);
+
+      // Set obs permissions from first school membership
+      if (memberships.length > 0) {
+        const firstMembership = memberships[0];
+        setObsPermSchoolId(firstMembership.schoolId);
+        setObsPermViewAll(firstMembership.canViewAllObservations || false);
+        setObsPermMembershipId(firstMembership.id);
+
+        try {
+          const response = await fetch(`/api/observation-view-permissions?schoolId=${firstMembership.schoolId}`);
+          if (response.ok) {
+            const perms = await response.json();
+            const userPerms = perms.filter((p: any) => p.viewerId === teacher.id);
+            setViewableTeacherIds(userPerms.map((p: any) => p.viewableTeacherId));
+          }
+        } catch {
+          setViewableTeacherIds([]);
+        }
+      } else {
+        setObsPermSchoolId("");
+        setObsPermViewAll(false);
+        setObsPermMembershipId("");
+        setViewableTeacherIds([]);
+      }
     } catch (error) {
       console.error("Failed to fetch memberships:", error);
       setEditingMemberships([]);
       setEditRole("Teacher");
+      setAssignedSchools([]);
+      setMembershipPermissions({});
     }
     
-    setIsEditOpen(true);
+    setIsManageOpen(true);
   };
 
   const handleUpdateTeacher = async () => {
@@ -421,7 +458,7 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       
       await Promise.all(roleUpdatePromises);
 
-      setIsEditOpen(false);
+      setIsManageOpen(false);
       setEditingTeacher(null);
       setEditingMemberships([]);
       
@@ -511,41 +548,6 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     }
   };
 
-  const handleAssignSchools = async (teacher: User) => {
-    setSelectedTeacher(teacher);
-    
-    try {
-      const memberships = await queryClient.fetchQuery<SchoolMembership[]>({
-        queryKey: ["/api/users", teacher.id, "memberships"],
-        queryFn: async () => {
-          const response = await fetch(`/api/users/${teacher.id}/memberships`);
-          if (!response.ok) throw new Error("Failed to fetch memberships");
-          return response.json();
-        },
-      });
-      const schoolIds = memberships.map(m => m.schoolId);
-      setAssignedSchools(schoolIds);
-      
-      // Populate membership permissions with existing values
-      const permissions: Record<string, { membershipId: string; canApproveAllLeave: boolean; leaveApprovalTargets: string[]; canManageBehaviour: boolean }> = {};
-      memberships.forEach(m => {
-        permissions[m.schoolId] = {
-          membershipId: m.id,
-          canApproveAllLeave: m.canApproveAllLeave || false,
-          leaveApprovalTargets: m.leaveApprovalTargets || [],
-          canManageBehaviour: m.canManageBehaviour || false,
-        };
-      });
-      setMembershipPermissions(permissions);
-    } catch (error) {
-      console.error("Failed to fetch teacher memberships:", error);
-      setAssignedSchools([]);
-      setMembershipPermissions({});
-    }
-    
-    setIsAssignOpen(true);
-  };
-
   const handleUpdateSchools = () => {
     if (!selectedTeacher) return;
 
@@ -555,11 +557,17 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     });
   };
 
-  const handleCloseAssignDialog = () => {
-    setIsAssignOpen(false);
+  const handleCloseManageDialog = () => {
+    setIsManageOpen(false);
+    setEditingTeacher(null);
     setSelectedTeacher(null);
+    setEditingMemberships([]);
     setAssignedSchools([]);
     setMembershipPermissions({});
+    setObsPermSchoolId("");
+    setViewableTeacherIds([]);
+    setObsPermViewAll(false);
+    setObsPermMembershipId("");
   };
 
   const toggleSchool = (schoolId: string) => {
@@ -654,13 +662,9 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
     );
   };
 
-  // Observation permissions handlers
-  const handleManageObsPermissions = async (user: User, schoolId: string) => {
-    setObsPermUser(user);
+  const loadObsPermissionsForSchool = async (teacher: User, schoolId: string) => {
     setObsPermSchoolId(schoolId);
-
-    // Fetch membership to check canViewAllObservations
-    const membership = allMemberships.find(m => m.userId === user.id && m.schoolId === schoolId);
+    const membership = allMemberships.find(m => m.userId === teacher.id && m.schoolId === schoolId);
     if (membership) {
       setObsPermViewAll(membership.canViewAllObservations || false);
       setObsPermMembershipId(membership.id);
@@ -669,30 +673,16 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
       setObsPermMembershipId("");
     }
 
-    // Fetch current permissions for this user in this school
     try {
       const response = await fetch(`/api/observation-view-permissions?schoolId=${schoolId}`);
-      if (!response.ok) throw new Error("Failed to fetch permissions");
-      const permissions = await response.json();
-      
-      // Filter to only permissions for this viewer
-      const userPerms = permissions.filter((p: any) => p.viewerId === user.id);
-      setViewableTeacherIds(userPerms.map((p: any) => p.viewableTeacherId));
-    } catch (error) {
-      console.error("Failed to fetch observation permissions:", error);
+      if (response.ok) {
+        const permissions = await response.json();
+        const userPerms = permissions.filter((p: any) => p.viewerId === teacher.id);
+        setViewableTeacherIds(userPerms.map((p: any) => p.viewableTeacherId));
+      }
+    } catch {
       setViewableTeacherIds([]);
     }
-
-    setIsObsPermOpen(true);
-  };
-
-  const handleCloseObsPermDialog = () => {
-    setIsObsPermOpen(false);
-    setObsPermUser(null);
-    setObsPermSchoolId("");
-    setViewableTeacherIds([]);
-    setObsPermViewAll(false);
-    setObsPermMembershipId("");
   };
 
   const toggleObsPermViewAll = async (newValue: boolean) => {
@@ -710,22 +700,20 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
   };
 
   const toggleObsPermission = (teacherId: string) => {
-    if (!obsPermUser || !obsPermSchoolId) return;
+    if (!editingTeacher || !obsPermSchoolId) return;
 
     const isCurrentlyViewable = viewableTeacherIds.includes(teacherId);
 
     if (isCurrentlyViewable) {
-      // Remove permission
       deleteObsPermMutation.mutate({
-        viewerId: obsPermUser.id,
+        viewerId: editingTeacher.id,
         viewableTeacherId: teacherId,
         schoolId: obsPermSchoolId,
       });
       setViewableTeacherIds(prev => prev.filter(id => id !== teacherId));
     } else {
-      // Add permission
       createObsPermMutation.mutate({
-        viewerId: obsPermUser.id,
+        viewerId: editingTeacher.id,
         viewableTeacherId: teacherId,
         schoolId: obsPermSchoolId,
       });
@@ -1026,56 +1014,17 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleEditTeacher(teacher)}
-                                data-testid={`button-edit-${teacher.id}`}
+                                onClick={() => handleManageTeacher(teacher)}
+                                data-testid={`button-manage-${teacher.id}`}
                                 disabled={teacher.archived}
                               >
                                 <Pencil className="w-4 h-4" />
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent>
-                              <p>Edit Teacher</p>
+                              <p>Manage Teacher</p>
                             </TooltipContent>
                           </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => handleAssignSchools(teacher)}
-                                data-testid={`button-assign-schools-${teacher.id}`}
-                                disabled={teacher.archived}
-                              >
-                                <Users className="w-4 h-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Assign Schools</p>
-                            </TooltipContent>
-                          </Tooltip>
-                          {teacherSchools.length > 0 && !teacher.archived && (
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => {
-                                    const teacherMemberships = allMemberships.filter(m => m.userId === teacher.id);
-                                    const firstSchoolId = teacherMemberships[0]?.schoolId;
-                                    if (firstSchoolId) {
-                                      handleManageObsPermissions(teacher, firstSchoolId);
-                                    }
-                                  }}
-                                  data-testid={`button-manage-obs-${teacher.id}`}
-                                >
-                                  <Eye className="w-4 h-4" />
-                                </Button>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                <p>Manage Observation Permissions</p>
-                              </TooltipContent>
-                            </Tooltip>
-                          )}
                           {isCreator && (
                             teacher.archived ? (
                               <Tooltip>
@@ -1124,452 +1073,469 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
         </CardContent>
       </Card>
 
-      {/* Edit Teacher Dialog */}
-      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
-        <DialogContent>
+      {/* Unified Manage Teacher Dialog */}
+      <Dialog open={isManageOpen} onOpenChange={(open) => !open && handleCloseManageDialog()}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Teacher</DialogTitle>
+            <DialogTitle>
+              Manage Teacher
+            </DialogTitle>
             <DialogDescription>
-              Update teacher information
+              {editingTeacher?.first_name || editingTeacher?.last_name
+                ? `${editingTeacher?.first_name || ""} ${editingTeacher?.last_name || ""}`.trim()
+                : editingTeacher?.email}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="edit-first-name">First Name</Label>
-                <Input
-                  id="edit-first-name"
-                  data-testid="input-edit-first-name"
-                  value={editFirstName}
-                  onChange={(e) => setEditFirstName(e.target.value)}
-                  placeholder="First name"
-                />
-              </div>
-              <div>
-                <Label htmlFor="edit-last-name">Last Name</Label>
-                <Input
-                  id="edit-last-name"
-                  data-testid="input-edit-last-name"
-                  value={editLastName}
-                  onChange={(e) => setEditLastName(e.target.value)}
-                  placeholder="Last name"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="edit-email">Email</Label>
-              <Input
-                id="edit-email"
-                data-testid="input-edit-email"
-                type="email"
-                value={editEmail}
-                onChange={(e) => setEditEmail(e.target.value)}
-                placeholder="teacher@school.edu"
-              />
-            </div>
-            <div>
-              <Label htmlFor="edit-role">Role</Label>
-              <Select value={editRole} onValueChange={setEditRole}>
-                <SelectTrigger id="edit-role" data-testid="select-edit-role">
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Teacher">Teacher</SelectItem>
-                  <SelectItem value="Leader">Leader</SelectItem>
-                  <SelectItem value="Admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="text-sm text-muted-foreground mt-1">
-                Role will be updated for all schools this teacher is assigned to
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="edit-date-of-birth">Date of Birth</Label>
-              <Input
-                id="edit-date-of-birth"
-                data-testid="input-edit-date-of-birth"
-                type="date"
-                value={editDateOfBirth}
-                onChange={(e) => setEditDateOfBirth(e.target.value)}
-              />
-              <p className="text-sm text-muted-foreground mt-1">
-                Used for birthday tracking on the dashboard
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsEditOpen(false);
-                setEditingTeacher(null);
-              }}
-              data-testid="button-cancel-edit"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpdateTeacher}
-              disabled={updateTeacherMutation.isPending}
-              data-testid="button-submit-edit"
-            >
-              {updateTeacherMutation.isPending ? "Updating..." : "Update Teacher"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
-      {/* School Assignment Dialog */}
-      <Dialog open={isAssignOpen} onOpenChange={(open) => !open && handleCloseAssignDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Assign Schools</DialogTitle>
-            <DialogDescription>
-              {selectedTeacher?.first_name || selectedTeacher?.last_name
-                ? `${selectedTeacher?.first_name || ""} ${selectedTeacher?.last_name || ""}`.trim()
-                : selectedTeacher?.email}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-3">
-              {schools.map((school) => {
-                const isAssigned = assignedSchools.includes(school.id);
-                const permission = membershipPermissions[school.id];
-                
-                return (
-                  <div key={school.id} className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`assign-school-${school.id}`}
-                        checked={isAssigned}
-                        onCheckedChange={() => toggleSchool(school.id)}
-                        data-testid={`checkbox-assign-school-${school.id}`}
-                      />
-                      <label
-                        htmlFor={`assign-school-${school.id}`}
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        {school.name}
-                      </label>
-                    </div>
-                    
-                    {isAssigned && permission && (
-                      <div className="ml-6 pl-4 border-l-2 border-border space-y-3">
-                        {school.enabled_features?.includes("absence_management") && (
-                          <div className="space-y-2">
+          <Tabs value={manageTab} onValueChange={setManageTab}>
+            <TabsList className="w-full">
+              <TabsTrigger value="details" className="flex-1" data-testid="tab-details">Details</TabsTrigger>
+              <TabsTrigger value="schools" className="flex-1" data-testid="tab-schools">Schools & Permissions</TabsTrigger>
+              {assignedSchools.length > 0 && (
+                <TabsTrigger value="observations" className="flex-1" data-testid="tab-observations">Observations</TabsTrigger>
+              )}
+            </TabsList>
+
+            <TabsContent value="details" className="space-y-4 mt-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-first-name">First Name</Label>
+                  <Input
+                    id="edit-first-name"
+                    data-testid="input-edit-first-name"
+                    value={editFirstName}
+                    onChange={(e) => setEditFirstName(e.target.value)}
+                    placeholder="First name"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="edit-last-name">Last Name</Label>
+                  <Input
+                    id="edit-last-name"
+                    data-testid="input-edit-last-name"
+                    value={editLastName}
+                    onChange={(e) => setEditLastName(e.target.value)}
+                    placeholder="Last name"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  data-testid="input-edit-email"
+                  type="email"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                  placeholder="teacher@school.edu"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-role">Role</Label>
+                <Select value={editRole} onValueChange={setEditRole}>
+                  <SelectTrigger id="edit-role" data-testid="select-edit-role">
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Teacher">Teacher</SelectItem>
+                    <SelectItem value="Leader">Leader</SelectItem>
+                    <SelectItem value="Admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Role will be updated for all schools this teacher is assigned to
+                </p>
+              </div>
+              <div>
+                <Label htmlFor="edit-date-of-birth">Date of Birth</Label>
+                <Input
+                  id="edit-date-of-birth"
+                  data-testid="input-edit-date-of-birth"
+                  type="date"
+                  value={editDateOfBirth}
+                  onChange={(e) => setEditDateOfBirth(e.target.value)}
+                />
+                <p className="text-sm text-muted-foreground mt-1">
+                  Used for birthday tracking on the dashboard
+                </p>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseManageDialog}
+                  data-testid="button-cancel-edit"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpdateTeacher}
+                  disabled={updateTeacherMutation.isPending}
+                  data-testid="button-submit-edit"
+                >
+                  {updateTeacherMutation.isPending ? "Saving..." : "Save Details"}
+                </Button>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="schools" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                {schools.map((school) => {
+                  const isAssigned = assignedSchools.includes(school.id);
+                  const permission = membershipPermissions[school.id];
+                  
+                  return (
+                    <div key={school.id} className="space-y-2">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`assign-school-${school.id}`}
+                          checked={isAssigned}
+                          onCheckedChange={() => toggleSchool(school.id)}
+                          data-testid={`checkbox-assign-school-${school.id}`}
+                        />
+                        <label
+                          htmlFor={`assign-school-${school.id}`}
+                          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          {school.name}
+                        </label>
+                      </div>
+                      
+                      {isAssigned && permission && (
+                        <div className="ml-6 pl-4 border-l-2 border-border space-y-3">
+                          {school.enabled_features?.includes("absence_management") && (
+                            <div className="space-y-2">
+                              <div className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`approve-all-leave-${school.id}`}
+                                  checked={permission.canApproveAllLeave}
+                                  onCheckedChange={() => toggleApproveAllLeave(school.id)}
+                                  data-testid={`checkbox-approve-all-leave-${school.id}`}
+                                />
+                                <label
+                                  htmlFor={`approve-all-leave-${school.id}`}
+                                  className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                >
+                                  Can approve all leave requests
+                                </label>
+                              </div>
+                              
+                              {!permission.canApproveAllLeave && (
+                                <div className="ml-6 space-y-2">
+                                  <p className="text-xs text-muted-foreground">
+                                    Or select specific people to approve leave for:
+                                  </p>
+                                  {membershipsLoading ? (
+                                    <p className="text-xs text-muted-foreground italic">Loading teachers...</p>
+                                  ) : (
+                                    <>
+                                      {(() => {
+                                        const eligibleTeachers = teachers
+                                          .filter(t => {
+                                            const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
+                                            return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
+                                          })
+                                          .map(t => {
+                                            const membership = allMemberships.find(m => m.userId === t.id && m.schoolId === school.id);
+                                            return {
+                                              teacher: t,
+                                              membershipId: membership?.id || "",
+                                              displayName: t.first_name || t.last_name
+                                                ? `${t.first_name || ""} ${t.last_name || ""}`.trim()
+                                                : t.email,
+                                            };
+                                          })
+                                          .filter(item => item.membershipId);
+
+                                        const selectedTargets = (permission.leaveApprovalTargets || [])
+                                          .map(targetId => eligibleTeachers.find(t => t.membershipId === targetId))
+                                          .filter(Boolean) as typeof eligibleTeachers;
+
+                                        return (
+                                          <div className="space-y-2">
+                                            <Popover>
+                                              <PopoverTrigger asChild>
+                                                <Button
+                                                  variant="outline"
+                                                  role="combobox"
+                                                  className="w-full justify-between text-xs"
+                                                  data-testid={`button-leave-target-select-${school.id}`}
+                                                >
+                                                  <span className="truncate">
+                                                    {selectedTargets.length === 0
+                                                      ? "Search and select staff..."
+                                                      : `${selectedTargets.length} staff member${selectedTargets.length !== 1 ? "s" : ""} selected`}
+                                                  </span>
+                                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                </Button>
+                                              </PopoverTrigger>
+                                              <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                                <Command>
+                                                  <CommandInput placeholder="Search staff..." data-testid={`input-leave-target-search-${school.id}`} />
+                                                  <CommandList>
+                                                    <CommandEmpty>No staff found.</CommandEmpty>
+                                                    <CommandGroup>
+                                                      {eligibleTeachers.map(item => {
+                                                        const isSelected = permission.leaveApprovalTargets?.includes(item.membershipId);
+                                                        return (
+                                                          <CommandItem
+                                                            key={item.membershipId}
+                                                            value={item.displayName}
+                                                            onSelect={() => toggleLeaveApprovalTarget(school.id, item.membershipId)}
+                                                            data-testid={`option-leave-target-${school.id}-${item.teacher.id}`}
+                                                          >
+                                                            <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                                                            {item.displayName}
+                                                          </CommandItem>
+                                                        );
+                                                      })}
+                                                    </CommandGroup>
+                                                  </CommandList>
+                                                </Command>
+                                              </PopoverContent>
+                                            </Popover>
+
+                                            {selectedTargets.length > 0 && (
+                                              <div className="flex flex-wrap gap-1">
+                                                {selectedTargets.map(item => (
+                                                  <Badge
+                                                    key={item.membershipId}
+                                                    variant="secondary"
+                                                    className="text-xs gap-1"
+                                                  >
+                                                    {item.displayName}
+                                                    <button
+                                                      type="button"
+                                                      onClick={() => toggleLeaveApprovalTarget(school.id, item.membershipId)}
+                                                      className="ml-0.5 rounded-full outline-none"
+                                                      data-testid={`button-remove-leave-target-${school.id}-${item.teacher.id}`}
+                                                    >
+                                                      <X className="h-3 w-3" />
+                                                    </button>
+                                                  </Badge>
+                                                ))}
+                                              </div>
+                                            )}
+
+                                            {eligibleTeachers.length === 0 && (
+                                              <p className="text-xs text-muted-foreground">No other teachers in this school</p>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+                                      {permission.leaveApprovalTargets?.length === 0 && (
+                                        <p className="text-xs text-amber-600">
+                                          No one selected - this user cannot approve any leave requests
+                                        </p>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
+                          {school.enabled_features?.includes("behaviour") && (
                             <div className="flex items-center space-x-2">
                               <Checkbox
-                                id={`approve-all-leave-${school.id}`}
-                                checked={permission.canApproveAllLeave}
-                                onCheckedChange={() => toggleApproveAllLeave(school.id)}
-                                data-testid={`checkbox-approve-all-leave-${school.id}`}
+                                id={`behaviour-permission-${school.id}`}
+                                checked={permission.canManageBehaviour}
+                                onCheckedChange={() => toggleBehaviourPermission(school.id)}
+                                data-testid={`checkbox-behaviour-permission-${school.id}`}
                               />
                               <label
-                                htmlFor={`approve-all-leave-${school.id}`}
+                                htmlFor={`behaviour-permission-${school.id}`}
                                 className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                               >
-                                Can approve all leave requests
+                                Can manage behaviour
                               </label>
                             </div>
-                            
-                            {!permission.canApproveAllLeave && (
-                              <div className="ml-6 space-y-2">
-                                <p className="text-xs text-muted-foreground">
-                                  Or select specific people to approve leave for:
-                                </p>
-                                {membershipsLoading ? (
-                                  <p className="text-xs text-muted-foreground italic">Loading teachers...</p>
-                                ) : (
-                                  <>
-                                    {(() => {
-                                      const eligibleTeachers = teachers
-                                        .filter(t => {
-                                          const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
-                                          return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
-                                        })
-                                        .map(t => {
-                                          const membership = allMemberships.find(m => m.userId === t.id && m.schoolId === school.id);
-                                          return {
-                                            teacher: t,
-                                            membershipId: membership?.id || "",
-                                            displayName: t.first_name || t.last_name
-                                              ? `${t.first_name || ""} ${t.last_name || ""}`.trim()
-                                              : t.email,
-                                          };
-                                        })
-                                        .filter(item => item.membershipId);
-
-                                      const selectedTargets = (permission.leaveApprovalTargets || [])
-                                        .map(targetId => eligibleTeachers.find(t => t.membershipId === targetId))
-                                        .filter(Boolean) as typeof eligibleTeachers;
-
-                                      return (
-                                        <div className="space-y-2">
-                                          <Popover>
-                                            <PopoverTrigger asChild>
-                                              <Button
-                                                variant="outline"
-                                                role="combobox"
-                                                className="w-full justify-between text-xs"
-                                                data-testid={`button-leave-target-select-${school.id}`}
-                                              >
-                                                <span className="truncate">
-                                                  {selectedTargets.length === 0
-                                                    ? "Search and select staff..."
-                                                    : `${selectedTargets.length} staff member${selectedTargets.length !== 1 ? "s" : ""} selected`}
-                                                </span>
-                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                              </Button>
-                                            </PopoverTrigger>
-                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                                              <Command>
-                                                <CommandInput placeholder="Search staff..." data-testid={`input-leave-target-search-${school.id}`} />
-                                                <CommandList>
-                                                  <CommandEmpty>No staff found.</CommandEmpty>
-                                                  <CommandGroup>
-                                                    {eligibleTeachers.map(item => {
-                                                      const isSelected = permission.leaveApprovalTargets?.includes(item.membershipId);
-                                                      return (
-                                                        <CommandItem
-                                                          key={item.membershipId}
-                                                          value={item.displayName}
-                                                          onSelect={() => toggleLeaveApprovalTarget(school.id, item.membershipId)}
-                                                          data-testid={`option-leave-target-${school.id}-${item.teacher.id}`}
-                                                        >
-                                                          <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
-                                                          {item.displayName}
-                                                        </CommandItem>
-                                                      );
-                                                    })}
-                                                  </CommandGroup>
-                                                </CommandList>
-                                              </Command>
-                                            </PopoverContent>
-                                          </Popover>
-
-                                          {selectedTargets.length > 0 && (
-                                            <div className="flex flex-wrap gap-1">
-                                              {selectedTargets.map(item => (
-                                                <Badge
-                                                  key={item.membershipId}
-                                                  variant="secondary"
-                                                  className="text-xs gap-1"
-                                                >
-                                                  {item.displayName}
-                                                  <button
-                                                    type="button"
-                                                    onClick={() => toggleLeaveApprovalTarget(school.id, item.membershipId)}
-                                                    className="ml-0.5 rounded-full outline-none"
-                                                    data-testid={`button-remove-leave-target-${school.id}-${item.teacher.id}`}
-                                                  >
-                                                    <X className="h-3 w-3" />
-                                                  </button>
-                                                </Badge>
-                                              ))}
-                                            </div>
-                                          )}
-
-                                          {eligibleTeachers.length === 0 && (
-                                            <p className="text-xs text-muted-foreground">No other teachers in this school</p>
-                                          )}
-                                        </div>
-                                      );
-                                    })()}
-                                    {permission.leaveApprovalTargets?.length === 0 && (
-                                      <p className="text-xs text-amber-600">
-                                        No one selected - this user cannot approve any leave requests
-                                      </p>
-                                    )}
-                                  </>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                        
-                        {school.enabled_features?.includes("behaviour") && (
-                          <div className="flex items-center space-x-2">
-                            <Checkbox
-                              id={`behaviour-permission-${school.id}`}
-                              checked={permission.canManageBehaviour}
-                              onCheckedChange={() => toggleBehaviourPermission(school.id)}
-                              data-testid={`checkbox-behaviour-permission-${school.id}`}
-                            />
-                            <label
-                              htmlFor={`behaviour-permission-${school.id}`}
-                              className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                            >
-                              Can manage behaviour
-                            </label>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              {schools.length === 0 && (
-                <p className="text-sm text-muted-foreground">No schools available</p>
-              )}
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleCloseAssignDialog}
-              data-testid="button-cancel-assign"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleUpdateSchools}
-              disabled={updateSchoolsMutation.isPending}
-              data-testid="button-submit-assign"
-            >
-              {updateSchoolsMutation.isPending ? "Updating..." : "Update Schools"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Observation Permissions Dialog */}
-      <Dialog open={isObsPermOpen} onOpenChange={(open) => !open && handleCloseObsPermDialog()}>
-        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Manage Observation Permissions</DialogTitle>
-            <DialogDescription>
-              Choose which observations {obsPermUser?.first_name || obsPermUser?.email || "this user"} can view
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="text-sm text-muted-foreground mb-4">
-              Control observation visibility for {obsPermUser?.first_name || obsPermUser?.email || "this user"} in this school.
-              This is useful for mentoring relationships, department heads, or peer observation groups.
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="obs-perm-view-all"
-                checked={obsPermViewAll}
-                onCheckedChange={(checked) => toggleObsPermViewAll(!!checked)}
-                data-testid="checkbox-obs-view-all"
-              />
-              <label
-                htmlFor="obs-perm-view-all"
-                className="text-sm font-medium leading-none cursor-pointer"
-              >
-                All Staff
-              </label>
-            </div>
-
-            {!obsPermViewAll && (() => {
-              const eligibleTeachers = teachers
-                .filter(t => {
-                  const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
-                  return teacherMemberships.some(m => m.schoolId === obsPermSchoolId) && !t.archived;
-                })
-                .map(t => ({
-                  teacher: t,
-                  displayName: t.first_name || t.last_name
-                    ? `${t.first_name || ""} ${t.last_name || ""}`.trim()
-                    : t.email,
-                  isSelf: t.id === obsPermUser?.id,
-                }));
-
-              const selectedTeacherItems = eligibleTeachers.filter(item =>
-                viewableTeacherIds.includes(item.teacher.id)
-              );
-
-              return (
-                <div className="ml-6 space-y-2">
-                  <p className="text-xs text-muted-foreground">
-                    Select specific staff members:
-                  </p>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between text-xs"
-                        data-testid="button-obs-perm-select"
-                      >
-                        <span className="truncate">
-                          {selectedTeacherItems.length === 0
-                            ? "Search and select staff..."
-                            : `${selectedTeacherItems.length} staff member${selectedTeacherItems.length !== 1 ? "s" : ""} selected`}
-                        </span>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search staff..." data-testid="input-obs-perm-search" />
-                        <CommandList>
-                          <CommandEmpty>No staff found.</CommandEmpty>
-                          <CommandGroup>
-                            {eligibleTeachers.map(item => {
-                              const isSelected = viewableTeacherIds.includes(item.teacher.id);
-                              return (
-                                <CommandItem
-                                  key={item.teacher.id}
-                                  value={item.displayName}
-                                  onSelect={() => toggleObsPermission(item.teacher.id)}
-                                  data-testid={`option-obs-perm-${item.teacher.id}`}
-                                >
-                                  <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
-                                  {item.displayName}
-                                  {item.isSelf && (
-                                    <Badge variant="secondary" className="ml-2">Self</Badge>
-                                  )}
-                                </CommandItem>
-                              );
-                            })}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
-
-                  {selectedTeacherItems.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {selectedTeacherItems.map(item => (
-                        <Badge
-                          key={item.teacher.id}
-                          variant="secondary"
-                          className="text-xs gap-1"
-                        >
-                          {item.displayName}
-                          <button
-                            type="button"
-                            onClick={() => toggleObsPermission(item.teacher.id)}
-                            className="ml-0.5 rounded-full outline-none"
-                            data-testid={`button-remove-obs-perm-${item.teacher.id}`}
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </Badge>
-                      ))}
+                          )}
+                        </div>
+                      )}
                     </div>
-                  )}
+                  );
+                })}
+                {schools.length === 0 && (
+                  <p className="text-sm text-muted-foreground">No schools available</p>
+                )}
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseManageDialog}
+                  data-testid="button-cancel-assign"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleUpdateSchools}
+                  disabled={updateSchoolsMutation.isPending}
+                  data-testid="button-submit-assign"
+                >
+                  {updateSchoolsMutation.isPending ? "Saving..." : "Save Schools"}
+                </Button>
+              </div>
+            </TabsContent>
 
-                  {viewableTeacherIds.length === 0 && (
-                    <p className="text-xs text-amber-600">
-                      No one selected - this user can only view their own observations
-                    </p>
-                  )}
+            {assignedSchools.length > 0 && (
+              <TabsContent value="observations" className="space-y-4 mt-4">
+                {assignedSchools.length > 1 && (
+                  <div>
+                    <Label>School</Label>
+                    <Select
+                      value={obsPermSchoolId}
+                      onValueChange={(schoolId) => {
+                        if (editingTeacher) {
+                          loadObsPermissionsForSchool(editingTeacher, schoolId);
+                        }
+                      }}
+                    >
+                      <SelectTrigger data-testid="select-obs-school">
+                        <SelectValue placeholder="Select school" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assignedSchools.map(schoolId => {
+                          const school = schools.find(s => s.id === schoolId);
+                          return school ? (
+                            <SelectItem key={school.id} value={school.id}>{school.name}</SelectItem>
+                          ) : null;
+                        })}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                <div className="text-sm text-muted-foreground">
+                  Control which observations this person can view in{" "}
+                  {schools.find(s => s.id === obsPermSchoolId)?.name || "this school"}.
                 </div>
-              );
-            })()}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={handleCloseObsPermDialog}
-              data-testid="button-close-obs-perm"
-            >
-              Done
-            </Button>
-          </DialogFooter>
+
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="obs-perm-view-all"
+                    checked={obsPermViewAll}
+                    onCheckedChange={(checked) => toggleObsPermViewAll(!!checked)}
+                    data-testid="checkbox-obs-view-all"
+                  />
+                  <label
+                    htmlFor="obs-perm-view-all"
+                    className="text-sm font-medium leading-none cursor-pointer"
+                  >
+                    All Staff
+                  </label>
+                </div>
+
+                {!obsPermViewAll && (() => {
+                  const eligibleTeachers = teachers
+                    .filter(t => {
+                      const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
+                      return teacherMemberships.some(m => m.schoolId === obsPermSchoolId) && !t.archived;
+                    })
+                    .map(t => ({
+                      teacher: t,
+                      displayName: t.first_name || t.last_name
+                        ? `${t.first_name || ""} ${t.last_name || ""}`.trim()
+                        : t.email,
+                      isSelf: t.id === editingTeacher?.id,
+                    }));
+
+                  const selectedTeacherItems = eligibleTeachers.filter(item =>
+                    viewableTeacherIds.includes(item.teacher.id)
+                  );
+
+                  return (
+                    <div className="ml-6 space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Select specific staff members:
+                      </p>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between text-xs"
+                            data-testid="button-obs-perm-select"
+                          >
+                            <span className="truncate">
+                              {selectedTeacherItems.length === 0
+                                ? "Search and select staff..."
+                                : `${selectedTeacherItems.length} staff member${selectedTeacherItems.length !== 1 ? "s" : ""} selected`}
+                            </span>
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search staff..." data-testid="input-obs-perm-search" />
+                            <CommandList>
+                              <CommandEmpty>No staff found.</CommandEmpty>
+                              <CommandGroup>
+                                {eligibleTeachers.map(item => {
+                                  const isSelected = viewableTeacherIds.includes(item.teacher.id);
+                                  return (
+                                    <CommandItem
+                                      key={item.teacher.id}
+                                      value={item.displayName}
+                                      onSelect={() => toggleObsPermission(item.teacher.id)}
+                                      data-testid={`option-obs-perm-${item.teacher.id}`}
+                                    >
+                                      <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                                      {item.displayName}
+                                      {item.isSelf && (
+                                        <Badge variant="secondary" className="ml-2">Self</Badge>
+                                      )}
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+
+                      {selectedTeacherItems.length > 0 && (
+                        <div className="flex flex-wrap gap-1">
+                          {selectedTeacherItems.map(item => (
+                            <Badge
+                              key={item.teacher.id}
+                              variant="secondary"
+                              className="text-xs gap-1"
+                            >
+                              {item.displayName}
+                              <button
+                                type="button"
+                                onClick={() => toggleObsPermission(item.teacher.id)}
+                                className="ml-0.5 rounded-full outline-none"
+                                data-testid={`button-remove-obs-perm-${item.teacher.id}`}
+                              >
+                                <X className="h-3 w-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+
+                      {viewableTeacherIds.length === 0 && (
+                        <p className="text-xs text-amber-600">
+                          No one selected - this user can only view their own observations
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                <div className="flex justify-end pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseManageDialog}
+                    data-testid="button-close-obs-perm"
+                  >
+                    Done
+                  </Button>
+                </div>
+              </TabsContent>
+            )}
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>
