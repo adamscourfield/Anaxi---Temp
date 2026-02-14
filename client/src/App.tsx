@@ -24,7 +24,6 @@ import TeachingGroupDetails from "@/pages/teaching-group-details";
 import Meetings from "@/pages/meetings";
 import MeetingDetails from "@/pages/meeting-details";
 import LeaveRequests from "@/pages/leave-requests";
-import ApproveLeave from "@/pages/approve-leave";
 import BehaviourManagement from "@/pages/behaviour-management";
 import OnCall from "@/pages/on-call";
 import Profile from "@/pages/profile";
@@ -49,7 +48,6 @@ function Router() {
       <Route path="/meetings/:id" component={MeetingDetails} />
       <Route path="/meetings" component={Meetings} />
       <Route path="/leave-requests" component={LeaveRequests} />
-      <Route path="/approve-leave" component={ApproveLeave} />
       <Route path="/behaviour-management" component={BehaviourManagement} />
       <Route path="/on-call" component={OnCall} />
       <Route path="/profile" component={Profile} />

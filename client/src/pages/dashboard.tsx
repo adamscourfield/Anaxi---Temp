@@ -649,10 +649,10 @@ export default function Dashboard() {
               <Card data-testid="card-leave-detail" variant="glass">
                 <CardHeader className="flex flex-row items-center justify-between gap-2">
                   <div>
-                    <CardTitle className="text-lg">{canApproveLeave ? "Leave Approvals" : "Leave Requests"}</CardTitle>
+                    <CardTitle className="text-lg">Leave of Absence</CardTitle>
                     <CardDescription>{canApproveLeave ? "Pending requests requiring your review" : "Your leave request status"}</CardDescription>
                   </div>
-                  <Link href={canApproveLeave ? "/approve-leave" : "/leave-requests"}>
+                  <Link href="/leave-requests">
                     <Button size="sm" data-testid="button-manage-leave">
                       {canApproveLeave ? "Review" : <><Plus className="h-4 w-4 mr-1" />Request</>}
                     </Button>
@@ -664,7 +664,7 @@ export default function Dashboard() {
                   ) : (
                     <div className="space-y-5">
                       {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).slice(0, 3).map((request: any) => (
-                        <Link key={request.id} href={canApproveLeave ? `/approve-leave?requestId=${request.id}` : `/leave-requests?requestId=${request.id}`} className="block">
+                        <Link key={request.id} href="/leave-requests" className="block">
                           <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`leave-item-${request.id}`}>
                             <div className="flex items-center gap-3">
                               <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -689,7 +689,7 @@ export default function Dashboard() {
                       {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).length === 0 && (
                         <p className="text-muted-foreground text-sm">{canApproveLeave ? "No pending requests to review." : "No leave requests yet."}</p>
                       )}
-                      <Link href={canApproveLeave ? "/approve-leave" : "/leave-requests"}>
+                      <Link href="/leave-requests">
                         <Button variant="ghost" size="sm" className="w-full" data-testid="button-view-all-leave">
                           View all
                           <ArrowRight className="h-4 w-4 ml-1" />

@@ -7,7 +7,6 @@ import {
   MessageSquare,
   Settings,
   Calendar,
-  CheckSquare,
   AlertCircle,
   ShieldAlert,
   User,
@@ -55,14 +54,9 @@ const menuItems = [
     icon: MessageSquare,
   },
   {
-    title: "Request Leave",
+    title: "Leave of Absence",
     url: "/leave-requests",
     icon: Calendar,
-  },
-  {
-    title: "Approve Leave",
-    url: "/approve-leave",
-    icon: CheckSquare,
   },
   {
     title: "On-Call",
@@ -117,7 +111,7 @@ export function AppSidebar() {
     // When currentSchool is null/loading, hide feature-gated items
     if (!currentSchool) {
       // Hide feature-specific items when loading
-      if (item.title === "Observe" || item.title === "View Observations" || item.title === "Meetings" || item.title === "Request Leave" || item.title === "Approve Leave" || item.title === "On-Call" || item.title === "Behaviour Management") {
+      if (item.title === "Observe" || item.title === "View Observations" || item.title === "Meetings" || item.title === "Leave of Absence" || item.title === "On-Call" || item.title === "Behaviour Management") {
         return false;
       }
       return true;
@@ -135,15 +129,9 @@ export function AppSidebar() {
       return enabledFeatures.includes("meetings");
     }
 
-    // Request Leave requires "absence_management" feature
-    if (item.title === "Request Leave") {
+    // Leave of Absence requires "absence_management" feature
+    if (item.title === "Leave of Absence") {
       return enabledFeatures.includes("absence_management");
-    }
-
-    // Approve Leave requires "absence_management" feature and leave approval permission (even for Creators)
-    if (item.title === "Approve Leave") {
-      const canApprove = currentMembership?.canApproveAllLeave || (currentMembership?.leaveApprovalTargets && currentMembership.leaveApprovalTargets.length > 0);
-      return enabledFeatures.includes("absence_management") && canApprove;
     }
 
     // On-Call requires "behaviour" feature to be enabled

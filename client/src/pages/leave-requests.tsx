@@ -39,6 +39,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -50,8 +51,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, FileText, Upload, Plus, Eye, Check, X, ExternalLink } from "lucide-react";
+import { CalendarIcon, Plus, Eye, Check, X, DollarSign, CheckCircle, XCircle, FileText, ExternalLink, Search } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { ObjectUploader } from "@/components/object-uploader";
@@ -110,6 +118,7 @@ const formSchema = insertLeaveRequestSchema.extend({
 );
 
 type FormValues = z.infer<typeof formSchema>;
+type StatusFilter = "all" | "pending" | "approved_with_pay" | "approved_without_pay" | "denied";
 
 interface EnrichedLeaveRequest extends LeaveRequest {
   requester?: {
@@ -126,11 +135,16 @@ interface EnrichedLeaveRequest extends LeaveRequest {
 
 export default function LeaveRequests() {
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isCreator } = useAuth();
   const { currentSchoolId } = useSchool();
   const [showNewRequestForm, setShowNewRequestForm] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<EnrichedLeaveRequest | null>(null);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
+  const [approvalDialogOpen, setApprovalDialogOpen] = useState(false);
+  const [currentAction, setCurrentAction] = useState<{ requestId: string; status: string } | null>(null);
   const [responseNotes, setResponseNotes] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -151,7 +165,6 @@ export default function LeaveRequests() {
 
   const watchedType = form.watch("type");
 
-  // Get user's schools and memberships
   const { data: schools = [] } = useQuery<School[]>({
     queryKey: ["/api/schools"],
     enabled: !!user,
@@ -162,11 +175,9 @@ export default function LeaveRequests() {
     enabled: !!user,
   });
 
-  // Get current membership for selected school
   const currentMembership = memberships.find(m => m.schoolId === currentSchoolId);
   const canApprove = currentMembership?.canApproveAllLeave || (currentMembership?.leaveApprovalTargets && currentMembership.leaveApprovalTargets.length > 0) || false;
 
-  // Fetch leave requests for the current school
   const { data: leaveRequests = [], isLoading: requestsLoading } = useQuery<EnrichedLeaveRequest[]>({
     queryKey: ["/api/leave-requests", currentSchoolId],
     enabled: !!currentSchoolId,
@@ -218,10 +229,11 @@ export default function LeaveRequests() {
   });
 
   const updateRequestMutation = useMutation({
-    mutationFn: async ({ id, status, notes }: { id: string; status: string; notes: string }) => {
+    mutationFn: async ({ id, status, notes, approvedBy }: { id: string; status: string; notes: string; approvedBy?: string }) => {
       const response = await apiRequest("PATCH", `/api/leave-requests/${id}`, {
         status,
         responseNotes: notes || null,
+        ...(approvedBy && { approvedBy }),
       });
       return response.json();
     },
@@ -232,6 +244,9 @@ export default function LeaveRequests() {
         description: "Leave request updated successfully",
       });
       setSelectedRequest(null);
+      setDetailsDialogOpen(false);
+      setApprovalDialogOpen(false);
+      setCurrentAction(null);
       setResponseNotes("");
     },
     onError: () => {
@@ -262,534 +277,623 @@ export default function LeaveRequests() {
     createRequestMutation.mutate(submitData);
   };
 
-  const handleApprove = (request: EnrichedLeaveRequest, withPay: boolean) => {
+  const handleApprovalAction = (request: EnrichedLeaveRequest, status: "approved_with_pay" | "approved_without_pay" | "denied") => {
     setSelectedRequest(request);
-    const status = withPay ? "approved_with_pay" : "approved_without_pay";
-    updateRequestMutation.mutate({
-      id: request.id,
-      status,
-      notes: responseNotes,
-    });
+    setCurrentAction({ requestId: request.id, status });
+    setResponseNotes("");
+    setApprovalDialogOpen(true);
   };
 
-  const handleDeny = (request: EnrichedLeaveRequest) => {
-    if (!responseNotes.trim()) {
+  const confirmApproval = () => {
+    if (!currentAction) return;
+
+    if (currentAction.status === "denied" && !responseNotes.trim()) {
       toast({
         title: "Error",
-        description: "Please provide a reason for denial",
+        description: "Response notes are required when denying a request",
         variant: "destructive",
       });
       return;
     }
+
     updateRequestMutation.mutate({
-      id: request.id,
-      status: "denied",
+      id: currentAction.requestId,
+      status: currentAction.status,
       notes: responseNotes,
+      approvedBy: currentMembership?.id,
     });
   };
 
-  const requiresAdditionalDetails = watchedType === "medical" || 
-    watchedType === "professional_development" || 
-    watchedType === "interview" || 
+  const getActionLabel = (status: string) => {
+    switch (status) {
+      case "approved_with_pay":
+        return "Approve with Pay";
+      case "approved_without_pay":
+        return "Approve without Pay";
+      case "denied":
+        return "Deny Request";
+      default:
+        return "";
+    }
+  };
+
+  const requiresAdditionalDetails = watchedType === "medical" ||
+    watchedType === "professional_development" ||
+    watchedType === "interview" ||
     watchedType === "other";
 
   const requiresAttachment = watchedType === "medical";
 
+  const filteredRequests = leaveRequests.filter(request => {
+    const statusMatch = statusFilter === "all" || request.status === statusFilter;
+    const teacherName = request.requester
+      ? `${request.requester.firstName} ${request.requester.lastName}`.toLowerCase()
+      : "";
+    const searchMatch = !searchQuery || teacherName.includes(searchQuery.toLowerCase());
+    return statusMatch && searchMatch;
+  });
+
   return (
-    <div className="p-6 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Leave Requests</h1>
-          <p className="text-muted-foreground mt-1">
-            {canApprove ? "Manage leave requests for your team" : "View and submit your leave requests"}
-          </p>
+    <TooltipProvider>
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight" data-testid="text-page-title">Leave of Absence</h1>
+            <p className="text-muted-foreground mt-1">
+              {canApprove ? "Manage and review leave requests" : "View and submit your leave requests"}
+            </p>
+          </div>
+          {!showNewRequestForm && (
+            <Button onClick={() => setShowNewRequestForm(true)} data-testid="button-new-leave-request">
+              <Plus className="w-4 h-4 mr-2" />
+              New Request
+            </Button>
+          )}
         </div>
-        {!showNewRequestForm && (
-          <Button onClick={() => setShowNewRequestForm(true)} data-testid="button-new-leave-request">
-            <Plus className="w-4 h-4 mr-2" />
-            New Request
-          </Button>
-        )}
-      </div>
 
-      {/* Leave Request Form */}
-      {showNewRequestForm && (
-        <Card data-testid="card-leave-request-form">
-          <CardHeader>
-            <CardTitle>Submit Leave Request</CardTitle>
-            <CardDescription>Fill in the details for your leave request</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                {/* Leave Type */}
-                <FormField
-                  control={form.control}
-                  name="type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Leave Type</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                        data-testid="select-leave-type"
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select leave type" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="medical">Medical</SelectItem>
-                          <SelectItem value="professional_development">Professional Development</SelectItem>
-                          <SelectItem value="annual_leave">Annual Leave</SelectItem>
-                          <SelectItem value="interview">Interview</SelectItem>
-                          <SelectItem value="other">Other</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
+        {showNewRequestForm && (
+          <Card data-testid="card-leave-request-form">
+            <CardHeader>
+              <CardTitle>Submit Leave Request</CardTitle>
+              <CardDescription>Fill in the details for your leave request</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                  <FormField
+                    control={form.control}
+                    name="type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Leave Type</FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          data-testid="select-leave-type"
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select leave type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="medical">Medical</SelectItem>
+                            <SelectItem value="professional_development">Professional Development</SelectItem>
+                            <SelectItem value="annual_leave">Annual Leave</SelectItem>
+                            <SelectItem value="interview">Interview</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <FormField
+                      control={form.control}
+                      name="startDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Start Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                  data-testid="button-start-date"
+                                >
+                                  {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
+                      name="endDate"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>End Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "pl-3 text-left font-normal",
+                                    !field.value && "text-muted-foreground"
+                                  )}
+                                  data-testid="button-end-date"
+                                >
+                                  {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={field.value}
+                                onSelect={field.onChange}
+                                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  {requiresAttachment && (
+                    <FormField
+                      control={form.control}
+                      name="attachmentUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Medical Documentation (Required)</FormLabel>
+                          <FormControl>
+                            <ObjectUploader
+                              value={field.value || ""}
+                              onChange={field.onChange}
+                              accept="application/pdf,image/*"
+                              label="Upload medical documentation"
+                              data-testid="uploader-medical-doc"
+                            />
+                          </FormControl>
+                          <p className="text-sm text-muted-foreground">
+                            Upload medical documentation (PDF or image)
+                          </p>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   )}
-                />
 
-                {/* Start Date & End Date */}
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={form.control}
-                    name="startDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>Start Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                                data-testid="button-start-date"
-                              >
-                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                              initialFocus
+                  {requiresAdditionalDetails && (
+                    <FormField
+                      control={form.control}
+                      name="additionalDetails"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {watchedType === "professional_development" && "Professional Development Details"}
+                            {watchedType === "interview" && "Interview Details"}
+                            {watchedType === "medical" && "Medical Details"}
+                            {watchedType === "other" && "Additional Details"}
+                          </FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              placeholder={
+                                watchedType === "professional_development"
+                                  ? "Describe the professional development activity..."
+                                  : watchedType === "interview"
+                                  ? "Provide interview details..."
+                                  : watchedType === "medical"
+                                  ? "Describe medical reason..."
+                                  : "Provide additional details..."
+                              }
+                              className="min-h-24"
+                              data-testid="textarea-additional-details"
                             />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
 
                   <FormField
                     control={form.control}
-                    name="endDate"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-col">
-                        <FormLabel>End Date</FormLabel>
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <FormControl>
-                              <Button
-                                variant="outline"
-                                className={cn(
-                                  "pl-3 text-left font-normal",
-                                  !field.value && "text-muted-foreground"
-                                )}
-                                data-testid="button-end-date"
-                              >
-                                {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                              </Button>
-                            </FormControl>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={field.value}
-                              onSelect={field.onChange}
-                              disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                {/* Medical Documentation Upload */}
-                {requiresAttachment && (
-                  <FormField
-                    control={form.control}
-                    name="attachmentUrl"
+                    name="coverDetails"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Medical Documentation (Required)</FormLabel>
-                        <FormControl>
-                          <ObjectUploader
-                            value={field.value || ""}
-                            onChange={field.onChange}
-                            accept="application/pdf,image/*"
-                            label="Upload medical documentation"
-                            data-testid="uploader-medical-doc"
-                          />
-                        </FormControl>
-                        <p className="text-sm text-muted-foreground">
-                          Upload medical documentation (PDF or image)
-                        </p>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
-
-                {/* Additional Details */}
-                {requiresAdditionalDetails && (
-                  <FormField
-                    control={form.control}
-                    name="additionalDetails"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>
-                          {watchedType === "professional_development" && "Professional Development Details"}
-                          {watchedType === "interview" && "Interview Details"}
-                          {watchedType === "medical" && "Medical Details"}
-                          {watchedType === "other" && "Additional Details"}
-                        </FormLabel>
+                        <FormLabel>Cover Arrangements</FormLabel>
                         <FormControl>
                           <Textarea
                             {...field}
-                            placeholder={
-                              watchedType === "professional_development" 
-                                ? "Describe the professional development activity..."
-                                : watchedType === "interview"
-                                ? "Provide interview details..."
-                                : watchedType === "medical"
-                                ? "Describe medical reason..."
-                                : "Provide additional details..."
-                            }
+                            placeholder="Describe cover arrangements for your classes..."
                             className="min-h-24"
-                            data-testid="textarea-additional-details"
+                            data-testid="textarea-cover-details"
                           />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
                   />
-                )}
 
-                {/* Cover Arrangements */}
-                <FormField
-                  control={form.control}
-                  name="coverDetails"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Cover Arrangements</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          placeholder="Describe cover arrangements for your classes..."
-                          className="min-h-24"
-                          data-testid="textarea-cover-details"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setShowNewRequestForm(false);
+                        form.reset();
+                      }}
+                      data-testid="button-cancel-leave-request"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={createRequestMutation.isPending}
+                      data-testid="button-submit-leave-request"
+                    >
+                      {createRequestMutation.isPending ? "Submitting..." : "Submit Request"}
+                    </Button>
+                  </div>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        )}
 
-                {/* Form Actions */}
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setShowNewRequestForm(false);
-                      form.reset();
-                    }}
-                    data-testid="button-cancel-leave-request"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={createRequestMutation.isPending}
-                    data-testid="button-submit-leave-request"
-                  >
-                    {createRequestMutation.isPending ? "Submitting..." : "Submit Request"}
-                  </Button>
-                </div>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-      )}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <Tabs value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+            <TabsList data-testid="tabs-status-filter">
+              <TabsTrigger value="all" data-testid="tab-all">All</TabsTrigger>
+              <TabsTrigger value="pending" data-testid="tab-pending">Pending</TabsTrigger>
+              <TabsTrigger value="approved_with_pay" data-testid="tab-approved-with-pay">With Pay</TabsTrigger>
+              <TabsTrigger value="approved_without_pay" data-testid="tab-approved-without-pay">Without Pay</TabsTrigger>
+              <TabsTrigger value="denied" data-testid="tab-denied">Denied</TabsTrigger>
+            </TabsList>
+          </Tabs>
 
-      {/* Leave Requests Table */}
-      <Card data-testid="card-leave-requests-table">
-        <CardHeader>
-          <CardTitle>
-            {canApprove ? "All Leave Requests" : "My Leave Requests"}
-          </CardTitle>
-          <CardDescription>
-            {canApprove 
-              ? "Review and approve leave requests from your team" 
-              : "Track the status of your leave requests"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {requestsLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading...</div>
-          ) : leaveRequests.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No leave requests found
+          {canApprove && (
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by staff member..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+                data-testid="input-search-staff"
+              />
             </div>
-          ) : (
+          )}
+        </div>
+
+        {requestsLoading ? (
+          <div className="text-center py-12 text-muted-foreground" data-testid="text-loading">
+            Loading leave requests...
+          </div>
+        ) : filteredRequests.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground" data-testid="text-empty-state">
+            {searchQuery ? "No leave requests found matching your search." : statusFilter !== "all" ? "No leave requests found for this status." : "No leave requests found."}
+          </div>
+        ) : (
+          <Card className="overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Teacher</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Dates</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead data-testid="header-teacher">Staff Member</TableHead>
+                  <TableHead data-testid="header-type">Type</TableHead>
+                  <TableHead data-testid="header-dates">Dates</TableHead>
+                  <TableHead data-testid="header-status">Status</TableHead>
+                  <TableHead data-testid="header-submitted">Submitted</TableHead>
+                  <TableHead data-testid="header-actions" className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {leaveRequests.map((request) => (
-                  <TableRow key={request.id} data-testid={`row-leave-request-${request.id}`}>
-                    <TableCell className="font-medium">
-                      {request.requester 
-                        ? `${request.requester.firstName} ${request.requester.lastName}`
-                        : "Unknown Teacher"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {leaveTypeLabels[request.type as keyof typeof leaveTypeLabels]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(request.startDate), "MMM d")} - {format(new Date(request.endDate), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <Badge className={statusColors[request.status as keyof typeof statusColors]}>
-                        {statusLabels[request.status as keyof typeof statusLabels]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {format(new Date(request.createdAt), "MMM d, yyyy")}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedRequest(request)}
-                          data-testid={`button-view-request-${request.id}`}
-                        >
-                          <Eye className="w-4 h-4 mr-1 accent-icon" />
-                          View
-                        </Button>
-                        {canApprove && request.status === "pending" && (
-                          <>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setResponseNotes("");
-                              }}
-                              data-testid={`button-approve-request-${request.id}`}
-                              className="text-success hover:text-success"
-                            >
-                              <Check className="w-4 h-4 mr-1" />
-                              Approve
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setResponseNotes("");
-                              }}
-                              data-testid={`button-deny-request-${request.id}`}
-                              className="text-destructive hover:text-destructive"
-                            >
-                              <X className="w-4 h-4 mr-1" />
-                              Deny
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {filteredRequests.map((request) => {
+                  const teacherName = request.requester
+                    ? `${request.requester.firstName} ${request.requester.lastName}`.trim() || request.requester.email
+                    : "Unknown";
+                  const isOwnRequest = currentMembership && request.membershipId === currentMembership.id;
+
+                  return (
+                    <TableRow key={request.id} data-testid={`row-leave-request-${request.id}`}>
+                      <TableCell data-testid={`cell-teacher-${request.id}`} className="font-medium">
+                        {teacherName}
+                        {isOwnRequest && <Badge variant="secondary" className="ml-2">You</Badge>}
+                      </TableCell>
+                      <TableCell data-testid={`cell-type-${request.id}`}>
+                        <Badge variant="outline">
+                          {leaveTypeLabels[request.type as keyof typeof leaveTypeLabels] || request.type}
+                        </Badge>
+                      </TableCell>
+                      <TableCell data-testid={`cell-dates-${request.id}`} className="text-sm">
+                        {format(new Date(request.startDate), "MMM d")} - {format(new Date(request.endDate), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell data-testid={`cell-status-${request.id}`}>
+                        <Badge className={statusColors[request.status as keyof typeof statusColors]}>
+                          {statusLabels[request.status as keyof typeof statusLabels]}
+                        </Badge>
+                      </TableCell>
+                      <TableCell data-testid={`cell-submitted-${request.id}`} className="text-sm text-muted-foreground">
+                        {request.createdAt ? format(new Date(request.createdAt), "MMM d, yyyy") : "-"}
+                      </TableCell>
+                      <TableCell data-testid={`cell-actions-${request.id}`} className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  setDetailsDialogOpen(true);
+                                }}
+                                data-testid={`button-view-${request.id}`}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>View details</TooltipContent>
+                          </Tooltip>
+                          {canApprove && request.status === "pending" && !isOwnRequest && (
+                            <>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="default"
+                                    onClick={() => handleApprovalAction(request, "approved_with_pay")}
+                                    data-testid={`button-approve-with-pay-${request.id}`}
+                                  >
+                                    <DollarSign className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Approve with pay</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="secondary"
+                                    onClick={() => handleApprovalAction(request, "approved_without_pay")}
+                                    data-testid={`button-approve-without-pay-${request.id}`}
+                                  >
+                                    <CheckCircle className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Approve without pay</TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="destructive"
+                                    onClick={() => handleApprovalAction(request, "denied")}
+                                    data-testid={`button-deny-${request.id}`}
+                                  >
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>Deny request</TooltipContent>
+                              </Tooltip>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
+          </Card>
+        )}
 
-      {/* Leave Request Details Dialog */}
-      <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Leave Request Details</DialogTitle>
-            <DialogDescription>
-              Review the complete information for this leave request
-            </DialogDescription>
-          </DialogHeader>
-          {selectedRequest && (
-            <div className="space-y-6">
-              {/* Requester Info */}
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Requested By</h3>
-                <p className="text-base">
-                  {selectedRequest.requester 
-                    ? `${selectedRequest.requester.firstName} ${selectedRequest.requester.lastName}`
-                    : "Unknown Teacher"}
-                </p>
-                {selectedRequest.requester && (
-                  <p className="text-sm text-muted-foreground">{selectedRequest.requester.email}</p>
-                )}
-              </div>
-
-              {/* Leave Type & Status */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Leave Type</h3>
-                  <Badge variant="outline">
-                    {leaveTypeLabels[selectedRequest.type as keyof typeof leaveTypeLabels]}
-                  </Badge>
-                </div>
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Status</h3>
-                  <Badge className={statusColors[selectedRequest.status as keyof typeof statusColors]}>
-                    {statusLabels[selectedRequest.status as keyof typeof statusLabels]}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Dates */}
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Leave Period</h3>
-                <p className="text-base">
-                  {format(new Date(selectedRequest.startDate), "MMMM d, yyyy")} - {format(new Date(selectedRequest.endDate), "MMMM d, yyyy")}
-                </p>
-              </div>
-
-              {/* Cover Details */}
-              <div>
-                <h3 className="text-sm font-medium text-muted-foreground mb-2">Cover Arrangements</h3>
-                <p className="text-base whitespace-pre-wrap">{selectedRequest.coverDetails}</p>
-              </div>
-
-              {/* Additional Details */}
-              {selectedRequest.additionalDetails && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Additional Details</h3>
-                  <p className="text-base whitespace-pre-wrap">{selectedRequest.additionalDetails}</p>
-                </div>
-              )}
-
-              {/* Medical Documentation */}
-              {selectedRequest.attachmentUrl && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Medical Documentation</h3>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => window.open(selectedRequest.attachmentUrl!, '_blank')}
-                    data-testid="button-view-attachment"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    View Document
-                  </Button>
-                </div>
-              )}
-
-              {/* Approver Info */}
-              {selectedRequest.approver && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">
-                    {selectedRequest.status === "denied" ? "Denied By" : "Approved By"}
-                  </h3>
-                  <p className="text-base">
-                    {`${selectedRequest.approver.firstName} ${selectedRequest.approver.lastName}`}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{selectedRequest.approver.email}</p>
-                </div>
-              )}
-
-              {/* Response Notes */}
-              {selectedRequest.responseNotes && (
-                <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Response Notes</h3>
-                  <p className="text-base whitespace-pre-wrap">{selectedRequest.responseNotes}</p>
-                </div>
-              )}
-
-              {/* Approval Actions */}
-              {canApprove && selectedRequest.status === "pending" && (
-                <div className="space-y-4 pt-4 border-t">
+        {/* Details Dialog */}
+        <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-details">
+            <DialogHeader>
+              <DialogTitle>Leave Request Details</DialogTitle>
+            </DialogHeader>
+            {selectedRequest && (
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="response-notes">Response Notes (Optional for approval, required for denial)</Label>
-                    <Textarea
-                      id="response-notes"
-                      value={responseNotes}
-                      onChange={(e) => setResponseNotes(e.target.value)}
-                      placeholder="Add any notes about this decision..."
-                      className="mt-2"
-                      data-testid="textarea-response-notes"
-                    />
+                    <Label className="text-sm text-muted-foreground">Staff Member</Label>
+                    <p className="text-sm font-medium" data-testid="text-details-teacher">
+                      {selectedRequest.requester
+                        ? `${selectedRequest.requester.firstName} ${selectedRequest.requester.lastName}`.trim() || selectedRequest.requester.email
+                        : "Unknown"}
+                    </p>
                   </div>
-                  <div className="flex justify-end gap-2">
-                    <Button
-                      variant="outline"
-                      onClick={() => handleDeny(selectedRequest)}
-                      disabled={updateRequestMutation.isPending}
-                      data-testid="button-deny-with-notes"
-                      className="text-destructive hover:text-destructive"
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Leave Type</Label>
+                    <p className="text-sm" data-testid="text-details-type">
+                      {leaveTypeLabels[selectedRequest.type as keyof typeof leaveTypeLabels] || selectedRequest.type}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Start Date</Label>
+                    <p className="text-sm" data-testid="text-details-start-date">
+                      {format(new Date(selectedRequest.startDate), "PPP")}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm text-muted-foreground">End Date</Label>
+                    <p className="text-sm" data-testid="text-details-end-date">
+                      {format(new Date(selectedRequest.endDate), "PPP")}
+                    </p>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm text-muted-foreground">Status</Label>
+                  <div className="mt-1">
+                    <Badge className={statusColors[selectedRequest.status as keyof typeof statusColors]} data-testid="badge-details-status">
+                      {statusLabels[selectedRequest.status as keyof typeof statusLabels]}
+                    </Badge>
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-sm text-muted-foreground">Cover Arrangements</Label>
+                  <p className="text-sm" data-testid="text-details-cover">
+                    {selectedRequest.coverDetails}
+                  </p>
+                </div>
+
+                {selectedRequest.additionalDetails && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Additional Details</Label>
+                    <p className="text-sm whitespace-pre-wrap" data-testid="text-details-additional">
+                      {selectedRequest.additionalDetails}
+                    </p>
+                  </div>
+                )}
+
+                {selectedRequest.attachmentUrl && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Medical Documentation</Label>
+                    <a
+                      href={selectedRequest.attachmentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
+                      data-testid="link-details-attachment"
                     >
-                      <X className="w-4 h-4 mr-2" />
+                      <FileText className="h-4 w-4" />
+                      View document
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                )}
+
+                {selectedRequest.responseNotes && (
+                  <div>
+                    <Label className="text-sm text-muted-foreground">Response Notes</Label>
+                    <p className="text-sm whitespace-pre-wrap" data-testid="text-details-response-notes">
+                      {selectedRequest.responseNotes}
+                    </p>
+                    {selectedRequest.approver && (
+                      <p className="text-xs text-muted-foreground mt-1" data-testid="text-details-approver">
+                        By {selectedRequest.approver.firstName} {selectedRequest.approver.lastName}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                {canApprove && selectedRequest.status === "pending" && currentMembership && selectedRequest.membershipId !== currentMembership.id && (
+                  <div className="flex justify-end gap-2 pt-4 border-t">
+                    <Button
+                      variant="destructive"
+                      onClick={() => handleApprovalAction(selectedRequest, "denied")}
+                      data-testid="button-details-deny"
+                    >
+                      <XCircle className="w-4 h-4 mr-2" />
                       Deny
                     </Button>
                     <Button
-                      variant="outline"
-                      onClick={() => handleApprove(selectedRequest, false)}
-                      disabled={updateRequestMutation.isPending}
-                      data-testid="button-approve-without-pay"
+                      variant="secondary"
+                      onClick={() => handleApprovalAction(selectedRequest, "approved_without_pay")}
+                      data-testid="button-details-approve-without-pay"
                     >
+                      <CheckCircle className="w-4 h-4 mr-2" />
                       Approve Without Pay
                     </Button>
                     <Button
-                      onClick={() => handleApprove(selectedRequest, true)}
-                      disabled={updateRequestMutation.isPending}
-                      data-testid="button-approve-with-pay"
+                      onClick={() => handleApprovalAction(selectedRequest, "approved_with_pay")}
+                      data-testid="button-details-approve-with-pay"
                     >
-                      <Check className="w-4 h-4 mr-2" />
+                      <DollarSign className="w-4 h-4 mr-2" />
                       Approve With Pay
                     </Button>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Approval Confirmation Dialog */}
+        <Dialog open={approvalDialogOpen} onOpenChange={setApprovalDialogOpen}>
+          <DialogContent data-testid="dialog-approval">
+            <DialogHeader>
+              <DialogTitle>
+                {currentAction ? getActionLabel(currentAction.status) : "Confirm Action"}
+              </DialogTitle>
+              <DialogDescription>
+                {currentAction?.status === "denied"
+                  ? "Please provide notes explaining your decision. This is required when denying a request."
+                  : "Please provide notes for your decision. This will be visible to the staff member."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="response-notes">
+                  Response Notes {currentAction?.status === "denied" && <span className="text-destructive">*</span>}
+                </Label>
+                <Textarea
+                  id="response-notes"
+                  placeholder="Enter your notes here..."
+                  value={responseNotes}
+                  onChange={(e) => setResponseNotes(e.target.value)}
+                  rows={4}
+                  data-testid="textarea-response-notes"
+                />
+              </div>
             </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setApprovalDialogOpen(false);
+                  setCurrentAction(null);
+                  setResponseNotes("");
+                }}
+                data-testid="button-cancel-approval"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={confirmApproval}
+                disabled={updateRequestMutation.isPending}
+                data-testid="button-confirm-approval"
+              >
+                {updateRequestMutation.isPending ? "Processing..." : "Confirm"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </TooltipProvider>
   );
 }
