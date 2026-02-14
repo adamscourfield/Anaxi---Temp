@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Plus, Upload, Search, Pencil, Users, Archive, ArchiveRestore, Eye } from "lucide-react";
+import { Plus, Upload, Search, Pencil, Users, Archive, ArchiveRestore, Eye, ChevronsUpDown, Check, X } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -24,6 +24,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { cn } from "@/lib/utils";
 
 export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: boolean }) {
   const { user: currentUser, isCreator, isLoading: authLoading } = useAuth();
@@ -1250,44 +1253,100 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
                                   <p className="text-xs text-muted-foreground italic">Loading teachers...</p>
                                 ) : (
                                   <>
-                                    <div className="max-h-32 overflow-y-auto space-y-1 border rounded p-2">
-                                      {teachers
+                                    {(() => {
+                                      const eligibleTeachers = teachers
                                         .filter(t => {
                                           const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
                                           return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
                                         })
-                                        .map(teacher => {
-                                          const teacherMembership = allMemberships.find(m => m.userId === teacher.id && m.schoolId === school.id);
-                                          if (!teacherMembership) return null;
-                                          const displayName = teacher.first_name || teacher.last_name
-                                            ? `${teacher.first_name || ""} ${teacher.last_name || ""}`.trim()
-                                            : teacher.email;
-                                          const isTarget = permission.leaveApprovalTargets?.includes(teacherMembership.id);
-                                          
-                                          return (
-                                            <div key={teacher.id} className="flex items-center space-x-2">
-                                              <Checkbox
-                                                id={`leave-target-${school.id}-${teacher.id}`}
-                                                checked={isTarget}
-                                                onCheckedChange={() => toggleLeaveApprovalTarget(school.id, teacherMembership.id)}
-                                                data-testid={`checkbox-leave-target-${school.id}-${teacher.id}`}
-                                              />
-                                              <label
-                                                htmlFor={`leave-target-${school.id}-${teacher.id}`}
-                                                className="text-xs leading-none cursor-pointer"
+                                        .map(t => {
+                                          const membership = allMemberships.find(m => m.userId === t.id && m.schoolId === school.id);
+                                          return {
+                                            teacher: t,
+                                            membershipId: membership?.id || "",
+                                            displayName: t.first_name || t.last_name
+                                              ? `${t.first_name || ""} ${t.last_name || ""}`.trim()
+                                              : t.email,
+                                          };
+                                        })
+                                        .filter(item => item.membershipId);
+
+                                      const selectedTargets = (permission.leaveApprovalTargets || [])
+                                        .map(targetId => eligibleTeachers.find(t => t.membershipId === targetId))
+                                        .filter(Boolean) as typeof eligibleTeachers;
+
+                                      return (
+                                        <div className="space-y-2">
+                                          <Popover>
+                                            <PopoverTrigger asChild>
+                                              <Button
+                                                variant="outline"
+                                                role="combobox"
+                                                className="w-full justify-between text-xs"
+                                                data-testid={`button-leave-target-select-${school.id}`}
                                               >
-                                                {displayName}
-                                              </label>
+                                                <span className="truncate">
+                                                  {selectedTargets.length === 0
+                                                    ? "Search and select staff..."
+                                                    : `${selectedTargets.length} staff member${selectedTargets.length !== 1 ? "s" : ""} selected`}
+                                                </span>
+                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                              </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                                              <Command>
+                                                <CommandInput placeholder="Search staff..." data-testid={`input-leave-target-search-${school.id}`} />
+                                                <CommandList>
+                                                  <CommandEmpty>No staff found.</CommandEmpty>
+                                                  <CommandGroup>
+                                                    {eligibleTeachers.map(item => {
+                                                      const isSelected = permission.leaveApprovalTargets?.includes(item.membershipId);
+                                                      return (
+                                                        <CommandItem
+                                                          key={item.membershipId}
+                                                          value={item.displayName}
+                                                          onSelect={() => toggleLeaveApprovalTarget(school.id, item.membershipId)}
+                                                          data-testid={`option-leave-target-${school.id}-${item.teacher.id}`}
+                                                        >
+                                                          <Check className={cn("mr-2 h-4 w-4", isSelected ? "opacity-100" : "opacity-0")} />
+                                                          {item.displayName}
+                                                        </CommandItem>
+                                                      );
+                                                    })}
+                                                  </CommandGroup>
+                                                </CommandList>
+                                              </Command>
+                                            </PopoverContent>
+                                          </Popover>
+
+                                          {selectedTargets.length > 0 && (
+                                            <div className="flex flex-wrap gap-1">
+                                              {selectedTargets.map(item => (
+                                                <Badge
+                                                  key={item.membershipId}
+                                                  variant="secondary"
+                                                  className="text-xs gap-1"
+                                                >
+                                                  {item.displayName}
+                                                  <button
+                                                    type="button"
+                                                    onClick={() => toggleLeaveApprovalTarget(school.id, item.membershipId)}
+                                                    className="ml-0.5 rounded-full outline-none"
+                                                    data-testid={`button-remove-leave-target-${school.id}-${item.teacher.id}`}
+                                                  >
+                                                    <X className="h-3 w-3" />
+                                                  </button>
+                                                </Badge>
+                                              ))}
                                             </div>
-                                          );
-                                        })}
-                                      {teachers.filter(t => {
-                                        const teacherMemberships = allMemberships.filter(m => m.userId === t.id);
-                                        return teacherMemberships.some(m => m.schoolId === school.id) && !t.archived && t.id !== selectedTeacher?.id;
-                                      }).length === 0 && (
-                                        <p className="text-xs text-muted-foreground">No other teachers in this school</p>
-                                      )}
-                                    </div>
+                                          )}
+
+                                          {eligibleTeachers.length === 0 && (
+                                            <p className="text-xs text-muted-foreground">No other teachers in this school</p>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
                                     {permission.leaveApprovalTargets?.length === 0 && (
                                       <p className="text-xs text-amber-600">
                                         No one selected - this user cannot approve any leave requests
