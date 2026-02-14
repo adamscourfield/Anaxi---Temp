@@ -176,7 +176,7 @@ export default function LeaveRequests() {
   });
 
   const currentMembership = memberships.find(m => m.schoolId === currentSchoolId);
-  const canApprove = currentMembership?.canApproveAllLeave || (currentMembership?.leaveApprovalTargets && currentMembership.leaveApprovalTargets.length > 0) || false;
+  const canApprove = isCreator || currentMembership?.canApproveAllLeave || (currentMembership?.leaveApprovalTargets && currentMembership.leaveApprovalTargets.length > 0) || false;
 
   const { data: leaveRequests = [], isLoading: requestsLoading } = useQuery<EnrichedLeaveRequest[]>({
     queryKey: ["/api/leave-requests", currentSchoolId],
@@ -811,7 +811,7 @@ export default function LeaveRequests() {
                   </div>
                 )}
 
-                {canApprove && selectedRequest.status === "pending" && currentMembership && selectedRequest.membershipId !== currentMembership.id && (
+                {canApprove && selectedRequest.status === "pending" && (!currentMembership || selectedRequest.membershipId !== currentMembership.id) && (
                   <div className="flex justify-end gap-2 pt-4 border-t">
                     <Button
                       variant="destructive"
