@@ -322,7 +322,7 @@ export default function Dashboard() {
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100" data-testid="text-dashboard-title">
-              Mocking Mr, {userName}
+              Welcome back {userName}
             </h1>
             <p className="text-muted-foreground mt-1 text-base md:text-lg leading-7 md:leading-8" data-testid="text-dashboard-subtitle">
               Here's what's happening at {(currentSchool?.name || "your school").toLowerCase()}
@@ -332,12 +332,12 @@ export default function Dashboard() {
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
-                className="h-12 rounded-xl bg-[#405dd8] px-4 text-base font-medium text-white shadow-md hover:bg-[#3853c4]"
+                size="sm" className="rounded-md bg-[#405dd8] px-3 text-sm font-medium text-white shadow-md hover:bg-[#3853c4]"
                 data-testid="button-quick-create-menu"
               >
-                <Plus className="h-5 w-5 mr-2" />
+                <Plus className="h-4 w-4 mr-2" />
                 Create
-                <span className="mx-3 h-6 w-px bg-white/30" aria-hidden="true" />
+                <span className="mx-2 h-4 w-px bg-white/30" aria-hidden="true" />
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
@@ -348,7 +348,7 @@ export default function Dashboard() {
                 className="gap-3 rounded-xl px-3 py-3 text-lg"
               >
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                  <FileText className="h-4 w-4" />
+                  <Eye className="h-4 w-4" />
                 </span>
                 Observation
               </DropdownMenuItem>
@@ -358,7 +358,7 @@ export default function Dashboard() {
                 className="gap-3 rounded-xl px-3 py-3 text-lg"
               >
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                  <ClipboardList className="h-4 w-4" />
+                  <MessageSquare className="h-4 w-4" />
                 </span>
                 Meeting
               </DropdownMenuItem>
@@ -368,7 +368,7 @@ export default function Dashboard() {
                 className="gap-3 rounded-xl px-3 py-3 text-lg"
               >
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                  <BriefcaseBusiness className="h-4 w-4" />
+                  <AlertCircle className="h-4 w-4" />
                 </span>
                 On-Call
               </DropdownMenuItem>
