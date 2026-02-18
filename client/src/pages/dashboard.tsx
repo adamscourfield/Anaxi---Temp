@@ -22,7 +22,6 @@ import {
   BarChart3,
   Cake,
   User,
-  Users,
   GraduationCap,
   ChevronDown,
   ClipboardList,
@@ -50,13 +49,6 @@ interface DashboardStats {
   activeTeachers: number;
   avgScore: number;
   improvement: number;
-}
-
-interface AnalyticsData {
-  byCategory: Record<string, { total: number; average: number }>;
-  byTeacher: Record<string, { name: string; count: number; avgScore: number }>;
-  byObserver: Record<string, { name: string; count: number }>;
-  recentTrend: { month: string; count: number; avgScore: number }[];
 }
 
 interface ObservationTrendData {
@@ -132,16 +124,6 @@ export default function Dashboard() {
     queryFn: async () => {
       const response = await fetch(`/api/dashboard/stats?schoolId=${currentSchoolId}`);
       if (!response.ok) throw new Error("Failed to fetch stats");
-      return response.json();
-    },
-  });
-
-  const { data: observationAnalytics, isLoading: analyticsLoading } = useQuery<AnalyticsData>({
-    queryKey: ["/api/dashboard/analytics", currentSchoolId],
-    enabled: !!currentSchoolId && hasObservations && isLeaderOrAbove,
-    queryFn: async () => {
-      const response = await fetch(`/api/dashboard/analytics?schoolId=${currentSchoolId}`);
-      if (!response.ok) throw new Error("Failed to fetch analytics");
       return response.json();
     },
   });
@@ -342,46 +324,54 @@ export default function Dashboard() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
-              <DropdownMenuItem
-                onSelect={() => setLocation("/observe")}
-                data-testid="menu-item-create-observation"
-                className="gap-3 rounded-xl px-3 py-3 text-lg"
-              >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                  <Eye className="h-4 w-4" />
-                </span>
-                Observation
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => setLocation("/meetings")}
-                data-testid="menu-item-create-meeting"
-                className="gap-3 rounded-xl px-3 py-3 text-lg"
-              >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                  <MessageSquare className="h-4 w-4" />
-                </span>
-                Meeting
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => setLocation("/on-call")}
-                data-testid="menu-item-create-on-call"
-                className="gap-3 rounded-xl px-3 py-3 text-lg"
-              >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                  <AlertCircle className="h-4 w-4" />
-                </span>
-                On-Call
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => setLocation("/leave-requests")}
-                data-testid="menu-item-create-leave"
-                className="gap-3 rounded-xl px-3 py-3 text-lg"
-              >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                  <Calendar className="h-4 w-4" />
-                </span>
-                Leave
-              </DropdownMenuItem>
+              {hasObservations && (
+                <DropdownMenuItem
+                  onSelect={() => setLocation("/observe")}
+                  data-testid="menu-item-create-observation"
+                  className="gap-3 rounded-xl px-3 py-3 text-lg"
+                >
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <Eye className="h-4 w-4" />
+                  </span>
+                  Observation
+                </DropdownMenuItem>
+              )}
+              {hasMeetings && (
+                <DropdownMenuItem
+                  onSelect={() => setLocation("/meetings")}
+                  data-testid="menu-item-create-meeting"
+                  className="gap-3 rounded-xl px-3 py-3 text-lg"
+                >
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <MessageSquare className="h-4 w-4" />
+                  </span>
+                  Meeting
+                </DropdownMenuItem>
+              )}
+              {hasBehaviour && (
+                <DropdownMenuItem
+                  onSelect={() => setLocation("/on-call")}
+                  data-testid="menu-item-create-on-call"
+                  className="gap-3 rounded-xl px-3 py-3 text-lg"
+                >
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                    <AlertCircle className="h-4 w-4" />
+                  </span>
+                  On-Call
+                </DropdownMenuItem>
+              )}
+              {hasLeave && (
+                <DropdownMenuItem
+                  onSelect={() => setLocation("/leave-requests")}
+                  data-testid="menu-item-create-leave"
+                  className="gap-3 rounded-xl px-3 py-3 text-lg"
+                >
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                    <Calendar className="h-4 w-4" />
+                  </span>
+                  Leave
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -713,7 +703,7 @@ export default function Dashboard() {
                         <h4 className="text-sm font-medium mb-2">Upcoming Meetings</h4>
                         <div className="space-y-4">
                           {upcomingMeetings.map((meeting: any) => (
-                            <Link key={meeting.id} href={`/meetings?meetingId=${meeting.id}`} className="block">
+                            <Link key={meeting.id} href={`/meetings/${meeting.id}`} className="block">
                               <div className="flex items-center justify-between p-2 rounded-lg border hover-elevate cursor-pointer" data-testid={`meeting-item-${meeting.id}`}>
                                 <div className="flex items-center gap-2">
                                   <MessageSquare className="h-4 w-4 text-muted-foreground" />
@@ -739,7 +729,7 @@ export default function Dashboard() {
                           {myActions.filter((a: any) => !a.completed && !a.userCompleted && (a.status === "open" || a.status === "in_progress")).slice(0, 3).map((action: any) => {
                             const isOverdue = action.dueDate && new Date(action.dueDate) < new Date();
                             return (
-                              <Link key={action.id} href={`/meetings?meetingId=${action.meetingId}`} className="block">
+                              <Link key={action.id} href={`/meetings/${action.meetingId}`} className="block">
                                 <div className="flex items-center justify-between p-2 rounded-lg border hover-elevate cursor-pointer" data-testid={`action-item-${action.id}`}>
                                   <div className="flex items-center gap-2">
                                     <CheckSquare className={`h-4 w-4 ${isOverdue ? "text-destructive" : "text-muted-foreground"}`} />
@@ -793,7 +783,7 @@ export default function Dashboard() {
                   {leaveLoading ? (
                     <Skeleton className="h-20 w-full" />
                   ) : (
-                    <div className="space-y-5">
+                    <div className="space-y-4">
                       {leaveRequests.filter(lr => canApproveLeave ? lr.status === "pending" : lr.membershipId === currentMembership?.id).slice(0, 3).map((request: any) => (
                         <Link key={request.id} href="/leave-requests" className="block">
                           <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`leave-item-${request.id}`}>
@@ -851,7 +841,7 @@ export default function Dashboard() {
                     oncallsLoading ? (
                       <Skeleton className="h-20 w-full" />
                     ) : openOncalls.length > 0 ? (
-                      <div className="space-y-5">
+                      <div className="space-y-4">
                         {openOncalls.map((oncall: any) => (
                           <Link key={oncall.id} href={`/behaviour-management?oncall_id=${oncall.id}`} className="block">
                             <div className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer" data-testid={`oncall-item-${oncall.id}`}>
