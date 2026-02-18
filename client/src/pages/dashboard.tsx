@@ -323,16 +323,14 @@ export default function Dashboard() {
                 <ChevronDown className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+            <DropdownMenuContent align="end" className="w-48">
               {hasObservations && (
                 <DropdownMenuItem
                   onSelect={() => setLocation("/observe")}
                   data-testid="menu-item-create-observation"
-                  className="gap-3 rounded-xl px-3 py-3 text-lg"
+                  className="gap-2"
                 >
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <Eye className="h-4 w-4" />
-                  </span>
+                  <Eye className="h-4 w-4 text-muted-foreground" />
                   Observation
                 </DropdownMenuItem>
               )}
@@ -340,11 +338,9 @@ export default function Dashboard() {
                 <DropdownMenuItem
                   onSelect={() => setLocation("/meetings")}
                   data-testid="menu-item-create-meeting"
-                  className="gap-3 rounded-xl px-3 py-3 text-lg"
+                  className="gap-2"
                 >
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <MessageSquare className="h-4 w-4" />
-                  </span>
+                  <MessageSquare className="h-4 w-4 text-muted-foreground" />
                   Meeting
                 </DropdownMenuItem>
               )}
@@ -352,11 +348,9 @@ export default function Dashboard() {
                 <DropdownMenuItem
                   onSelect={() => setLocation("/on-call")}
                   data-testid="menu-item-create-on-call"
-                  className="gap-3 rounded-xl px-3 py-3 text-lg"
+                  className="gap-2"
                 >
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                    <AlertCircle className="h-4 w-4" />
-                  </span>
+                  <AlertCircle className="h-4 w-4 text-muted-foreground" />
                   On-Call
                 </DropdownMenuItem>
               )}
@@ -364,11 +358,9 @@ export default function Dashboard() {
                 <DropdownMenuItem
                   onSelect={() => setLocation("/leave-requests")}
                   data-testid="menu-item-create-leave"
-                  className="gap-3 rounded-xl px-3 py-3 text-lg"
+                  className="gap-2"
                 >
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
-                    <Calendar className="h-4 w-4" />
-                  </span>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
                   Leave
                 </DropdownMenuItem>
               )}
@@ -376,17 +368,17 @@ export default function Dashboard() {
           </DropdownMenu>
         </div>
 
-        <div className="rounded-2xl border border-slate-200/60 bg-[#f4f6fc] dark:bg-slate-900/40 overflow-hidden">
-          <div className="grid gap-0 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200/60">
+        <div className="rounded-lg border bg-muted/40 dark:bg-slate-900/40 overflow-hidden">
+          <div className="grid gap-0 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
             {workQueueTiles.slice(0, 3).map((item) => {
               const TileIcon = item.icon;
               return (
-                <div key={item.id} className="flex items-center gap-3 px-4 py-5 md:px-6" data-testid={`work-queue-item-${item.id}`}>
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#5f78d6] shadow-sm">
-                    <TileIcon className="h-4 w-4" />
+                <div key={item.id} className="flex items-center gap-3 px-4 py-3" data-testid={`work-queue-item-${item.id}`}>
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-background text-primary shadow-sm">
+                    <TileIcon className="h-3.5 w-3.5" />
                   </span>
-                  <p className="text-base md:text-lg text-slate-800 dark:text-slate-200">
-                    <span className="font-semibold">{item.strong}</span> {item.normal}
+                  <p className="text-sm text-foreground">
+                    <span className="font-medium">{item.strong}</span> {item.normal}
                   </p>
                 </div>
               );
