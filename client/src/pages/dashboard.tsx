@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { useSchool } from "@/hooks/use-school";
 import type { SchoolMembership } from "@shared/schema";
@@ -24,7 +24,16 @@ import {
   User,
   Users,
   GraduationCap,
+  ChevronDown,
+  ClipboardList,
+  BriefcaseBusiness,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   ComposedChart,
   Line,
@@ -97,6 +106,7 @@ interface StudentBirthday {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const { currentSchoolId, currentSchool } = useSchool();
 
   const enabledFeatures = currentSchool?.enabled_features || [];
@@ -253,6 +263,48 @@ export default function Dashboard() {
   const userName = user?.first_name || user?.email?.split("@")[0] || "there";
   const hasAnyFeatures = hasObservations || hasMeetings || hasLeave || hasBehaviour;
 
+  const meetingsNeedingNotes = meetings.filter((meeting: any) => !meeting.details?.trim());
+
+  const workQueueTiles: Array<{ id: string; icon: any; strong: string; normal: string }> = [];
+
+  if (hasLeave && canApproveLeave && leaveStats.pendingCount > 0) {
+    workQueueTiles.push({
+      id: "leave",
+      icon: Calendar,
+      strong: `${leaveStats.pendingCount} leave request${leaveStats.pendingCount !== 1 ? "s" : ""}`,
+      normal: "pending approval",
+    });
+  }
+
+  if (hasMeetings && meetingsNeedingNotes.length > 0) {
+    workQueueTiles.push({
+      id: "meetings",
+      icon: ClipboardList,
+      strong: `${meetingsNeedingNotes.length} meeting${meetingsNeedingNotes.length !== 1 ? "s" : ""}`,
+      normal: "need notes",
+    });
+  }
+
+  if (hasBehaviour && canManageBehaviour && behaviourStats.openOncallsCount > 0) {
+    workQueueTiles.push({
+      id: "behaviour",
+      icon: BriefcaseBusiness,
+      strong: `${behaviourStats.openOncallsCount} behaviour incident${behaviourStats.openOncallsCount !== 1 ? "s" : ""}`,
+      normal: "awaiting triage",
+    });
+  }
+
+  if (workQueueTiles.length === 0) {
+    workQueueTiles.push({
+      id: "observations",
+      icon: FileText,
+      strong: "New observation data",
+      normal: "needed",
+    });
+  }
+
+  const highPriorityCount = workQueueTiles.length;
+
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -266,15 +318,94 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-full p-4 md:p-6 space-y-6 md:space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight" data-testid="text-welcome">
-            Welcome back, {userName}
-          </h1>
-          <p className="text-muted-foreground mt-1 text-sm md:text-base">
-            Here's what's happening at {currentSchool?.name || "your school"}
-          </p>
+      <div className="space-y-4" data-testid="work-queue-strip">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100" data-testid="text-dashboard-title">
+              Welcome back {userName}
+            </h1>
+            <p className="text-muted-foreground mt-1 text-base md:text-lg leading-7 md:leading-8" data-testid="text-dashboard-subtitle">
+              Here's what's happening at {(currentSchool?.name || "your school").toLowerCase()}
+            </p>
+          </div>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm" className="rounded-md bg-[#405dd8] px-3 text-sm font-medium text-white shadow-md hover:bg-[#3853c4]"
+                data-testid="button-quick-create-menu"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Create
+                <span className="mx-2 h-4 w-px bg-white/30" aria-hidden="true" />
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl">
+              <DropdownMenuItem
+                onSelect={() => setLocation("/observe")}
+                data-testid="menu-item-create-observation"
+                className="gap-3 rounded-xl px-3 py-3 text-lg"
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                  <Eye className="h-4 w-4" />
+                </span>
+                Observation
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => setLocation("/meetings")}
+                data-testid="menu-item-create-meeting"
+                className="gap-3 rounded-xl px-3 py-3 text-lg"
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                  <MessageSquare className="h-4 w-4" />
+                </span>
+                Meeting
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => setLocation("/on-call")}
+                data-testid="menu-item-create-on-call"
+                className="gap-3 rounded-xl px-3 py-3 text-lg"
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
+                  <AlertCircle className="h-4 w-4" />
+                </span>
+                On-Call
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => setLocation("/leave-requests")}
+                data-testid="menu-item-create-leave"
+                className="gap-3 rounded-xl px-3 py-3 text-lg"
+              >
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-slate-100 text-slate-500">
+                  <Calendar className="h-4 w-4" />
+                </span>
+                Leave
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+
+        <div className="rounded-2xl border border-slate-200/60 bg-[#f4f6fc] dark:bg-slate-900/40 overflow-hidden">
+          <div className="grid gap-0 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-200/60">
+            {workQueueTiles.slice(0, 3).map((item) => {
+              const TileIcon = item.icon;
+              return (
+                <div key={item.id} className="flex items-center gap-3 px-4 py-5 md:px-6" data-testid={`work-queue-item-${item.id}`}>
+                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-white text-[#5f78d6] shadow-sm">
+                    <TileIcon className="h-4 w-4" />
+                  </span>
+                  <p className="text-base md:text-lg text-slate-800 dark:text-slate-200">
+                    <span className="font-semibold">{item.strong}</span> {item.normal}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground" data-testid="text-needs-attention-title">
+          Needs attention ({highPriorityCount})
+        </p>
       </div>
 
       {!hasAnyFeatures && currentSchool && (
