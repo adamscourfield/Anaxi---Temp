@@ -307,7 +307,7 @@ export default function Dashboard() {
               Welcome back {userName}
             </h1>
             <p className="text-muted-foreground mt-1 text-base md:text-lg leading-7 md:leading-8" data-testid="text-dashboard-subtitle">
-              Here's what's happening at {(currentSchool?.name || "your school").toLowerCase()}
+              Here's what's happening at {currentSchool?.name || "your school"}
             </p>
           </div>
 
