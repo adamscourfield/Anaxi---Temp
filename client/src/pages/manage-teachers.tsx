@@ -944,6 +944,22 @@ export default function ManageTeachers({ isEmbedded = false }: { isEmbedded?: bo
 
       {/* Search Bar */}
       <div className="mb-6">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <p className="text-sm text-muted-foreground" data-testid="text-teacher-results-count">
+            Showing {filteredTeachers.length} of {teachers.length} teacher{teachers.length !== 1 ? "s" : ""}
+          </p>
+          {searchQuery && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSearchQuery("")}
+              data-testid="button-clear-teacher-search"
+            >
+              <X className="w-4 h-4 mr-1" />
+              Clear search
+            </Button>
+          )}
+        </div>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 accent-icon" />
           <Input
