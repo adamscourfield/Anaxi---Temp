@@ -521,10 +521,19 @@ export default function BehaviourManagementPage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="students" data-testid="tab-students">Students</TabsTrigger>
-            <TabsTrigger value="oncalls" data-testid="tab-oncalls">On-Calls</TabsTrigger>
-            <TabsTrigger value="analytics" data-testid="tab-analytics">Analytics</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 h-auto gap-2 bg-transparent p-0">
+            <TabsTrigger value="students" data-testid="tab-students" className="justify-between rounded-lg border bg-card px-3 py-2 data-[state=active]:border-primary data-[state=active]:bg-primary/5">
+              <span>Students</span>
+              <Badge variant="secondary">{students.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="oncalls" data-testid="tab-oncalls" className="justify-between rounded-lg border bg-card px-3 py-2 data-[state=active]:border-primary data-[state=active]:bg-primary/5">
+              <span>On-Calls</span>
+              <Badge variant="secondary">{oncalls.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="analytics" data-testid="tab-analytics" className="justify-between rounded-lg border bg-card px-3 py-2 data-[state=active]:border-primary data-[state=active]:bg-primary/5">
+              <span>Analytics</span>
+              <Badge variant="secondary">{analyticsData?.totalOncalls || 0}</Badge>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="students" className="space-y-4 mt-6">

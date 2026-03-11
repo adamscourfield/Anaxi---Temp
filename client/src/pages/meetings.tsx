@@ -788,8 +788,25 @@ export default function Meetings() {
                   </Command>
                 </PopoverContent>
               </Popover>
+              {(filterType !== "all" || filterUser !== "all") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setFilterType("all");
+                    setFilterUser("all");
+                  }}
+                  data-testid="button-clear-meeting-filters"
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  Clear filters
+                </Button>
+              )}
             </div>
           </div>
+          <p className="text-sm text-muted-foreground" data-testid="text-meeting-results-count">
+            Showing {filteredMeetings.length} of {meetings.length} meeting{meetings.length !== 1 ? "s" : ""}
+          </p>
         </CardHeader>
         <CardContent>
           {meetingsLoading ? (
