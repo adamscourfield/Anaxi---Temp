@@ -685,24 +685,34 @@ export default function LeaveRequests() {
                 <SelectItem value="denied">Denied</SelectItem>
               </SelectContent>
             </Select>
-            <div className="flex border rounded-md">
+            <div className="inline-flex border rounded-md overflow-hidden" role="tablist" aria-label="Leave requests view mode">
               <Button
                 variant="ghost"
-                size="icon"
-                className={cn("rounded-r-none", viewMode === "list" && "bg-muted")}
+                size="sm"
+                className={cn(
+                  "rounded-none border-r gap-2 px-3",
+                  viewMode === "list" ? "bg-muted text-foreground" : "text-muted-foreground"
+                )}
                 onClick={() => setViewMode("list")}
                 data-testid="button-list-view"
+                aria-pressed={viewMode === "list"}
               >
                 <List className="h-4 w-4" />
+                <span>List</span>
               </Button>
               <Button
                 variant="ghost"
-                size="icon"
-                className={cn("rounded-l-none", viewMode === "calendar" && "bg-muted")}
+                size="sm"
+                className={cn(
+                  "rounded-none gap-2 px-3",
+                  viewMode === "calendar" ? "bg-muted text-foreground" : "text-muted-foreground"
+                )}
                 onClick={() => setViewMode("calendar")}
                 data-testid="button-calendar-view"
+                aria-pressed={viewMode === "calendar"}
               >
                 <CalendarDays className="h-4 w-4" />
+                <span>Calendar</span>
               </Button>
             </div>
           </div>

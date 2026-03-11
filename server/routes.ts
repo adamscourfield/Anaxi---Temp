@@ -930,7 +930,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(groups);
   });
 
-  app.post("/api/teaching-groups", requireRole(["Admin"]), async (req, res) => {
+  app.post("/api/teaching-groups", isAuthenticated, requireRole(["Admin"]), async (req, res) => {
     try {
       const validated = insertTeachingGroupSchema.parse(req.body);
       const group = await storage.createTeachingGroup(validated);
@@ -943,7 +943,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.patch("/api/teaching-groups/:id", requireRole(["Admin"]), async (req, res) => {
+  app.patch("/api/teaching-groups/:id", isAuthenticated, requireRole(["Admin"]), async (req, res) => {
     try {
       const { id } = req.params;
       const updates = req.body;
@@ -959,7 +959,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.delete("/api/teaching-groups/:id", requireRole(["Admin"]), async (req, res) => {
+  app.delete("/api/teaching-groups/:id", isAuthenticated, requireRole(["Admin"]), async (req, res) => {
     try {
       const { id } = req.params;
       const deleted = await storage.deleteTeachingGroup(id);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useSchool } from "@/hooks/use-school";
@@ -58,6 +58,7 @@ interface DrillDownFilter {
 }
 
 type TimePeriod = "week" | "month" | "year" | "all";
+type AnalyticsTab = "performers" | "groups" | "habits" | "qualitative";
 
 interface AnalyticsData {
   summary: {
@@ -144,6 +145,7 @@ export default function ObservationAnalytics() {
   const [chartDisplayMode, setChartDisplayMode] = useState<ChartDisplayMode>("both");
   const [drillDownOpen, setDrillDownOpen] = useState(false);
   const [drillDownFilter, setDrillDownFilter] = useState<DrillDownFilter | null>(null);
+  const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>("performers");
   
   // Comparison mode state
   const [compareMode, setCompareMode] = useState(false);
@@ -236,6 +238,13 @@ export default function ObservationAnalytics() {
       return response.json();
     },
   });
+
+  const pivotItems = useMemo(() => ([
+    { value: "performers" as AnalyticsTab, label: "Performers", icon: Award, count: (analyticsData?.topPerformers?.length || 0) + (analyticsData?.lowestPerformers?.length || 0) },
+    { value: "groups" as AnalyticsTab, label: "Teaching Groups", icon: Users, count: analyticsData?.teachingGroupAnalysis?.length || 0 },
+    { value: "habits" as AnalyticsTab, label: "Habits & Categories", icon: Target, count: analyticsData?.habitAnalysis?.length || 0 },
+    { value: "qualitative" as AnalyticsTab, label: "Qualitative", icon: MessageSquare, count: analyticsData?.qualitativeFeedback?.length || 0 },
+  ]), [analyticsData]);
 
   // Get filtered observations for drill-down
   const drillDownObservations = drillDownFilter ? allObservations.filter(obs => {
@@ -946,24 +955,25 @@ export default function ObservationAnalytics() {
             </Card>
           )}
 
-          <Tabs defaultValue="performers" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="performers" data-testid="tab-performers">
-                <Award className="h-4 w-4 mr-2" />
-                Performers
-              </TabsTrigger>
-              <TabsTrigger value="groups" data-testid="tab-groups">
-                <Users className="h-4 w-4 mr-2" />
-                Teaching Groups
-              </TabsTrigger>
-              <TabsTrigger value="habits" data-testid="tab-habits">
-                <Target className="h-4 w-4 mr-2" />
-                Habits & Categories
-              </TabsTrigger>
-              <TabsTrigger value="qualitative" data-testid="tab-qualitative">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Qualitative
-              </TabsTrigger>
+          <Tabs value={analyticsTab} onValueChange={(value) => setAnalyticsTab(value as AnalyticsTab)} className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 h-auto gap-2 bg-transparent p-0">
+              {pivotItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <TabsTrigger
+                    key={item.value}
+                    value={item.value}
+                    data-testid={`tab-${item.value}`}
+                    className="h-auto justify-between rounded-lg border bg-card px-3 py-2 text-left data-[state=active]:border-primary data-[state=active]:bg-primary/5"
+                  >
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      <Icon className="h-4 w-4" />
+                      {item.label}
+                    </span>
+                    <Badge variant="secondary" className="ml-2">{item.count}</Badge>
+                  </TabsTrigger>
+                );
+              })}
             </TabsList>
 
             <TabsContent value="performers" className="space-y-4">

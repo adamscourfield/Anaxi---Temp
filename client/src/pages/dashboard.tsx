@@ -161,7 +161,11 @@ export default function Dashboard() {
   const leaveStats: LeaveStats = {
     pendingCount: leaveRequests.filter(lr => lr.status === "pending").length,
     myPendingCount: leaveRequests.filter(lr => lr.status === "pending" && lr.membershipId === currentMembership?.id).length,
-    upcomingLeave: leaveRequests.filter(lr => lr.status === "approved" && new Date(lr.startDate) > new Date()).length,
+    upcomingLeave: leaveRequests.filter(
+      lr =>
+        (lr.status === "approved_with_pay" || lr.status === "approved_without_pay") &&
+        new Date(lr.startDate) > new Date()
+    ).length,
   };
 
   const { data: meetings = [], isLoading: meetingsLoading } = useQuery<any[]>({

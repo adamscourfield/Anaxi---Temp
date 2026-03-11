@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { CategorySelector } from "@/components/category-selector";
 import { HabitChecklist } from "@/components/habit-checklist";
@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { useSchool } from "@/hooks/use-school";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,7 @@ export default function ConductObservation() {
   const { currentSchoolId } = useSchool();
   const { user } = useAuth();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const [teacherId, setTeacherId] = useState("");
   const [lessonTopic, setLessonTopic] = useState("");
@@ -37,6 +38,11 @@ export default function ConductObservation() {
   const [qualitativeFeedback, setQualitativeFeedback] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [checkedHabits, setCheckedHabits] = useState<string[]>([]);
+
+  const draftStorageKey = useMemo(() => {
+    if (!currentSchoolId || !user?.id) return null;
+    return `observation-draft:${currentSchoolId}:${user.id}`;
+  }, [currentSchoolId, user?.id]);
 
   // Fetch teachers for the current school
   const { data: teachers = [], isLoading: teachersLoading } = useQuery<User[]>({
@@ -85,9 +91,10 @@ export default function ConductObservation() {
 
   const createObservationMutation = useMutation({
     mutationFn: async (data: any) => {
-      return await apiRequest("POST", "/api/observations", data);
+      const response = await apiRequest("POST", "/api/observations", data);
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (createdObservation: any) => {
       toast({
         title: "Observation saved",
         description: "The teacher will receive an email notification.",
@@ -99,8 +106,15 @@ export default function ConductObservation() {
       setQualitativeFeedback("");
       setSelectedCategories([]);
       setCheckedHabits([]);
+      if (draftStorageKey) {
+        localStorage.removeItem(draftStorageKey);
+      }
       // Invalidate observations cache
       queryClient.invalidateQueries({ queryKey: ["/api/observations"] });
+
+      if (createdObservation?.id) {
+        setLocation(`/history?observationId=${createdObservation.id}`);
+      }
     },
     onError: (error: any) => {
       toast({
@@ -130,6 +144,8 @@ export default function ConductObservation() {
   const selectedCategoryData = categoriesData.filter((c) =>
     selectedCategories.includes(c.id)
   );
+
+  const canSubmit = !!teacherId && selectedCategories.length > 0 && !!rubricId;
 
   const totalScore = checkedHabits.length;
   const totalMaxScore = selectedCategoryData.reduce(
@@ -186,6 +202,70 @@ export default function ConductObservation() {
       habits: habitObservations,
     });
   };
+
+  const clearDraft = () => {
+    setTeacherId("");
+    setLessonTopic("");
+    setClassGroup("");
+    setQualitativeFeedback("");
+    setSelectedCategories([]);
+    setCheckedHabits([]);
+    if (draftStorageKey) {
+      localStorage.removeItem(draftStorageKey);
+    }
+    toast({ title: "Draft cleared" });
+  };
+
+  useEffect(() => {
+    if (!draftStorageKey) return;
+    try {
+      const rawDraft = localStorage.getItem(draftStorageKey);
+      if (!rawDraft) return;
+      const draft = JSON.parse(rawDraft);
+      setTeacherId(draft.teacherId || "");
+      setLessonTopic(draft.lessonTopic || "");
+      setClassGroup(draft.classGroup || "");
+      setQualitativeFeedback(draft.qualitativeFeedback || "");
+      setSelectedCategories(Array.isArray(draft.selectedCategories) ? draft.selectedCategories : []);
+      setCheckedHabits(Array.isArray(draft.checkedHabits) ? draft.checkedHabits : []);
+    } catch {
+      // Ignore invalid draft payloads
+    }
+  }, [draftStorageKey]);
+
+  useEffect(() => {
+    if (!draftStorageKey) return;
+    const payload = {
+      teacherId,
+      lessonTopic,
+      classGroup,
+      qualitativeFeedback,
+      selectedCategories,
+      checkedHabits,
+      savedAt: Date.now(),
+    };
+    localStorage.setItem(draftStorageKey, JSON.stringify(payload));
+  }, [
+    draftStorageKey,
+    teacherId,
+    lessonTopic,
+    classGroup,
+    qualitativeFeedback,
+    selectedCategories,
+    checkedHabits,
+  ]);
+
+  useEffect(() => {
+    const hasChanges = !!teacherId || !!lessonTopic || !!classGroup || !!qualitativeFeedback || selectedCategories.length > 0 || checkedHabits.length > 0;
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasChanges || createObservationMutation.isPending) return;
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [teacherId, lessonTopic, classGroup, qualitativeFeedback, selectedCategories.length, checkedHabits.length, createObservationMutation.isPending]);
 
   if (!currentSchoolId) {
     return (
@@ -304,14 +384,6 @@ export default function ConductObservation() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold">Mark Observed Habits</h2>
-                <Button 
-                  onClick={handleSubmit} 
-                  disabled={createObservationMutation.isPending}
-                  data-testid="button-save-observation"
-                >
-                  <Save className="h-4 w-4 mr-2" />
-                  {createObservationMutation.isPending ? "Saving..." : "Save Observation"}
-                </Button>
               </div>
               {selectedCategoryData.map((category) => (
                 <HabitChecklist
@@ -325,6 +397,30 @@ export default function ConductObservation() {
           )}
         </>
       )}
+
+      <Card>
+        <CardContent className="pt-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="text-sm text-muted-foreground">
+              <p>Before saving: select a teacher, choose at least one category, and ensure a rubric is available.</p>
+              <p className="mt-1">Drafts are auto-saved on this device.</p>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={clearDraft} disabled={createObservationMutation.isPending}>
+                Clear Draft
+              </Button>
+              <Button
+                onClick={handleSubmit}
+                disabled={!canSubmit || createObservationMutation.isPending}
+                data-testid="button-save-observation"
+              >
+                <Save className="h-4 w-4 mr-2" />
+                {createObservationMutation.isPending ? "Saving..." : "Save Observation"}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
